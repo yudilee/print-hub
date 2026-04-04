@@ -1,0 +1,22 @@
+# Ignore local development files from being copied into the container
+vendor/
+node_modules/
+dist/
+public/build/
+storage/logs/*
+storage/framework/cache/data/*
+storage/framework/sessions/*
+storage/framework/views/*
+database/*.sqlite
+.env
+.env.*
+.git/
+.idea/
+.vscode/
+venv/
+__pycache__/
+*.pyc
+*.log
+docker-compose.yml
+Dockerfile
+docker-entrypoint.sh
