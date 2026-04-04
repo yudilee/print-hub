@@ -37,6 +37,26 @@ class ClientAppController extends Controller
     }
 
     // -------------------------------------------------------------------------
+    // GET /api/v1/test
+    // -------------------------------------------------------------------------
+
+    public function testConnection(Request $request)
+    {
+        $app = $this->authenticate($request);
+        if (! $app) return $this->unauthorized();
+
+        $onlineAgentCount = PrintAgent::where('is_active', true)->get()->filter->isOnline()->count();
+
+        return response()->json([
+            'success'     => true,
+            'message'     => 'Connected successfully.',
+            'app_name'    => $app->name,
+            'agents'      => $onlineAgentCount,
+            'server_time' => now()->toIso8601String(),
+        ]);
+    }
+
+    // -------------------------------------------------------------------------
     // GET /api/v1/agents/online  (unchanged, no auth required for discovery)
     // -------------------------------------------------------------------------
 
@@ -153,6 +173,7 @@ class ClientAppController extends Controller
             'template'        => 'nullable|string',
             'data'            => 'nullable|array',
             'document_base64' => 'nullable|string',
+            'type'            => 'nullable|string', // Support for 'pdf', 'raw', etc.
             'agent_id'        => 'nullable|integer|exists:print_agents,id',
             'printer'         => 'nullable|string',
             'reference_id'    => 'nullable|string',
@@ -187,10 +208,11 @@ class ClientAppController extends Controller
             $printer = $profiles->first()?->default_printer ?? 'Default';
         }
 
-        // Build PDF
+        // Prepare Job Metadata
         $jobId    = (string) Str::uuid();
-        $filePath = "print_jobs/{$jobId}.pdf";
-        $type     = 'pdf';
+        $type     = $data['type'] ?? 'pdf';
+        $extension = ($type === 'pdf') ? 'pdf' : 'raw';
+        $filePath = "print_jobs/{$jobId}.{$extension}";
         $templateName = null;
 
         if (! empty($data['template'])) {
@@ -214,7 +236,7 @@ class ClientAppController extends Controller
 
             $decoded = base64_decode($base64Data, true);
             if ($decoded === false) {
-                return response()->json(['error' => 'Invalid base64-encoded PDF.'], 422);
+                return response()->json(['error' => 'Invalid base64-encoded content.'], 422);
             }
             Storage::put($filePath, $decoded);
         }

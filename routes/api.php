@@ -18,6 +18,9 @@ Route::prefix('print-hub')->group(function () {
 // Client Apps API  (authenticated by X-API-Key header)
 // ─────────────────────────────────────────────
 Route::prefix('v1')->group(function () {
+    // Test Connection
+    Route::get('/test', [ClientAppController::class, 'testConnection']);
+
     // Discovery (no auth needed for agent list)
     Route::get('/agents/online', [ClientAppController::class, 'getOnlineAgents']);
 
