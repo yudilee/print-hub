@@ -7,6 +7,14 @@ if [ -z "$APP_KEY" ]; then
     php artisan key:generate --force --show --no-interaction
 fi
 
+# Ensure database file exists
+mkdir -p database
+touch database/database.sqlite
+
+# Ensure web server (www-data) has permissions for volumes
+chown -R www-data:www-data storage database
+chmod -R 775 storage database
+
 # Run migrations (Safe for Production as it only adds new columns/tables)
 echo "Running database migrations..."
 php artisan migrate --force --no-interaction
