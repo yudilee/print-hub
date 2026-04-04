@@ -19,4 +19,3 @@ __pycache__/
 *.log
 docker-compose.yml
 Dockerfile
-docker-entrypoint.sh
