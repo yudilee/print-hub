@@ -42,5 +42,11 @@ RUN chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
 # Install PHP dependencies
 RUN composer install --no-dev --optimize-autoloader
 
+# Entrypoint setup
+COPY docker-entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
+ENTRYPOINT ["docker-entrypoint.sh"]
+
 # Expose port (Internal)
 EXPOSE 80
