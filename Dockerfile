@@ -13,10 +13,12 @@ FROM php:8.2-apache
 RUN apt-get update && apt-get install -y \
     libzip-dev \
     libsqlite3-dev \
+    libonig-dev \
+    libxml2-dev \
     zip \
     unzip \
     git \
-    && docker-php-ext-install pdo pdo_sqlite zip bcmath \
+    && docker-php-ext-install -j$(nproc) pdo pdo_sqlite mbstring xml zip bcmath \
     && a2enmod rewrite
 
 # Install Composer
@@ -40,8 +42,11 @@ RUN sed -ri -e 's!/var/www/!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf
 RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
 RUN chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
 
-# Install PHP dependencies
-RUN composer install --no-dev --optimize-autoloader
+# Install PHP dependencies (without scripts to avoid discovery errors during build)
+RUN composer install --no-dev --no-scripts --no-autoloader --no-interaction
+
+# Generate optimized autoloader
+RUN composer dump-autoload --optimize --no-scripts
 
 # Entrypoint setup
 COPY docker-entrypoint.sh /usr/local/bin/
