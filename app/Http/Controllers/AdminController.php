@@ -187,7 +187,7 @@ class AdminController extends Controller
 
         return response()->json([
             'status' => 'ok',
-            'url' => \Illuminate\Support\Facades\Storage::url($path)
+            'url' => '/storage/' . $path
         ]);
     }
 

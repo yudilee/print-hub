@@ -1199,7 +1199,7 @@
     function uploadBg() {
         const fI=document.getElementById('bg-upload'); if(!fI.files[0])return;
         const fD=new FormData(); fD.append('image',fI.files[0]); fD.append('_token','{{ csrf_token() }}');
-        fetch("{{ route('admin.templates.upload-bg') }}",{method:'POST',body:fD}).then(r=>r.json()).then(data=>{
+        fetch("{{ route('admin.templates.upload-bg', [], false) }}",{method:'POST',body:fD}).then(r=>r.json()).then(data=>{
             if(data.status==='ok'){const img=document.getElementById('canvas-bg-img');img.src=data.url;img.style.display='block';document.getElementById('bg-path').value=data.url;}
         });
     }
@@ -1215,7 +1215,7 @@
         const name=document.getElementById('tpl-name').value; if(!name)return alert('Name required');
         const payload={name,paper_width_mm:parseFloat(document.getElementById('paper-w').value),paper_height_mm:parseFloat(document.getElementById('paper-h').value),background_image_path:document.getElementById('bg-path').value,elements,styles:globalStyles,background_config:backgroundConfig,_token:'{{ csrf_token() }}'};
         const btn=document.getElementById('save-btn'); btn.textContent='Saving…'; btn.disabled=true;
-        fetch("{{ $template->id ? route('admin.templates.update', $template) : route('admin.templates.store') }}",{method:"{{ $template->id ? 'PUT' : 'POST' }}",headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify(payload)})
+        fetch("{{ $template->id ? route('admin.templates.update', $template, false) : route('admin.templates.store', [], false) }}",{method:"{{ $template->id ? 'PUT' : 'POST' }}",headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify(payload)})
         .then(async r => {
             const data = await r.json();
             if (r.ok && data.status === 'ok') {
@@ -1236,7 +1236,7 @@
     function refreshPreview() {
         const sampleStr=document.getElementById('preview-json').value||'{}'; let sampleData={}; try{sampleData=JSON.parse(sampleStr);}catch(e){}
         const payload={paper_width_mm:parseFloat(document.getElementById('paper-w').value),paper_height_mm:parseFloat(document.getElementById('paper-h').value),background_image_path:document.getElementById('bg-path').value,elements,styles:globalStyles,background_config:backgroundConfig,sample_data:sampleData,_token:'{{ csrf_token() }}'};
-        fetch("{{ route('admin.templates.preview') }}",{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}).then(r=>r.blob()).then(blob=>{document.getElementById('preview-iframe').src=URL.createObjectURL(blob);});
+        fetch("{{ route('admin.templates.preview', [], false) }}",{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}).then(r=>r.blob()).then(blob=>{document.getElementById('preview-iframe').src=URL.createObjectURL(blob);});
     }
     function showTestPrint() { document.getElementById('test-print-modal').style.display='flex'; }
     function closeTestPrint() { document.getElementById('test-print-modal').style.display='none'; }
@@ -1245,7 +1245,7 @@
         const printerName=document.getElementById('test-printer-name').value; if(!printerName)return alert('Printer name required');
         const sampleStr=document.getElementById('preview-json').value||'{}'; let sampleData={}; try{sampleData=JSON.parse(sampleStr);}catch(e){}
         const payload={template_data:{paper_width_mm:parseFloat(document.getElementById('paper-w').value),paper_height_mm:parseFloat(document.getElementById('paper-h').value),background_image_path:document.getElementById('bg-path').value,elements,styles:globalStyles,background_config:backgroundConfig},sample_data:sampleData,agent_id:agentId,printer_name:printerName,_token:'{{ csrf_token() }}'};
-        fetch("{{ route('admin.templates.test-print') }}",{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}).then(r=>r.json()).then(data=>{
+        fetch("{{ route('admin.templates.test-print', [], false) }}",{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}).then(r=>r.json()).then(data=>{
             if(data.status==='ok'){alert('✅ Print job sent: '+data.job_id);closeTestPrint();}
             else{alert('Error: '+(data.message||'Unknown'));}
         });
