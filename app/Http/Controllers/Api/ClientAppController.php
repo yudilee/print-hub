@@ -326,6 +326,7 @@ class ClientAppController extends Controller
             'type'            => 'nullable|string',
             'agent_id'        => 'nullable|integer|exists:print_agents,id',
             'printer'         => 'nullable|string',
+            'profile'         => 'nullable|string',
             'reference_id'    => 'nullable|string',
             'webhook_url'     => 'nullable|url',
             'options'         => 'nullable|array',
@@ -337,6 +338,55 @@ class ClientAppController extends Controller
             return response()->json([
                 'error' => 'Provide either "template" (with "data") or "document_base64".',
             ], 422);
+        }
+
+        // 1. Resolve Profile settings
+        $profile = null;
+        if (!empty($data['profile'])) {
+            $profile = \App\Models\PrintProfile::where('name', $data['profile'])->first();
+        }
+
+        // 2. Resolve Options (merge Profile -> Request)
+        $options = $data['options'] ?? [];
+        if ($profile) {
+            $profileOpts = [
+                'orientation' => $profile->orientation,
+                'copies'      => $profile->copies,
+                'duplex'      => $profile->duplex,
+                'margin_top'    => $profile->margin_top,
+                'margin_bottom' => $profile->margin_bottom,
+                'margin_left'   => $profile->margin_left,
+                'margin_right'  => $profile->margin_right,
+            ];
+            
+            // Map paper size
+            if ($profile->is_custom) {
+                $profileOpts['paper_width_mm']  = $profile->custom_width;
+                $profileOpts['paper_height_mm'] = $profile->custom_height;
+            } else {
+                // If it knows about standard sizes, we could map them here, 
+                // but for now we'll let the Engine handle standard names if needed.
+                $profileOpts['paper_size'] = $profile->paper_size;
+                
+                // Map known sizes to mm for the Engine
+                $sizes = [
+                    'A4'           => [210, 297],
+                    'A5'           => [148, 210],
+                    'Letter'       => [215.9, 279.4],
+                    'Half Letter'  => [139.7, 215.9],
+                    'Legal'        => [215.9, 355.6],
+                    'F4'           => [210, 330],
+                    'Statement'    => [139.7, 215.9],
+                    'Executive'    => [184.1, 266.7],
+                    'Envelope #10' => [104.8, 241.3],
+                ];
+                if (isset($sizes[$profile->paper_size])) {
+                    $profileOpts['paper_width_mm']  = $sizes[$profile->paper_size][0];
+                    $profileOpts['paper_height_mm'] = $sizes[$profile->paper_size][1];
+                }
+            }
+
+            $options = array_merge($profileOpts, $options);
         }
 
         // Auto-select agent if not specified
@@ -351,11 +401,14 @@ class ClientAppController extends Controller
             return response()->json(['error' => 'No online agent available.'], 503);
         }
 
-        // Auto-select printer if not specified
+        // Auto-select printer (Priority: Request > Profile > Hub First Profile > Default)
         $printer = $data['printer'] ?? null;
+        if (!$printer && $profile) {
+            $printer = $profile->default_printer;
+        }
         if (! $printer) {
-            $profiles = \App\Models\PrintProfile::all();
-            $printer = $profiles->first()?->default_printer ?? 'Default';
+            $p = \App\Models\PrintProfile::first();
+            $printer = $p?->default_printer ?? 'Default';
         }
 
         // Prepare Job Metadata
@@ -373,25 +426,24 @@ class ClientAppController extends Controller
             }
             $templateName = $template->name;
 
-            // Schema validation (if schema is bound and not skipped)
+            // Schema validation
             $printData = $data['data'] ?? [];
             if ($template->dataSchema && !($data['skip_validation'] ?? false)) {
                 $errors = $template->dataSchema->validateData($printData);
                 if (!empty($errors)) {
                     $validationWarnings = $errors;
-                    // Warn but don't block — log for debugging
                 }
             }
 
             $engine = new \App\Services\ContinuousFormEngine();
-            $pdfBinary = $engine->generate($template, $printData);
+            $pdfBinary = $engine->generate($template, $printData, $options);
             Storage::put($filePath, $pdfBinary);
         } else {
             $base64Data = $data['document_base64'];
             $base64Data = preg_replace('/\s+/', '', $base64Data);
 
             if (strlen($base64Data) % 4 === 1) {
-                return response()->json(['error' => 'Invalid base64 string length. Truncated payload?'], 422);
+                return response()->json(['error' => 'Invalid base64 string length.'], 422);
             }
 
             $decoded = base64_decode($base64Data, true);
@@ -411,7 +463,7 @@ class ClientAppController extends Controller
             'file_path'       => $filePath,
             'webhook_url'     => $data['webhook_url'] ?? null,
             'reference_id'    => $data['reference_id'] ?? null,
-            'options'         => $data['options'] ?? null,
+            'options'         => $options,
             'template_data'   => !empty($data['template']) ? ($data['data'] ?? null) : null,
             'template_name'   => $templateName,
         ]);
@@ -422,6 +474,7 @@ class ClientAppController extends Controller
             'agent'     => $agent->name,
             'printer'   => $printer,
             'template'  => $templateName,
+            'profile'   => $profile ? $profile->name : null,
         ];
 
         if (!empty($validationWarnings)) {

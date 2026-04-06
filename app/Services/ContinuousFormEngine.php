@@ -16,16 +16,28 @@ class ContinuousFormEngine
     /**
      * Generate PDF binary from template and data.
      */
-    public function generate(PrintTemplate $template, array $data)
+    public function generate(PrintTemplate $template, array $data, array $options = [])
     {
         $this->template = $template;
         $this->data = $data;
         $this->schema = $template->dataSchema;
 
-        // Custom paper size in mm [width, height]
-        $this->pdf = new FPDF('P', 'mm', [$template->paper_width_mm, $template->paper_height_mm]);
+        // Determine paper size (priority: options > template)
+        $pW = $options['paper_width_mm'] ?? $template->paper_width_mm;
+        $pH = $options['paper_height_mm'] ?? $template->paper_height_mm;
+        $orientation = (($options['orientation'] ?? 'portrait') === 'landscape') ? 'L' : 'P';
+
+        // Custom paper size in mm [width, height] 
+        // FPDF(orientation, unit, size)
+        $this->pdf = new FPDF($orientation, 'mm', [$pW, $pH]);
         $this->pdf->SetAutoPageBreak(false); 
-        $this->pdf->SetMargins(0, 0, 0);
+
+        // Set Margins (priority: options > 0)
+        $mT = (float)($options['margin_top'] ?? 0);
+        $mB = (float)($options['margin_bottom'] ?? 0);
+        $mL = (float)($options['margin_left'] ?? 0);
+        $mR = (float)($options['margin_right'] ?? 0);
+        $this->pdf->SetMargins($mL, $mT, $mR);
 
         // Find the table element if any
         $elements = $template->elements ?? [];

@@ -23,17 +23,32 @@
             </div>
         </div>
         <div class="form-row">
-            <div class="form-group">
+            <div class="form-group" style="flex: 2;">
                 <label for="paper_size">Paper Size</label>
-                <select name="paper_size" id="paper_size">
-                    <option value="A4" selected>A4</option>
+                <select name="paper_size" id="paper_size" onchange="toggleCustomSize(this.value)">
+                    <option value="A4">A4</option>
                     <option value="A5">A5</option>
                     <option value="Letter">Letter</option>
+                    <option value="Half Letter" selected>Half Letter (8.5" x 5.5")</option>
                     <option value="Legal">Legal</option>
                     <option value="F4">F4 / Folio</option>
+                    <option value="Statement">Statement</option>
+                    <option value="Executive">Executive</option>
+                    <option value="Envelope #10">Envelope #10</option>
+                    <option value="CUSTOM">-- Custom Size --</option>
                 </select>
             </div>
-            <div class="form-group">
+            <div id="custom-dims" class="form-row" style="flex: 3; display: none; gap: 10px; margin-top: 0;">
+                <div class="form-group">
+                    <label>Width (mm)</label>
+                    <input type="number" name="custom_width" step="0.01" placeholder="e.g. 210">
+                </div>
+                <div class="form-group">
+                    <label>Height (mm)</label>
+                    <input type="number" name="custom_height" step="0.01" placeholder="e.g. 297">
+                </div>
+            </div>
+            <div class="form-group" style="flex: 1;">
                 <label for="orientation">Orientation</label>
                 <select name="orientation" id="orientation">
                     <option value="portrait" selected>Portrait</option>
@@ -41,6 +56,30 @@
                 </select>
             </div>
         </div>
+        
+        <div class="form-row" style="background: rgba(255,255,255,0.03); padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+            <div style="width: 100%; margin-bottom: 0.5rem; font-size: 0.8rem; font-weight: bold; color: var(--primary);">Document Margins (mm)</div>
+            <div class="form-group">
+                <label>Top</label>
+                <input type="number" name="margin_top" step="0.01" value="0">
+            </div>
+            <div class="form-group">
+                <label>Bottom</label>
+                <input type="number" name="margin_bottom" step="0.01" value="0">
+            </div>
+            <div class="form-group">
+                <label>Left</label>
+                <input type="number" name="margin_left" step="0.01" value="0">
+            </div>
+            <div class="form-group">
+                <label>Right</label>
+                <input type="number" name="margin_right" step="0.01" value="0">
+            </div>
+            <div style="width: 100%; margin-top: 0.5rem;">
+                <button type="button" class="btn btn-secondary btn-sm" onclick="applyDotMatrixDefaults()">Suggest Dot-Matrix Margins (4.23mm)</button>
+            </div>
+        </div>
+
         <div class="form-row">
             <div class="form-group">
                 <label for="copies">Copies</label>
@@ -62,6 +101,19 @@
         <button type="submit" class="btn btn-primary">+ Create Profile</button>
     </form>
 </div>
+
+<script>
+function toggleCustomSize(val) {
+    const dims = document.getElementById('custom-dims');
+    dims.style.display = (val === 'CUSTOM') ? 'flex' : 'none';
+}
+function applyDotMatrixDefaults() {
+    document.getElementsByName('margin_top')[0].value = 4.23;
+    document.getElementsByName('margin_bottom')[0].value = 4.23;
+    document.getElementsByName('margin_left')[0].value = 4.23;
+    document.getElementsByName('margin_right')[0].value = 4.23;
+}
+</script>
 
 {{-- Profile List --}}
 <div class="card">

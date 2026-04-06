@@ -70,14 +70,23 @@ class AdminController extends Controller
     public function profileStore(Request $request)
     {
         $data = $request->validate([
-            'name' => 'required|string|max:255|unique:print_profiles,name',
-            'description' => 'nullable|string|max:255',
-            'paper_size' => 'required|string',
-            'orientation' => 'required|string',
-            'copies' => 'required|integer|min:1',
-            'duplex' => 'required|string',
+            'name'            => 'required|string|max:255|unique:print_profiles,name',
+            'description'     => 'nullable|string|max:255',
+            'paper_size'      => 'required|string',
+            'is_custom'       => 'nullable|boolean',
+            'custom_width'    => 'nullable|numeric|required_if:is_custom,1',
+            'custom_height'   => 'nullable|numeric|required_if:is_custom,1',
+            'margin_top'      => 'nullable|numeric',
+            'margin_bottom'   => 'nullable|numeric',
+            'margin_left'     => 'nullable|numeric',
+            'margin_right'    => 'nullable|numeric',
+            'orientation'     => 'required|string',
+            'copies'          => 'required|integer|min:1',
+            'duplex'          => 'required|string',
             'default_printer' => 'nullable|string|max:255',
         ]);
+
+        $data['is_custom'] = $request->has('is_custom');
 
         PrintProfile::create($data);
         return redirect()->route('admin.profiles')->with('success', 'Profile created!');
