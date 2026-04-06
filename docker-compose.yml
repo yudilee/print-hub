@@ -13,14 +13,13 @@ services:
       - APP_KEY=${APP_KEY:-base64:19hjIjrPouxH0sSc7OKp+Z7wjIYlDEWP5kfbYpKC7fY=}
       - APP_DEBUG=false
       - APP_URL=http://localhost:8082
-      - DB_CONNECTION=sqlite
-      - DB_DATABASE=/var/www/html/database/database.sqlite
+      - DB_DATABASE=/var/www/html/database/data/database.sqlite
       - SESSION_DRIVER=file
       - CACHE_STORE=file
       - QUEUE_CONNECTION=sync
     volumes:
       - print-hub-storage:/var/www/html/storage
-      - print-hub-database:/var/www/html/database
+      - print-hub-database:/var/www/html/database/data
 
 volumes:
   print-hub-storage:
