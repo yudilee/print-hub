@@ -24,6 +24,10 @@ Route::get('/templates/{template}/edit', [AdminController::class, 'templateEdit'
 Route::put('/templates/{template}', [AdminController::class, 'templateUpdate'])->name('admin.templates.update');
 Route::delete('/templates/{template}', [AdminController::class, 'templateDestroy'])->name('admin.templates.destroy');
 Route::post('/templates/upload-bg', [AdminController::class, 'templateUploadBg'])->name('admin.templates.upload-bg');
+Route::post('/templates/preview', [AdminController::class, 'templatePreview'])->name('admin.templates.preview');
+Route::post('/templates/test-print', [AdminController::class, 'templateTestPrint'])->name('admin.templates.test-print');
+Route::post('/templates/{template}/clone', [AdminController::class, 'templateClone'])->name('admin.templates.clone');
+Route::get('/templates/{template}/job-history', [AdminController::class, 'templateJobHistory'])->name('admin.templates.job-history');
 
 // Job History
 Route::get('/jobs', [AdminController::class, 'jobsIndex'])->name('admin.jobs');

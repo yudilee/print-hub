@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\DataSchema;
 use App\Models\PrintTemplate;
 use FPDF;
 
@@ -10,6 +11,7 @@ class ContinuousFormEngine
     protected $pdf;
     protected $template;
     protected $data;
+    protected ?DataSchema $schema = null;
 
     /**
      * Generate PDF binary from template and data.
@@ -18,15 +20,16 @@ class ContinuousFormEngine
     {
         $this->template = $template;
         $this->data = $data;
+        $this->schema = $template->dataSchema;
 
         // Custom paper size in mm [width, height]
-        // FPDF expects the array to be [width, height] for custom sizes
         $this->pdf = new FPDF('P', 'mm', [$template->paper_width_mm, $template->paper_height_mm]);
         $this->pdf->SetAutoPageBreak(false); 
         $this->pdf->SetMargins(0, 0, 0);
 
         // Find the table element if any
-        $tableElement = collect($template->elements)->firstWhere('type', 'table');
+        $elements = $template->elements ?? [];
+        $tableElement = collect($elements)->firstWhere('type', 'table');
         $rows = [];
         if ($tableElement) {
             $rows = $this->resolveValue($tableElement['key'], $data) ?: [];
@@ -34,7 +37,7 @@ class ContinuousFormEngine
 
         if (empty($rows) || !$tableElement) {
             // Static single page
-            $this->renderPage(0, []);
+            $this->renderPage();
         } else {
             // Multipage loop
             $this->renderMultipageTable($tableElement, $rows);
@@ -43,15 +46,43 @@ class ContinuousFormEngine
         return $this->pdf->Output('S'); 
     }
 
-    protected function renderPage($rowIndex, $rows, $isMultipage = false)
+    protected function renderPage()
     {
         $this->pdf->AddPage();
         
+        $this->renderBackground();
+
         // Render all non-table elements (static headers/footers)
         $elements = $this->template->elements ?? [];
         foreach ($elements as $el) {
+            if (!empty($el['hidden'])) continue;
             if ($el['type'] === 'field') {
                 $this->renderField($el);
+            } elseif ($el['type'] === 'label') {
+                $this->renderLabel($el);
+            } elseif ($el['type'] === 'line') {
+                $this->renderLine($el);
+            }
+        }
+    }
+
+    protected function renderBackground()
+    {
+        $config = $this->template->background_config ?? [];
+        $isPrinted = $config['is_printed'] ?? false;
+        $path = $this->template->background_image_path;
+
+        if ($isPrinted && $path) {
+            $localPath = null;
+            if (str_contains($path, 'storage/')) {
+                $relative = explode('storage/', $path)[1];
+                $localPath = storage_path('app/public/' . $relative);
+            } else {
+                $localPath = storage_path('app/public/' . $path);
+            }
+
+            if (file_exists($localPath)) {
+                $this->pdf->Image($localPath, 0, 0, $this->template->paper_width_mm, $this->template->paper_height_mm);
             }
         }
     }
@@ -66,19 +97,22 @@ class ContinuousFormEngine
         $rowHeight = $el['row_height'] ?? 6;
         $fontSize = $el['font_size'] ?? 9;
 
+        // Evaluate computed columns
+        $rows = $this->evaluateComputedRows($el, $rows);
+
         $currentY = $startY;
-        $this->renderPage(0, $rows, true);
+        $this->renderPage();
         
         // Render Header on first page
-        $this->renderTableHeader($x, $currentY, $columns, $headerHeight, $fontSize);
+        $this->renderTableHeader($x, $currentY, $columns, $headerHeight, $fontSize, $el);
         $currentY += $headerHeight;
 
         foreach ($rows as $index => $rowData) {
             // Page break check
             if ($currentY + $rowHeight > ($this->template->paper_height_mm - $bottomPadding)) {
-                $this->renderPage(0, $rows, true);
+                $this->renderPage();
                 $currentY = $startY;
-                $this->renderTableHeader($x, $currentY, $columns, $headerHeight, $fontSize);
+                $this->renderTableHeader($x, $currentY, $columns, $headerHeight, $fontSize, $el);
                 $currentY += $headerHeight;
             }
 
@@ -89,9 +123,45 @@ class ContinuousFormEngine
 
     protected function renderField($el)
     {
+        $el = $this->applyStyle($el);
         $value = $this->resolveValue($el['key'], $this->data);
         if ($value === null) return;
 
+        // Apply schema formatting if available
+        $value = $this->formatValue($el['key'], $value);
+
+        $this->renderTextCell($el, (string) $value);
+    }
+
+    protected function renderLabel($el)
+    {
+        $el = $this->applyStyle($el);
+        $text = $el['text'] ?? '';
+        if ($text === '') return;
+
+        $this->renderTextCell($el, $text);
+    }
+
+    protected function renderLine($el)
+    {
+        $x = (float) ($el['x'] ?? 0);
+        $y = (float) ($el['y'] ?? 0);
+        $width = (float) ($el['width'] ?? 10);
+        $lineColor = $el['lineColor'] ?? '#000000';
+
+        $r = hexdec(substr(ltrim($lineColor, '#'), 0, 2));
+        $g = hexdec(substr(ltrim($lineColor, '#'), 2, 2));
+        $b = hexdec(substr(ltrim($lineColor, '#'), 4, 2));
+
+        $this->pdf->SetDrawColor($r, $g, $b);
+        $this->pdf->SetLineWidth((float) ($el['height'] ?? 0.3));
+        $this->pdf->Line($x, $y, $x + $width, $y);
+        $this->pdf->SetDrawColor(0, 0, 0);
+        $this->pdf->SetLineWidth(0.2);
+    }
+
+    protected function renderTextCell($el, string $value)
+    {
         $x = $el['x'] ?? 0;
         $y = $el['y'] ?? 0;
         $width = $el['width'] ?? 0;
@@ -110,15 +180,34 @@ class ContinuousFormEngine
         }
     }
 
-    protected function renderTableHeader($x, $y, $columns, $height, $fontSize)
+    protected function applyStyle($el)
     {
+        if (isset($el['styleIdx']) && isset($this->template->styles[$el['styleIdx']])) {
+            $style = $this->template->styles[$el['styleIdx']];
+            $el['font_size'] = $style['font_size'] ?? $el['font_size'];
+            $el['bold'] = $style['bold'] ?? $el['bold'];
+        }
+        return $el;
+    }
+
+    protected function renderTableHeader($x, $y, $columns, $height, $fontSize, $el = [])
+    {
+        $headerBgColor = $el['header_bg_color'] ?? null;
+
         $this->pdf->SetFont('Arial', 'B', $fontSize);
         $currentX = $x;
         foreach ($columns as $col) {
-            $this->pdf->SetXY($currentX, $y);
-            // Border support: hide/show
-            $border = !empty($col['show_border']) ? 1 : 0;
-            $this->pdf->Cell($col['width'], $height, $col['label'], $border, 0, 'C');
+            // Header background color
+            if ($headerBgColor) {
+                $this->setFillColorHex($headerBgColor);
+                $this->pdf->SetXY($currentX, $y);
+                $border = !empty($col['show_border']) ? 1 : 0;
+                $this->pdf->Cell($col['width'], $height, $col['label'], $border, 0, 'C', true);
+            } else {
+                $this->pdf->SetXY($currentX, $y);
+                $border = !empty($col['show_border']) ? 1 : 0;
+                $this->pdf->Cell($col['width'], $height, $col['label'], $border, 0, 'C');
+            }
             $currentX += $col['width'];
         }
     }
@@ -131,12 +220,142 @@ class ContinuousFormEngine
             $val = $this->resolveValue($col['key'], $rowData);
             $align = $col['align'] ?? 'L';
             $border = !empty($col['show_border']) ? 1 : 0; 
+
+            // Apply column-level formatting
+            $val = $this->formatTableColumnValue($col, $val);
             
             $this->pdf->SetXY($currentX, $y);
             $this->pdf->Cell($col['width'], $height, $val, $border, 0, $align);
             $currentX += $col['width'];
         }
     }
+
+    // ── Formatting ──────────────────────────────────────────
+
+    /**
+     * Format a field value using schema metadata if available.
+     */
+    protected function formatValue(string $fieldKey, $value): string
+    {
+        if (!$this->schema) {
+            return (string) $value;
+        }
+        return $this->schema->formatFieldValue($fieldKey, $value);
+    }
+
+    /**
+     * Format a table column value using schema metadata or column-level format hint.
+     */
+    protected function formatTableColumnValue(array $col, $value): string
+    {
+        if ($value === null) return '';
+
+        // Check column-level format hint first (set in designer)
+        $format = $col['format'] ?? null;
+        $type   = $col['type'] ?? null;
+
+        if ($type && $format) {
+            return DataSchema::applyFormat($value, $type, $format, $col);
+        }
+
+        // If we have a schema, try to resolve from the table's column metadata
+        if ($this->schema) {
+            $tableKey = null;
+            $elements = $this->template->elements ?? [];
+            foreach ($elements as $el) {
+                if (($el['type'] ?? '') === 'table') {
+                    foreach ($el['columns'] ?? [] as $c) {
+                        if ($c['key'] === $col['key']) {
+                            $tableKey = $el['key'];
+                            break 2;
+                        }
+                    }
+                }
+            }
+
+            if ($tableKey && isset($this->schema->tables[$tableKey]['columns'][$col['key']])) {
+                $colMeta = $this->schema->tables[$tableKey]['columns'][$col['key']];
+                $colType   = $colMeta['type'] ?? 'string';
+                $colFormat = $colMeta['format'] ?? null;
+                if ($colType !== 'string' || $colFormat) {
+                    return DataSchema::applyFormat($value, $colType, $colFormat, $colMeta);
+                }
+            }
+        }
+
+        return (string) $value;
+    }
+
+    // ── Computed Columns ─────────────────────────────────────
+
+    /**
+     * Evaluate computed column expressions for each row.
+     * Supports simple expressions like "qty * unit_price"
+     */
+    protected function evaluateComputedRows(array $el, array $rows): array
+    {
+        $columns = $el['columns'] ?? [];
+        $computedCols = [];
+
+        foreach ($columns as $col) {
+            if (!empty($col['computed'])) {
+                $computedCols[$col['key']] = $col['computed'];
+            }
+        }
+
+        // Also check schema for computed column definitions
+        if ($this->schema && isset($this->schema->tables[$el['key']]['columns'])) {
+            foreach ($this->schema->tables[$el['key']]['columns'] as $colKey => $colMeta) {
+                if (!empty($colMeta['computed']) && !isset($computedCols[$colKey])) {
+                    $computedCols[$colKey] = $colMeta['computed'];
+                }
+            }
+        }
+
+        if (empty($computedCols)) {
+            return $rows;
+        }
+
+        return array_map(function ($row) use ($computedCols) {
+            foreach ($computedCols as $colKey => $expression) {
+                // Only compute if value is not already provided by client
+                if (!isset($row[$colKey]) || $row[$colKey] === null || $row[$colKey] === '') {
+                    $row[$colKey] = $this->evaluateExpression($expression, $row);
+                }
+            }
+            return $row;
+        }, $rows);
+    }
+
+    /**
+     * Evaluate simple math expressions like "qty * unit_price"
+     * Supports: +, -, *, / with column references
+     */
+    protected function evaluateExpression(string $expression, array $rowData)
+    {
+        // Replace column references with their numeric values
+        $resolved = preg_replace_callback('/\b([a-zA-Z_][a-zA-Z0-9_.]*)\b/', function ($m) use ($rowData) {
+            $key = $m[1];
+            $val = $this->resolveValue($key, $rowData);
+            return is_numeric($val) ? (string) $val : '0';
+        }, $expression);
+
+        // Safety: only allow numbers and basic operators
+        if (!preg_match('/^[\d\s\.\+\-\*\/\(\)]+$/', $resolved)) {
+            return 0;
+        }
+
+        try {
+            $result = 0;
+            // Use eval safely since we've validated the expression
+            @eval('$result = ' . $resolved . ';');
+            return $result;
+        } catch (\Throwable $e) {
+            return 0;
+        }
+    }
+
+    // ── Helpers ──────────────────────────────────────────────
 
     protected function resolveValue($key, $data)
     {
@@ -151,5 +370,17 @@ class ContinuousFormEngine
             }
         }
         return $val;
+    }
+
+    /**
+     * Set fill color from hex string.
+     */
+    protected function setFillColorHex(string $hex): void
+    {
+        $hex = ltrim($hex, '#');
+        $r = hexdec(substr($hex, 0, 2));
+        $g = hexdec(substr($hex, 2, 2));
+        $b = hexdec(substr($hex, 4, 2));
+        $this->pdf->SetFillColor($r, $g, $b);
     }
 }

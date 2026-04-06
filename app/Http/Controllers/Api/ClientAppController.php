@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\ClientApp;
+use App\Models\DataSchema;
 use App\Models\PrintAgent;
 use App\Models\PrintJob;
 use App\Models\PrintTemplate;
@@ -57,7 +58,7 @@ class ClientAppController extends Controller
     }
 
     // -------------------------------------------------------------------------
-    // GET /api/v1/agents/online  (unchanged, no auth required for discovery)
+    // GET /api/v1/agents/online
     // -------------------------------------------------------------------------
 
     public function getOnlineAgents(Request $request)
@@ -104,6 +105,10 @@ class ClientAppController extends Controller
                 'paper_height_mm'  => $t->paper_height_mm,
                 'fields'           => $fields,
                 'tables'           => $tables,
+                'schema'           => $t->dataSchema ? [
+                    'name'    => $t->dataSchema->schema_name,
+                    'version' => $t->dataSchema->version,
+                ] : null,
             ];
         });
 
@@ -157,6 +162,151 @@ class ClientAppController extends Controller
             'paper_height_mm' => $template->paper_height_mm,
             'fields'          => $fields,
             'tables'          => $tables,
+            'schema'          => $template->dataSchema ? [
+                'name'    => $template->dataSchema->schema_name,
+                'version' => $template->dataSchema->version,
+            ] : null,
+        ]);
+    }
+
+    // -------------------------------------------------------------------------
+    // GET /api/v1/templates/{name}/schema  — Bidirectional Schema Discovery
+    // -------------------------------------------------------------------------
+
+    public function getTemplateSchema(Request $request, string $name)
+    {
+        if (! $this->authenticate($request)) return $this->unauthorized();
+
+        $template = PrintTemplate::with('dataSchema')->where('name', $name)->first();
+        if (! $template) {
+            return response()->json(['error' => "Template '{$name}' not found."], 404);
+        }
+
+        return response()->json($template->buildRequiredSchema());
+    }
+
+    // -------------------------------------------------------------------------
+    // POST /api/v1/schema  —  Register or update a data schema (versioned)
+    // -------------------------------------------------------------------------
+
+    public function registerSchema(Request $request)
+    {
+        $app = $this->authenticate($request);
+        if (! $app) return $this->unauthorized();
+
+        $data = $request->validate([
+            'schema_name' => 'required|string|max:100',
+            'label'       => 'nullable|string|max:255',
+            'fields'      => 'nullable|array',
+            'tables'      => 'nullable|array',
+            'sample_data' => 'nullable|array',
+        ]);
+
+        $schemaName = $data['schema_name'];
+        $existing = DataSchema::forSchema($schemaName)->latest()->first();
+
+        // Check if content actually changed
+        $hasChanges = true;
+        if ($existing) {
+            $hasChanges = (
+                ($existing->fields ?? []) != ($data['fields'] ?? []) ||
+                ($existing->tables ?? []) != ($data['tables'] ?? [])
+            );
+        }
+
+        if ($hasChanges || !$existing) {
+            // Create new version
+            $schema = DataSchema::createNewVersion($schemaName, [
+                'client_app_id' => $app->id,
+                'label'         => $data['label'] ?? $data['schema_name'],
+                'fields'        => $data['fields'] ?? [],
+                'tables'        => $data['tables'] ?? [],
+                'sample_data'   => $data['sample_data'] ?? null,
+            ]);
+
+            return response()->json([
+                'status'      => 'ok',
+                'schema_name' => $schema->schema_name,
+                'version'     => $schema->version,
+                'is_new'      => true,
+                'message'     => "Schema v{$schema->version} created.",
+            ]);
+        } else {
+            // No structural changes — just update sample_data if provided
+            if (isset($data['sample_data'])) {
+                $existing->update(['sample_data' => $data['sample_data']]);
+            }
+
+            return response()->json([
+                'status'      => 'ok',
+                'schema_name' => $existing->schema_name,
+                'version'     => $existing->version,
+                'is_new'      => false,
+                'message'     => "No structural changes. Schema remains at v{$existing->version}.",
+            ]);
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // GET /api/v1/schemas
+    // -------------------------------------------------------------------------
+
+    public function listSchemas(Request $request)
+    {
+        if (! $this->authenticate($request)) return $this->unauthorized();
+
+        // By default return only latest versions
+        $onlyLatest = $request->query('latest', 'true') !== 'false';
+
+        $query = DataSchema::with('clientApp:id,name');
+        if ($onlyLatest) {
+            $query->latest();
+        }
+
+        $schemas = $query->orderBy('schema_name')->orderByDesc('version')->get()->map(fn($s) => [
+            'id'          => $s->id,
+            'schema_name' => $s->schema_name,
+            'version'     => $s->version,
+            'is_latest'   => $s->is_latest,
+            'label'       => $s->label,
+            'client_app'  => $s->clientApp?->name,
+            'fields'      => $s->fields,
+            'tables'      => $s->tables,
+            'has_sample'  => !empty($s->sample_data),
+            'changelog'   => $s->changelog,
+            'updated_at'  => $s->updated_at?->toISOString(),
+        ]);
+
+        return response()->json(['schemas' => $schemas]);
+    }
+
+    // -------------------------------------------------------------------------
+    // GET /api/v1/schema/{name}/versions — Schema version history
+    // -------------------------------------------------------------------------
+
+    public function schemaVersions(Request $request, string $name)
+    {
+        if (! $this->authenticate($request)) return $this->unauthorized();
+
+        $versions = DataSchema::forSchema($name)
+            ->orderByDesc('version')
+            ->get()
+            ->map(fn($s) => [
+                'version'    => $s->version,
+                'is_latest'  => $s->is_latest,
+                'changelog'  => $s->changelog,
+                'fields'     => array_keys($s->fields ?? []),
+                'tables'     => array_keys($s->tables ?? []),
+                'updated_at' => $s->updated_at?->toISOString(),
+            ]);
+
+        if ($versions->isEmpty()) {
+            return response()->json(['error' => "Schema '{$name}' not found."], 404);
+        }
+
+        return response()->json([
+            'schema_name' => $name,
+            'versions'    => $versions,
         ]);
     }
 
@@ -173,12 +323,13 @@ class ClientAppController extends Controller
             'template'        => 'nullable|string',
             'data'            => 'nullable|array',
             'document_base64' => 'nullable|string',
-            'type'            => 'nullable|string', // Support for 'pdf', 'raw', etc.
+            'type'            => 'nullable|string',
             'agent_id'        => 'nullable|integer|exists:print_agents,id',
             'printer'         => 'nullable|string',
             'reference_id'    => 'nullable|string',
             'webhook_url'     => 'nullable|url',
             'options'         => 'nullable|array',
+            'skip_validation' => 'nullable|boolean',
         ]);
 
         // Must have either template or document
@@ -193,7 +344,6 @@ class ClientAppController extends Controller
         if (! empty($data['agent_id'])) {
             $agent = PrintAgent::where('id', $data['agent_id'])->where('is_active', true)->first();
         } else {
-            // Pick first online agent
             $agent = PrintAgent::where('is_active', true)->get()->first(fn($a) => $a->isOnline());
         }
 
@@ -214,22 +364,32 @@ class ClientAppController extends Controller
         $extension = ($type === 'pdf') ? 'pdf' : 'raw';
         $filePath = "print_jobs/{$jobId}.{$extension}";
         $templateName = null;
+        $validationWarnings = [];
 
         if (! empty($data['template'])) {
-            $template = PrintTemplate::where('name', $data['template'])->first();
+            $template = PrintTemplate::with('dataSchema')->where('name', $data['template'])->first();
             if (! $template) {
                 return response()->json(['error' => "Template '{$data['template']}' not found."], 404);
             }
             $templateName = $template->name;
+
+            // Schema validation (if schema is bound and not skipped)
+            $printData = $data['data'] ?? [];
+            if ($template->dataSchema && !($data['skip_validation'] ?? false)) {
+                $errors = $template->dataSchema->validateData($printData);
+                if (!empty($errors)) {
+                    $validationWarnings = $errors;
+                    // Warn but don't block — log for debugging
+                }
+            }
+
             $engine = new \App\Services\ContinuousFormEngine();
-            $pdfBinary = $engine->generate($template, $data['data'] ?? []);
+            $pdfBinary = $engine->generate($template, $printData);
             Storage::put($filePath, $pdfBinary);
         } else {
             $base64Data = $data['document_base64'];
-            // Clean up whitespace/newlines
             $base64Data = preg_replace('/\s+/', '', $base64Data);
-            
-            // Validate length (must not be n % 4 == 1)
+
             if (strlen($base64Data) % 4 === 1) {
                 return response()->json(['error' => 'Invalid base64 string length. Truncated payload?'], 422);
             }
@@ -252,15 +412,23 @@ class ClientAppController extends Controller
             'webhook_url'     => $data['webhook_url'] ?? null,
             'reference_id'    => $data['reference_id'] ?? null,
             'options'         => $data['options'] ?? null,
+            'template_data'   => !empty($data['template']) ? ($data['data'] ?? null) : null,
+            'template_name'   => $templateName,
         ]);
 
-        return response()->json([
+        $response = [
             'status'    => 'queued',
             'job_id'    => $jobId,
             'agent'     => $agent->name,
             'printer'   => $printer,
             'template'  => $templateName,
-        ]);
+        ];
+
+        if (!empty($validationWarnings)) {
+            $response['warnings'] = $validationWarnings;
+        }
+
+        return response()->json($response);
     }
 
     // -------------------------------------------------------------------------
@@ -318,6 +486,8 @@ class ClientAppController extends Controller
             'webhook_url'    => $data['webhook_url'] ?? null,
             'reference_id'   => $data['reference_id'] ?? null,
             'options'        => $data['options'] ?? null,
+            'template_data'  => $request->filled('template') ? ($data['template_data'] ?? null) : null,
+            'template_name'  => $data['template'] ?? null,
         ]);
 
         return response()->json([

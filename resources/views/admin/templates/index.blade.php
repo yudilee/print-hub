@@ -31,6 +31,10 @@
                 <td style="color: var(--text-muted); font-size: 0.85rem;">{{ $template->updated_at->diffForHumans() }}</td>
                 <td style="display: flex; gap: 0.5rem; justify-content: flex-end;">
                     <a href="{{ route('admin.templates.edit', $template) }}" class="btn btn-secondary btn-sm">Edit Designer</a>
+                    <form action="{{ route('admin.templates.clone', $template) }}" method="POST">
+                        @csrf
+                        <button class="btn btn-secondary btn-sm" title="Duplicate this template">Clone</button>
+                    </form>
                     <form action="{{ route('admin.templates.destroy', $template) }}" method="POST" onsubmit="return confirm('Delete this template?')">
                         @csrf @method('DELETE')
                         <button class="btn btn-danger btn-sm">Delete</button>

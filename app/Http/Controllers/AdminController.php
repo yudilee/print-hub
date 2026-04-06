@@ -6,6 +6,7 @@ use App\Models\ClientApp;
 use App\Models\PrintAgent;
 use App\Models\PrintProfile;
 use App\Models\PrintJob;
+use App\Models\PrintTemplate;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
@@ -98,18 +99,29 @@ class AdminController extends Controller
 
     public function templateCreate()
     {
-        return view('admin.templates.designer', ['template' => new \App\Models\PrintTemplate()]);
+        $schemas = \App\Models\DataSchema::where('is_latest', true)->orderBy('schema_name')->get();
+        return view('admin.templates.designer', ['template' => new \App\Models\PrintTemplate(), 'schemas' => $schemas]);
     }
 
     public function templateStore(Request $request)
     {
         $data = $request->validate([
             'name' => 'required|unique:print_templates,name',
+            'data_schema_id' => 'nullable|exists:data_schemas,id',
+            'data_schema_version' => 'nullable|integer',
             'paper_width_mm' => 'required|numeric',
             'paper_height_mm' => 'required|numeric',
             'elements' => 'nullable|array',
+            'styles' => 'nullable|array',
+            'background_config' => 'nullable|array',
             'background_image_path' => 'nullable|string'
         ]);
+
+        // Auto-set schema version from the selected schema
+        if (!empty($data['data_schema_id']) && empty($data['data_schema_version'])) {
+            $schema = \App\Models\DataSchema::find($data['data_schema_id']);
+            if ($schema) $data['data_schema_version'] = $schema->version;
+        }
 
         \App\Models\PrintTemplate::create($data);
 
@@ -118,18 +130,30 @@ class AdminController extends Controller
 
     public function templateEdit(\App\Models\PrintTemplate $template)
     {
-        return view('admin.templates.designer', compact('template'));
+        $schemas = \App\Models\DataSchema::where('is_latest', true)->orderBy('schema_name')->get();
+        $template->load('dataSchema');
+        return view('admin.templates.designer', compact('template', 'schemas'));
     }
 
     public function templateUpdate(Request $request, \App\Models\PrintTemplate $template)
     {
         $data = $request->validate([
             'name' => 'required|unique:print_templates,name,' . $template->id,
+            'data_schema_id' => 'nullable|exists:data_schemas,id',
+            'data_schema_version' => 'nullable|integer',
             'paper_width_mm' => 'required|numeric',
             'paper_height_mm' => 'required|numeric',
             'elements' => 'nullable|array',
+            'styles' => 'nullable|array',
+            'background_config' => 'nullable|array',
             'background_image_path' => 'nullable|string'
         ]);
+
+        // Auto-set schema version from the selected schema
+        if (!empty($data['data_schema_id']) && empty($data['data_schema_version'])) {
+            $schema = \App\Models\DataSchema::find($data['data_schema_id']);
+            if ($schema) $data['data_schema_version'] = $schema->version;
+        }
 
         $template->update($data);
 
@@ -140,6 +164,17 @@ class AdminController extends Controller
     {
         $template->delete();
         return redirect()->route('admin.templates')->with('success', 'Template deleted.');
+    }
+
+    public function templateJobHistory(\App\Models\PrintTemplate $template)
+    {
+        $jobs = \App\Models\PrintJob::where('template_name', $template->name)
+            ->whereNotNull('template_data')
+            ->orderByDesc('created_at')
+            ->limit(10)
+            ->get();
+            
+        return response()->json(['jobs' => $jobs]);
     }
 
     public function templateUploadBg(Request $request)
@@ -154,6 +189,68 @@ class AdminController extends Controller
             'status' => 'ok',
             'url' => \Illuminate\Support\Facades\Storage::url($path)
         ]);
+    }
+
+    public function templatePreview(Request $request)
+    {
+        $data = $request->validate([
+            'paper_width_mm' => 'required|numeric',
+            'paper_height_mm' => 'required|numeric',
+            'elements' => 'nullable|array',
+            'styles' => 'nullable|array',
+            'background_config' => 'nullable|array',
+            'background_image_path' => 'nullable|string',
+            'sample_data' => 'nullable|array'
+        ]);
+
+        $template = new \App\Models\PrintTemplate($data);
+        $engine = new \App\Services\ContinuousFormEngine();
+        $pdfBinary = $engine->generate($template, $data['sample_data'] ?? []);
+
+        return response($pdfBinary)
+            ->header('Content-Type', 'application/pdf')
+            ->header('Content-Disposition', 'inline; filename="preview.pdf"');
+    }
+
+    public function templateTestPrint(Request $request)
+    {
+        $data = $request->validate([
+            'template_data' => 'required|array',
+            'sample_data' => 'nullable|array',
+            'agent_id' => 'required|exists:print_agents,id',
+            'printer_name' => 'required|string'
+        ]);
+
+        $tplData = $data['template_data'];
+        $template = new \App\Models\PrintTemplate($tplData);
+        
+        $engine = new \App\Services\ContinuousFormEngine();
+        $pdfBinary = $engine->generate($template, $data['sample_data'] ?? []);
+
+        $jobId = (string) Str::uuid();
+        $filePath = "print_jobs/{$jobId}.pdf";
+        \Illuminate\Support\Facades\Storage::put($filePath, $pdfBinary);
+
+        $job = PrintJob::create([
+            'job_id' => $jobId,
+            'print_agent_id' => $data['agent_id'],
+            'printer_name' => $data['printer_name'],
+            'type' => 'pdf',
+            'status' => 'pending',
+            'file_path' => $filePath,
+        ]);
+
+        return response()->json(['status' => 'ok', 'job_id' => $jobId]);
+    }
+
+    public function templateClone(PrintTemplate $template)
+    {
+        $clone = $template->replicate();
+        $clone->name = $template->name . ' (Copy)';
+        $clone->save();
+
+        return redirect()->route('admin.templates.edit', $clone)
+            ->with('success', 'Template cloned successfully.');
     }
 
     // ── Client Apps CRUD ──

@@ -28,6 +28,14 @@ Route::prefix('v1')->group(function () {
     Route::get('/templates',       [ClientAppController::class, 'listTemplates']);
     Route::get('/templates/{name}', [ClientAppController::class, 'getTemplate']);
 
+    // Data schema registration & discovery
+    Route::post('/schema',  [ClientAppController::class, 'registerSchema']);
+    Route::get('/schemas',  [ClientAppController::class, 'listSchemas']);
+    Route::get('/schema/{name}/versions', [ClientAppController::class, 'schemaVersions']);
+
+    // Bidirectional: discover what data a template needs
+    Route::get('/templates/{name}/schema', [ClientAppController::class, 'getTemplateSchema']);
+
     // Unified print endpoint
     Route::post('/print', [ClientAppController::class, 'unifiedPrint']);
 
