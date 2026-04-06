@@ -12,7 +12,7 @@ services:
       - APP_ENV=production
       - APP_KEY=${APP_KEY:-base64:19hjIjrPouxH0sSc7OKp+Z7wjIYlDEWP5kfbYpKC7fY=}
       - APP_DEBUG=false
-      - APP_URL=http://localhost:8082
+      - APP_URL=http://print-hub.hartonomotor-group.com
       - DB_DATABASE=/var/www/html/database/data/database.sqlite
       - SESSION_DRIVER=file
       - CACHE_STORE=file
