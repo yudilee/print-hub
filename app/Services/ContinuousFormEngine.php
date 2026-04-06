@@ -127,8 +127,8 @@ class ContinuousFormEngine
         $value = $this->resolveValue($el['key'], $this->data);
         if ($value === null) return;
 
-        // Apply schema formatting if available
-        $value = $this->formatValue($el['key'], $value);
+        // Apply formatting (manual override or schema)
+        $value = $this->formatValue($el, $value);
 
         $this->renderTextCell($el, (string) $value);
     }
@@ -233,14 +233,29 @@ class ContinuousFormEngine
     // ── Formatting ──────────────────────────────────────────
 
     /**
-     * Format a field value using schema metadata if available.
+     * Format a field value using manual settings or schema metadata.
      */
-    protected function formatValue(string $fieldKey, $value): string
+    protected function formatValue(array $el, $value): string
     {
+        if ($value === null) return '';
+
+        // Check for manual formatting override from designer
+        $manualType   = $el['format_type'] ?? null;
+        $manualFormat = $el['format_string'] ?? null;
+        
+        if ($manualType && $manualType !== 'none') {
+            // Recast format_string if currency
+            $meta = $el;
+            if ($manualType === 'currency') $meta['currency_code'] = $manualFormat;
+            
+            return DataSchema::applyFormat($value, $manualType, $manualFormat, $meta);
+        }
+
         if (!$this->schema) {
             return (string) $value;
         }
-        return $this->schema->formatFieldValue($fieldKey, $value);
+
+        return $this->schema->formatFieldValue($el['key'], $value);
     }
 
     /**
@@ -250,11 +265,22 @@ class ContinuousFormEngine
     {
         if ($value === null) return '';
 
-        // Check column-level format hint first (set in designer)
-        $format = $col['format'] ?? null;
-        $type   = $col['type'] ?? null;
+        // Check column-level manual formatting override from designer
+        $manualType   = $col['format_type'] ?? null;
+        $manualFormat = $col['format_string'] ?? null;
 
-        if ($type && $format) {
+        if ($manualType && $manualType !== 'none') {
+            // Recast if currency
+            $meta = $col;
+            if ($manualType === 'currency') $meta['currency_code'] = $manualFormat;
+            
+            return DataSchema::applyFormat($value, $manualType, $manualFormat, $meta);
+        }
+
+        // Backward compatibility check for old 'format'/'type' keys
+        $type   = $col['type'] ?? null;
+        $format = $col['format'] ?? null;
+        if ($type && $format && $type !== 'string') {
             return DataSchema::applyFormat($value, $type, $format, $col);
         }
 

@@ -361,22 +361,25 @@
 <div id="test-print-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); z-index:2000; align-items:center; justify-content:center;">
     <div style="background:var(--surface); width:400px; border-radius:12px; padding:1.5rem; border:1px solid var(--border);">
         <h3 style="margin:0 0 1rem 0; font-size:1.1rem;">Test Print</h3>
-        <div style="display:flex; flex-direction:column; gap:1rem;">
+        <div style="display:flex; flex-direction:column; gap:1.2rem;">
             <div>
-                <label style="display:block; font-size:0.8rem; color:var(--text-muted); margin-bottom:0.3rem;">Target Agent</label>
-                <select id="test-agent-id" style="width:100%; background:var(--bg); color:var(--text); border:1px solid var(--border); padding:8px; border-radius:4px;">
+                <label style="display:block; font-size:0.75rem; color:var(--text-muted); margin-bottom:0.4rem; font-weight:500;">Target Agent</label>
+                <select id="test-agent-id" onchange="updatePrinterDropdown(this.value)" style="width:100%; background:var(--bg); color:var(--text); border:1px solid var(--border); padding:10px; border-radius:6px; font-size:0.9rem; outline:none; transition:border-color 0.2s;">
+                    <option value="">Select Agent</option>
                     @foreach(\App\Models\PrintAgent::all() as $agent)
                         <option value="{{ $agent->id }}">{{ $agent->name }}</option>
                     @endforeach
                 </select>
             </div>
             <div>
-                <label style="display:block; font-size:0.8rem; color:var(--text-muted); margin-bottom:0.3rem;">Printer Name</label>
-                <input type="text" id="test-printer-name" placeholder="e.g. EPSON L3110" style="width:100%; background:var(--bg); color:var(--text); border:1px solid var(--border); padding:8px; border-radius:4px;">
+                <label style="display:block; font-size:0.75rem; color:var(--text-muted); margin-bottom:0.4rem; font-weight:500;">Printer Name</label>
+                <select id="test-printer-name" style="width:100%; background:var(--bg); color:var(--text); border:1px solid var(--border); padding:10px; border-radius:6px; font-size:0.9rem; outline:none; transition:border-color 0.2s;">
+                    <option value="">Select Printer</option>
+                </select>
             </div>
-            <div style="margin-top:1rem; display:flex; gap:0.5rem;">
-                <button onclick="doTestPrint()" class="btn btn-warning" style="flex:1;">Send Print Job</button>
-                <button onclick="closeTestPrint()" class="btn btn-secondary" style="flex:1;">Cancel</button>
+            <div style="margin-top:0.5rem; display:flex; gap:0.75rem;">
+                <button onclick="doTestPrint()" class="btn btn-primary" style="flex:2; padding:10px; font-weight:600;">🚀 Send Print Job</button>
+                <button onclick="closeTestPrint()" class="btn btn-secondary" style="flex:1; padding:10px;">Cancel</button>
             </div>
         </div>
     </div>
@@ -644,11 +647,51 @@
         return val;
     }
 
+    function formatValueJS(val, type, format, extra = {}) {
+        if (val === null || val === undefined || val === '') return '';
+        if (type === 'date') {
+            try {
+                const date = new Date(val);
+                if (isNaN(date.getTime())) return val;
+                // Simple date formatter
+                const d = date.getDate().toString().padStart(2, '0');
+                const m = (date.getMonth() + 1).toString().padStart(2, '0');
+                const y = date.getFullYear();
+                const yy = y.toString().slice(-2);
+                const hrs = date.getHours().toString().padStart(2, '0');
+                const mins = date.getMinutes().toString().padStart(2, '0');
+                
+                let pattern = format || 'dd/MM/yyyy';
+                return pattern.replace('dd', d).replace('MM', m).replace('yyyy', y).replace('yy', yy).replace('HH', hrs).replace('mm', mins);
+            } catch (e) { return val; }
+        }
+        if (type === 'number' || type === 'currency') {
+            const num = parseFloat(val);
+            if (isNaN(num)) return val;
+            const decimals = extra.decimal_places !== undefined ? extra.decimal_places : 2;
+            const formatted = num.toLocaleString('id-ID', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+            if (type === 'currency' || format === 'currency') {
+                const symbol = extra.currency_symbol || 'Rp';
+                return `${symbol} ${formatted}`;
+            }
+            return formatted;
+        }
+        return val;
+    }
+
     function getLiveDisplayValue(el) {
         if (!liveDataMode || Object.keys(sampleDataCache).length === 0) return null;
         if (el.type === 'field') {
-            const val = resolveDataValue(el.key, sampleDataCache);
-            return val !== null && val !== undefined ? String(val) : null;
+            let val = resolveDataValue(el.key, sampleDataCache);
+            if (val !== null && val !== undefined) {
+                if (el.format_type && el.format_type !== 'none') {
+                    return formatValueJS(val, el.format_type, el.format_string, {
+                        decimal_places: el.decimal_places,
+                        currency_symbol: el.format_string // Reuse format_string for symbol in currency mode
+                    });
+                }
+                return String(val);
+            }
         }
         return null;
     }
@@ -846,6 +889,24 @@
         renderElements(); selectElements(newIds);
     }
 
+    // ── Test Print ──────────────────────────────────────────
+    const agents_data = @json(\App\Models\PrintAgent::all());
+    
+    function updatePrinterDropdown(agentId) {
+        const select = document.getElementById('test-printer-name');
+        select.innerHTML = '<option value="">Select Printer</option>';
+        if (!agentId) return;
+        
+        const agent = agents_data.find(a => a.id == agentId);
+        if (agent && agent.printers) {
+            agent.printers.forEach(p => {
+                const opt = document.createElement('option');
+                opt.value = p; opt.textContent = p;
+                select.appendChild(opt);
+            });
+        }
+    }
+
     // ── Distribute ───────────────────────────────────────────
     function distributeH() {
         const sel = elements.filter(e => activeIds.includes(e.id)); if (sel.length < 3) return;
@@ -987,7 +1048,16 @@
                 if (liveRows && liveRows.length > 0) {
                     liveRows.forEach((row, ri) => {
                         const bg = ri % 2 === 0 ? '' : 'background:rgba(59,130,246,0.04);';
-                        rowsHtml += '<tr>' + cols.map(c => `<td style="border:1px solid #e2e8f0; padding:1px 3px; font-size:${displayEl.font_size*BASE_SCALE*0.16}px; color:#334155;${bg}">${resolveDataValue(c.key, row) ?? ''}</td>`).join('') + '</tr>';
+                        rowsHtml += '<tr>' + cols.map(c => {
+                            let val = resolveDataValue(c.key, row) ?? '';
+                            if (c.format_type && c.format_type !== 'none') {
+                                val = formatValueJS(val, c.format_type, c.format_string, {
+                                    decimal_places: c.decimal_places,
+                                    currency_symbol: c.format_string
+                                });
+                            }
+                            return `<td style="border:1px solid #e2e8f0; padding:1px 3px; font-size:${displayEl.font_size*BASE_SCALE*0.16}px; color:#334155;${bg}">${val}</td>`;
+                        }).join('') + '</tr>';
                     });
                     div.classList.add('field-resolved');
                 } else {
@@ -1142,6 +1212,28 @@
                 <div class="prop-item"><div class="prop-key">Bold</div><div class="prop-val" style="padding-left:10px;"><input type="checkbox" ${el.bold?'checked':''} onchange="updateElProps('bold',this.checked)" ${el.styleIdx!==undefined?'disabled':''}></div></div>
                 <div class="prop-item"><div class="prop-key">Border</div><div class="prop-val" style="padding-left:10px;"><input type="checkbox" ${el.border?'checked':''} onchange="updateElProps('border',this.checked)"></div></div>
             </div></div>`;
+
+            if (el.type === 'field') {
+                html += `<div class="props-section"><div class="props-label">Formatting</div><div class="prop-table">
+                    <div class="prop-item"><div class="prop-key">Type</div><div class="prop-val">
+                        <select onchange="updateElProps('format_type',this.value)">
+                            <option value="none" ${el.format_type==='none'||!el.format_type?'selected':''}>None</option>
+                            <option value="date" ${el.format_type==='date'?'selected':''}>Date</option>
+                            <option value="number" ${el.format_type==='number'?'selected':''}>Number</option>
+                            <option value="currency" ${el.format_type==='currency'?'selected':''}>Currency</option>
+                        </select>
+                    </div></div>`;
+                
+                if (el.format_type === 'date') {
+                    html += `<div class="prop-item"><div class="prop-key">Pattern</div><div class="prop-val"><input type="text" value="${el.format_string||'dd/MM/yyyy'}" oninput="updateElProps('format_string',this.value)" placeholder="dd/MM/yyyy"></div></div>`;
+                } else if (el.format_type === 'number' || el.format_type === 'currency') {
+                    if (el.format_type === 'currency') {
+                        html += `<div class="prop-item"><div class="prop-key">Symbol</div><div class="prop-val"><input type="text" value="${el.format_string||'Rp'}" oninput="updateElProps('format_string',this.value)" placeholder="Rp"></div></div>`;
+                    }
+                    html += `<div class="prop-item"><div class="prop-key">Decimals</div><div class="prop-val"><input type="number" min="0" max="4" value="${el.decimal_places!==undefined?el.decimal_places:2}" oninput="updateElProps('decimal_places',parseInt(this.value))"></div></div>`;
+                }
+                html += `</div></div>`;
+            }
         }
 
         html += `
@@ -1166,7 +1258,16 @@
                     <div class="prop-item"><div class="prop-key">Label</div><div class="prop-val"><input type="text" value="${col.label}" oninput="updateCol(${idx},'label',this.value)"></div></div>
                     <div class="prop-item"><div class="prop-key">Key</div><div class="prop-val"><input type="text" value="${col.key}" oninput="updateCol(${idx},'key',this.value)"></div></div>
                     <div class="prop-item"><div class="prop-key">Width</div><div class="prop-val"><input type="number" value="${col.width}" oninput="updateCol(${idx},'width',parseFloat(this.value))"></div></div>
-                    <div class="prop-item"><div class="prop-key">Align</div><div class="prop-val"><select onchange="updateCol(${idx},'align',this.value)"><option value="L" ${col.align==='L'||!col.align?'selected':''}>L</option><option value="C" ${col.align==='C'?'selected':''}>C</option><option value="R" ${col.align==='R'?'selected':''}>R</option></select></div></div>`;
+                    <div class="prop-item"><div class="prop-key">Align</div><div class="prop-val"><select onchange="updateCol(${idx},'align',this.value)"><option value="L" ${col.align==='L'||!col.align?'selected':''}>L</option><option value="C" ${col.align==='C'?'selected':''}>C</option><option value="R" ${col.align==='R'?'selected':''}>R</option></select></div></div>
+                    <div class="prop-item"><div class="prop-key">Format</div><div class="prop-val"><select onchange="updateCol(${idx},'format_type',this.value)"><option value="none" ${col.format_type==='none'?'selected':''}>None</option><option value="date" ${col.format_type==='date'?'selected':''}>Date</option><option value="number" ${col.format_type==='number'?'selected':''}>Number</option><option value="currency" ${col.format_type==='currency'?'selected':''}>Currency</option></select></div></div>`;
+                if (col.format_type === 'date') {
+                    html += `<div class="prop-item"><div class="prop-key">Pattern</div><div class="prop-val"><input type="text" value="${col.format_string||'dd/MM/yyyy'}" oninput="updateCol(${idx},'format_string',this.value)" style="font-size:10px;"></div></div>`;
+                } else if (col.format_type === 'number' || col.format_type === 'currency') {
+                    if (col.format_type === 'currency') {
+                        html += `<div class="prop-item"><div class="prop-key">Symbol</div><div class="prop-val"><input type="text" value="${col.format_string||'Rp'}" oninput="updateCol(${idx},'format_string',this.value)" style="font-size:10px;"></div></div>`;
+                    }
+                    html += `<div class="prop-item"><div class="prop-key">Decs</div><div class="prop-val"><input type="number" min="0" value="${col.decimal_places!==undefined?col.decimal_places:2}" oninput="updateCol(${idx},'decimal_places',parseInt(this.value))"></div></div>`;
+                }
             });
             html += `</div><div style="padding:0.5rem;"><button onclick="addCol()" class="btn btn-secondary btn-sm" style="width:100%;">+ Add Column</button></div></div>`;
         }
@@ -1240,14 +1341,54 @@
     }
     function showTestPrint() { document.getElementById('test-print-modal').style.display='flex'; }
     function closeTestPrint() { document.getElementById('test-print-modal').style.display='none'; }
+    function closeTestPrint() { document.getElementById('test-print-modal').style.display='none'; }
     function doTestPrint() {
-        const agentId=document.getElementById('test-agent-id').value;
-        const printerName=document.getElementById('test-printer-name').value; if(!printerName)return alert('Printer name required');
-        const sampleStr=document.getElementById('preview-json').value||'{}'; let sampleData={}; try{sampleData=JSON.parse(sampleStr);}catch(e){}
-        const payload={template_data:{paper_width_mm:parseFloat(document.getElementById('paper-w').value),paper_height_mm:parseFloat(document.getElementById('paper-h').value),background_image_path:document.getElementById('bg-path').value,elements,styles:globalStyles,background_config:backgroundConfig},sample_data:sampleData,agent_id:agentId,printer_name:printerName,_token:'{{ csrf_token() }}'};
-        fetch("{{ route('admin.templates.test-print', [], false) }}",{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}).then(r=>r.json()).then(data=>{
-            if(data.status==='ok'){alert('✅ Print job sent: '+data.job_id);closeTestPrint();}
-            else{alert('Error: '+(data.message||'Unknown'));}
+        const agentId = document.getElementById('test-agent-id').value;
+        const printerName = document.getElementById('test-printer-name').value;
+        if (!agentId) return alert('Please select an agent');
+        if (!printerName) return alert('Please select a printer');
+        
+        const sampleStr = document.getElementById('preview-json').value || '{}';
+        let sampleData = {};
+        try { sampleData = JSON.parse(sampleStr); } catch(e) { return alert('Invalid JSON in sample data'); }
+
+        const payload = {
+            template_data: {
+                paper_width_mm: parseFloat(document.getElementById('paper-w').value),
+                paper_height_mm: parseFloat(document.getElementById('paper-h').value),
+                background_image_path: document.getElementById('bg-path').value,
+                elements,
+                styles: globalStyles,
+                background_config: backgroundConfig
+            },
+            sample_data: sampleData,
+            agent_id: agentId,
+            printer_name: printerName,
+            _token: '{{ csrf_token() }}'
+        };
+
+        const btn = document.querySelector('#test-print-modal .btn-primary');
+        const oldText = btn.textContent;
+        btn.textContent = '⏱ Sending...';
+        btn.disabled = true;
+
+        fetch("{{ route('admin.templates.test-print', [], false) }}", {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.status === 'ok') {
+                alert('✅ Print job sent successfully! Job ID: ' + data.job_id);
+                closeTestPrint();
+            } else {
+                alert('❌ Error: ' + (data.message || 'Unknown server error'));
+            }
+        })
+        .finally(() => {
+            btn.textContent = oldText;
+            btn.disabled = false;
         });
     }
 
