@@ -1216,9 +1216,19 @@
         const payload={name,paper_width_mm:parseFloat(document.getElementById('paper-w').value),paper_height_mm:parseFloat(document.getElementById('paper-h').value),background_image_path:document.getElementById('bg-path').value,elements,styles:globalStyles,background_config:backgroundConfig,_token:'{{ csrf_token() }}'};
         const btn=document.getElementById('save-btn'); btn.textContent='Saving…'; btn.disabled=true;
         fetch("{{ $template->id ? route('admin.templates.update', $template) : route('admin.templates.store') }}",{method:"{{ $template->id ? 'PUT' : 'POST' }}",headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify(payload)})
-        .then(r=>r.json()).then(data=>{
-            if(data.status==='ok') window.location.href="{{ route('admin.templates') }}";
-            else { btn.textContent='💾 Save'; btn.disabled=false; alert('Error saving'); }
+        .then(async r => {
+            const data = await r.json();
+            if (r.ok && data.status === 'ok') {
+                window.location.href = "{{ route('admin.templates') }}";
+            } else {
+                throw new Error(data.message || 'Server error');
+            }
+        })
+        .catch(err => {
+            console.error('Save Error:', err);
+            btn.textContent = '💾 Save';
+            btn.disabled = false;
+            alert('Failed to save template: ' + err.message);
         });
     }
     function showPreview() { document.getElementById('preview-modal').style.display='flex'; refreshPreview(); }
