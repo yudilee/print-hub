@@ -15,6 +15,9 @@ Route::delete('/agents/{agent}', [AdminController::class, 'agentDestroy'])->name
 Route::get('/profiles', [AdminController::class, 'profilesIndex'])->name('admin.profiles');
 Route::post('/profiles', [AdminController::class, 'profileStore'])->name('admin.profiles.store');
 Route::delete('/profiles/{profile}', [AdminController::class, 'profileDestroy'])->name('admin.profiles.destroy');
+Route::post('/profiles/{profile}/test-print', [AdminController::class, 'profileTestPrint'])->name('admin.profiles.test-print');
+Route::get('/profiles/{profile}/edit', [AdminController::class, 'profileEdit'])->name('admin.profiles.edit');
+Route::put('/profiles/{profile}', [AdminController::class, 'profileUpdate'])->name('admin.profiles.update');
 
 // Templates
 Route::get('/templates', [AdminController::class, 'templatesIndex'])->name('admin.templates');

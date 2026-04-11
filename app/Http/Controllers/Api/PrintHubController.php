@@ -15,7 +15,10 @@ class PrintHubController extends Controller
      */
     private function authenticateAgent(Request $request): ?PrintAgent
     {
-        $token = $request->bearerToken();
+        $token = $request->bearerToken() 
+                 ?? $request->header('X-Agent-Key') 
+                 ?? $request->query('key');
+
         if (!$token) return null;
 
         $agent = PrintAgent::where('agent_key', $token)->where('is_active', true)->first();

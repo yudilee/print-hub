@@ -63,8 +63,9 @@ class AdminController extends Controller
 
     public function profilesIndex()
     {
-        $profiles = PrintProfile::latest()->get();
-        return view('admin.profiles', compact('profiles'));
+        $profiles = PrintProfile::with('agent')->latest()->get();
+        $agents = PrintAgent::where('is_active', true)->get();
+        return view('admin.profiles', compact('profiles', 'agents'));
     }
 
     public function profileStore(Request $request)
@@ -73,9 +74,9 @@ class AdminController extends Controller
             'name'            => 'required|string|max:255|unique:print_profiles,name',
             'description'     => 'nullable|string|max:255',
             'paper_size'      => 'required|string',
-            'is_custom'       => 'nullable|boolean',
-            'custom_width'    => 'nullable|numeric|required_if:is_custom,1',
-            'custom_height'   => 'nullable|numeric|required_if:is_custom,1',
+            'is_custom'       => 'nullable',
+            'custom_width'    => 'nullable|numeric|required_if:paper_size,CUSTOM',
+            'custom_height'   => 'nullable|numeric|required_if:paper_size,CUSTOM',
             'margin_top'      => 'nullable|numeric',
             'margin_bottom'   => 'nullable|numeric',
             'margin_left'     => 'nullable|numeric',
@@ -83,19 +84,131 @@ class AdminController extends Controller
             'orientation'     => 'required|string',
             'copies'          => 'required|integer|min:1',
             'duplex'          => 'required|string',
-            'default_printer' => 'nullable|string|max:255',
+            'print_agent_id'  => 'required|exists:print_agents,id',
+            'default_printer' => 'required|string|max:255',
+            'fit_to_page'     => 'nullable|boolean',
+            'use_inches'      => 'nullable',
         ]);
 
-        $data['is_custom'] = $request->has('is_custom');
+        $data['is_custom'] = ($request->paper_size === 'CUSTOM');
+
+        // Convert Inches to MM if unit was selected
+        if ($data['is_custom'] && $request->has('use_inches')) {
+            if (!empty($data['custom_width']))  $data['custom_width']  *= 25.4;
+            if (!empty($data['custom_height'])) $data['custom_height'] *= 25.4;
+        }
+        
+        // Handle extra options
+        $data['extra_options'] = [
+            'fit_to_page' => $request->has('fit_to_page')
+        ];
+
+        // Strip non-database fields to avoid mass-assignment issues
+        unset($data['fit_to_page']);
+        unset($data['use_inches']);
 
         PrintProfile::create($data);
         return redirect()->route('admin.profiles')->with('success', 'Profile created!');
+    }
+
+    public function profileTestPrint(Request $request, PrintProfile $profile)
+    {
+        $request->validate([
+            'file' => 'required|file|mimes:pdf|max:10240', // 10MB PDF
+        ]);
+
+        // Ensure we have an agent for testing
+        $agent = $profile->agent;
+        if (!$agent) {
+            // Fallback to first online agent if generic pool
+            $agent = PrintAgent::where('is_active', true)->get()->first(fn($a) => $a->isOnline());
+        }
+
+        if (!$agent) {
+            return redirect()->back()->with('error', 'No online agent available to process the test print.');
+        }
+
+        // Save PDF to private storage
+        $jobId = (string) Str::uuid();
+        $path = $request->file('file')->storeAs('print_jobs', "{$jobId}.pdf", 'local');
+
+        // Create Print Job
+        PrintJob::create([
+            'job_id' => $jobId,
+            'print_agent_id' => $agent->id,
+            'printer_name' => $profile->default_printer ?: 'Default',
+            'type' => 'pdf',
+            'status' => 'pending',
+            'file_path' => $path,
+            'options' => [
+                'orientation' => $profile->orientation,
+                'paper_size' => $profile->paper_size,
+                'paper_width_mm' => $profile->custom_width,
+                'paper_height_mm' => $profile->custom_height,
+                'margin_top' => $profile->margin_top,
+                'margin_bottom' => $profile->margin_bottom,
+                'margin_left' => $profile->margin_left,
+                'margin_right' => $profile->margin_right,
+                'fit_to_page' => $profile->extra_options['fit_to_page'] ?? false,
+                'copies' => 1,
+            ],
+        ]);
+
+        return redirect()->back()->with('success', "Test print job created! ID: {$jobId}. Monitor its status on the Dashboard.");
     }
 
     public function profileDestroy(PrintProfile $profile)
     {
         $profile->delete();
         return redirect()->route('admin.profiles')->with('success', 'Profile removed.');
+    }
+
+    public function profileEdit(PrintProfile $profile)
+    {
+        $agents = PrintAgent::where('is_active', true)->get();
+        return view('admin.edit_profile', compact('profile', 'agents'));
+    }
+
+    public function profileUpdate(Request $request, PrintProfile $profile)
+    {
+        $data = $request->validate([
+            'name'            => 'required|string|max:255|unique:print_profiles,name,' . $profile->id,
+            'description'     => 'nullable|string|max:255',
+            'paper_size'      => 'required|string',
+            'custom_width'    => 'nullable|numeric|required_if:paper_size,CUSTOM',
+            'custom_height'   => 'nullable|numeric|required_if:paper_size,CUSTOM',
+            'margin_top'      => 'nullable|numeric',
+            'margin_bottom'   => 'nullable|numeric',
+            'margin_left'     => 'nullable|numeric',
+            'margin_right'    => 'nullable|numeric',
+            'orientation'     => 'required|string',
+            'copies'          => 'required|integer|min:1',
+            'duplex'          => 'required|string',
+            'print_agent_id'  => 'required|exists:print_agents,id',
+            'default_printer' => 'required|string|max:255',
+            'fit_to_page'     => 'nullable|boolean',
+            'use_inches'      => 'nullable',
+        ]);
+
+        $data['is_custom'] = ($request->paper_size === 'CUSTOM');
+
+        // Convert Inches to MM if unit was selected
+        if ($data['is_custom'] && $request->has('use_inches')) {
+            if (!empty($data['custom_width']))  $data['custom_width']  *= 25.4;
+            if (!empty($data['custom_height'])) $data['custom_height'] *= 25.4;
+        }
+        
+        // Handle extra options
+        $data['extra_options'] = [
+            'fit_to_page' => $request->has('fit_to_page')
+        ];
+
+        // Strip non-database fields to avoid mass-assignment issues
+        unset($data['fit_to_page']);
+        unset($data['use_inches']);
+
+        $profile->update($data);
+        return redirect()->route('admin.profiles')->with('success', 'Profile updated!');
     }
 
     // ── Templates CRUD ──

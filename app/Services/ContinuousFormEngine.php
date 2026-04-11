@@ -74,6 +74,8 @@ class ContinuousFormEngine
                 $this->renderLabel($el);
             } elseif ($el['type'] === 'line') {
                 $this->renderLine($el);
+            } elseif ($el['type'] === 'image') {
+                $this->renderImage($el);
             }
         }
     }
@@ -170,6 +172,33 @@ class ContinuousFormEngine
         $this->pdf->Line($x, $y, $x + $width, $y);
         $this->pdf->SetDrawColor(0, 0, 0);
         $this->pdf->SetLineWidth(0.2);
+    }
+
+    protected function renderImage($el)
+    {
+        $x = (float) ($el['x'] ?? 0);
+        $y = (float) ($el['y'] ?? 0);
+        $w = (float) ($el['width'] ?? 0);
+        $h = (float) ($el['height'] ?? 0);
+        
+        $src = $el['src'] ?? null;
+        
+        // If image has a data key, resolve it dynamically
+        if (!empty($el['key'])) {
+            $dynamicSrc = $this->resolveValue($el['key'], $this->data);
+            if ($dynamicSrc) $src = $dynamicSrc;
+        }
+
+        if (!$src) return;
+
+        try {
+            // FPDF Image($file, $x, $y, $w, $h, $type, $link)
+            // If w or h is 0, it is automatically calculated from the image properties
+            $this->pdf->Image($src, $x, $y, $w, $h);
+        } catch (\Exception $e) {
+            // Log or skip if image not found/invalid
+            \Illuminate\Support\Facades\Log::warning("PDF Engine: Image render failed for {$src}. " . $e->getMessage());
+        }
     }
 
     protected function renderTextCell($el, string $value)

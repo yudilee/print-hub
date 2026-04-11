@@ -18,7 +18,7 @@
     </div>
     <div class="stat-card">
         <div class="stat-value" style="color: var(--primary);">{{ $stats['total_profiles'] }}</div>
-        <div class="stat-label">Print Profiles</div>
+        <div class="stat-label">Virtual Queues</div>
     </div>
     <div class="stat-card">
         <div class="stat-value">{{ $stats['total_jobs'] }}</div>

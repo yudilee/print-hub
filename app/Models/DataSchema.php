@@ -179,6 +179,9 @@ class DataSchema extends Model
                 if ($format === 'integer') {
                     return number_format((float) $value, 0, ',', '.');
                 }
+                if ($format === 'terbilang') {
+                    return static::terbilang((float) $value);
+                }
                 return number_format((float) $value, $decimals, ',', '.');
 
             case 'date':
@@ -197,6 +200,40 @@ class DataSchema extends Model
             default:
                 return (string) $value;
         }
+    }
+
+    /**
+     * Convert number to Indonesian words (Terbilang).
+     */
+    public static function terbilang(float $number): string
+    {
+        $number = abs($number);
+        $words = ["", "Satu", "Dua", "Tiga", "Empat", "Lima", "Enam", "Tujuh", "Delapan", "Sembilan", "Sepuluh", "Sebelas"];
+        $result = "";
+
+        if ($number < 12) {
+            $result = " " . $words[$number];
+        } else if ($number < 20) {
+            $result = static::terbilang($number - 10) . " Belas";
+        } else if ($number < 100) {
+            $result = static::terbilang(floor($number / 10)) . " Puluh" . static::terbilang($number % 10);
+        } else if ($number < 200) {
+            $result = " Seratus" . static::terbilang($number - 100);
+        } else if ($number < 1000) {
+            $result = static::terbilang(floor($number / 100)) . " Ratus" . static::terbilang($number % 100);
+        } else if ($number < 2000) {
+            $result = " Seribu" . static::terbilang($number - 1000);
+        } else if ($number < 1000000) {
+            $result = static::terbilang(floor($number / 1000)) . " Ribu" . static::terbilang($number % 1000);
+        } else if ($number < 1000000000) {
+            $result = static::terbilang(floor($number / 1000000)) . " Juta" . static::terbilang($number % 1000000);
+        } else if ($number < 1000000000000) {
+            $result = static::terbilang(floor($number / 1000000000)) . " Milyar" . static::terbilang($number % 1000000000);
+        } else if ($number < 1000000000000000) {
+            $result = static::terbilang(floor($number / 1000000000000)) . " Trilyun" . static::terbilang($number % 1000000000000);
+        }
+
+        return trim($result);
     }
 
     /**

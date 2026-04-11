@@ -327,6 +327,7 @@ class ClientAppController extends Controller
             'agent_id'        => 'nullable|integer|exists:print_agents,id',
             'printer'         => 'nullable|string',
             'profile'         => 'nullable|string',
+            'queue'           => 'nullable|string',
             'reference_id'    => 'nullable|string',
             'webhook_url'     => 'nullable|url',
             'options'         => 'nullable|array',
@@ -340,10 +341,11 @@ class ClientAppController extends Controller
             ], 422);
         }
 
-        // 1. Resolve Profile settings
+        // 1. Resolve Profile / Queue settings
         $profile = null;
-        if (!empty($data['profile'])) {
-            $profile = \App\Models\PrintProfile::where('name', $data['profile'])->first();
+        $profileName = $data['queue'] ?? $data['profile'] ?? null;
+        if ($profileName) {
+            $profile = \App\Models\PrintProfile::with('agent')->where('name', $profileName)->first();
         }
 
         // 2. Resolve Options (merge Profile -> Request)
@@ -357,6 +359,7 @@ class ClientAppController extends Controller
                 'margin_bottom' => $profile->margin_bottom,
                 'margin_left'   => $profile->margin_left,
                 'margin_right'  => $profile->margin_right,
+                'fit_to_page'   => $profile->extra_options['fit_to_page'] ?? false,
             ];
             
             // Map paper size
@@ -391,8 +394,19 @@ class ClientAppController extends Controller
 
         // Auto-select agent if not specified
         $agent = null;
+        
+        // Priority for Agent selection:
+        // 1. Explicit agent_id in request
+        // 2. Pinned agent_id in Queue/Profile
+        // 3. Fallback: Any online agent (if no pin or explicit ID)
+        
         if (! empty($data['agent_id'])) {
             $agent = PrintAgent::where('id', $data['agent_id'])->where('is_active', true)->first();
+        } elseif ($profile && $profile->print_agent_id) {
+            $agent = $profile->agent;
+            if ($agent && !$agent->isOnline()) {
+                return response()->json(['error' => "The Hub assigned to queue '{$profileName}' is offline."], 503);
+            }
         } else {
             $agent = PrintAgent::where('is_active', true)->get()->first(fn($a) => $a->isOnline());
         }
@@ -474,7 +488,7 @@ class ClientAppController extends Controller
             'agent'     => $agent->name,
             'printer'   => $printer,
             'template'  => $templateName,
-            'profile'   => $profile ? $profile->name : null,
+            'queue'     => $profile ? $profile->name : null,
         ];
 
         if (!empty($validationWarnings)) {

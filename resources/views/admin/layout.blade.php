@@ -254,7 +254,7 @@
                     <span class="nav-icon">💻</span> Agents
                 </a>
                 <a href="{{ route('admin.profiles') }}" class="nav-link {{ request()->routeIs('admin.profiles') ? 'active' : '' }}">
-                    <span class="nav-icon">📋</span> Profiles
+                    <span class="nav-icon">📋</span> Queues
                 </a>
                 <a href="{{ route('admin.jobs') }}" class="nav-link {{ request()->routeIs('admin.jobs') ? 'active' : '' }}">
                     <span class="nav-icon">📜</span> Job History

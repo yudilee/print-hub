@@ -1,5 +1,6 @@
 # Ignore local development files from being copied into the container
 vendor/
+bootstrap/cache/*.php
 node_modules/
 dist/
 public/build/

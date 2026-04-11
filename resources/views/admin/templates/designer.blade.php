@@ -226,6 +226,7 @@
             <button onclick="addElement('label')" class="tool-btn" title="Add Static Label (L)">Aa</button>
             <button onclick="addElement('table')" class="tool-btn" title="Add Data Table">▦</button>
             <button onclick="addElement('line')" class="tool-btn" title="Add Separator Line">—</button>
+            <button onclick="addElement('image')" class="tool-btn" title="Add Image/Logo">🖼</button>
             <label class="tool-btn" title="Upload Background Trace" style="cursor:pointer">
                 🖼️<input type="file" id="bg-upload" style="display:none" onchange="uploadBg()">
             </label>
@@ -872,6 +873,7 @@
         if (type === 'label')  { el.key = ''; el.text = 'Label Text'; el.width = 60; }
         if (type === 'table')  { el.key = 'items'; el.width = 180; el.columns = [{ label: 'Item', key: 'name', width: 100 }, { label: 'Qty', key: 'qty', width: 40, align: 'R' }]; }
         if (type === 'line')   { el.key = ''; el.width = 180; el.height = 0.5; el.lineColor = '#000000'; }
+        if (type === 'image')  { el.key = ''; el.src = 'https://via.placeholder.com/150?text=Logo'; el.width = 30; el.height = 30; }
         elements.push(el); renderElements(); selectElements([id]);
     }
 
@@ -1064,6 +1066,19 @@
                     rowsHtml = '<tr>' + cols.map(c => '<td style="border:1px solid #e2e8f0; padding:1px 3px; font-size:' + (displayEl.font_size*BASE_SCALE*0.16) + 'px; color:#64748b;">{{' + c.key + '}}</td>').join('') + '</tr>';
                 }
                 div.innerHTML = `<table style="border-collapse:collapse; width:100%; table-layout:fixed;"><tr>${colsHtml}</tr>${rowsHtml}</table>`;
+            } else if (displayEl.type === 'image') {
+                const img = document.createElement('img');
+                img.src = displayEl.src || 'https://via.placeholder.com/150?text=Image';
+                img.style.width = '100%'; img.style.height = '100%'; img.style.objectFit = 'contain'; img.style.pointerEvents = 'none';
+                div.appendChild(img);
+                if (displayEl.key) {
+                    const badge = document.createElement('div');
+                    badge.textContent = 'LINKED: ' + displayEl.key;
+                    badge.style.position = 'absolute'; badge.style.bottom = '0'; badge.style.left = '0';
+                    badge.style.background = 'rgba(59,130,246,0.8)'; badge.style.color = 'white';
+                    badge.style.fontSize = '8px'; badge.style.padding = '1px 3px';
+                    div.appendChild(badge);
+                }
             } else {
                 // Field element — live data preview
                 if (displayEl.border) div.style.border = '1px solid #1e293b';
@@ -1201,6 +1216,10 @@
                 <div class="prop-item"><div class="prop-key">Color</div><div class="prop-val"><input type="color" value="${el.lineColor||'#000000'}" oninput="updateElProps('lineColor',this.value)" style="height:28px;border:none;background:none;cursor:pointer;"></div></div>
                 <div class="prop-item"><div class="prop-key">Thickness</div><div class="prop-val"><input type="number" step="0.1" min="0.1" value="${el.height||0.5}" oninput="updateElProps('height',parseFloat(this.value))"></div></div>
             </div></div>`;
+        } else if (el.type === 'image') {
+            html += `<div class="props-section"><div class="props-label">Image</div><div class="prop-table">
+                <div class="prop-item"><div class="prop-key">Source URL</div><div class="prop-val"><input type="text" value="${el.src||''}" oninput="updateElProps('src',this.value)"></div></div>
+            </div></div>`;
         } else {
             html += `
             <div class="props-section"><div class="props-label">Global Style</div><div class="prop-table">
@@ -1221,6 +1240,7 @@
                             <option value="date" ${el.format_type==='date'?'selected':''}>Date</option>
                             <option value="number" ${el.format_type==='number'?'selected':''}>Number</option>
                             <option value="currency" ${el.format_type==='currency'?'selected':''}>Currency</option>
+                            <option value="terbilang" ${el.format_type==='terbilang'?'selected':''}>Terbilang</option>
                         </select>
                     </div></div>`;
                 
