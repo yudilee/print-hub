@@ -23,6 +23,7 @@ Route::prefix('v1')->group(function () {
 
     // Discovery (no auth needed for agent list)
     Route::get('/agents/online', [ClientAppController::class, 'getOnlineAgents']);
+    Route::get('/queues',        [ClientAppController::class, 'listQueues']);
 
     // Template discovery
     Route::get('/templates',       [ClientAppController::class, 'listTemplates']);

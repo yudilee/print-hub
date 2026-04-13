@@ -7,11 +7,11 @@
  *   require 'PrintHubClient.php';
  *   $hub = new PrintHubClient('http://print-hub:8082', 'your-api-key');
  *
- *   // Print with a template
- *   $result = $hub->printWithTemplate('invoice-rental', $data, 'INV-001');
+ *   // Print with a template and a specific queue
+ *   $result = $hub->printWithTemplate('invoice-rental', $data, 'INV-001', 'main-queue');
  *
- *   // Print a raw PDF
- *   $result = $hub->printRawPdf(base64_encode($pdfString));
+ *   // Print a raw PDF to a specific queue
+ *   $result = $hub->printRawPdf(base64_encode($pdfString), 'INV-001', 'main-queue');
  *
  *   // Discover what data a template needs
  *   $schema = $hub->getTemplateSchema('invoice-rental');
@@ -143,6 +143,12 @@ class PrintHubClient
             $rows = $this->resolveValue($tableKey, $data);
             if ($rows !== null && !is_array($rows)) {
                 $errors[] = "Table '{$tableKey}' expected array of rows.";
+                continue;
+            }
+
+            $minRows = $tableMeta['min_rows'] ?? null;
+            if ($minRows && is_array($rows) && count($rows) < $minRows) {
+                $errors[] = "Table '{$tableKey}' requires at least {$minRows} row(s), got " . count($rows) . ".";
             }
         }
 
@@ -159,18 +165,21 @@ class PrintHubClient
      * @param  string  $template     Template name
      * @param  array   $data         Data to fill the template
      * @param  string  $referenceId  Optional reference (e.g. invoice number)
+     * @param  string  $queue        Optional: Send to a specific Virtual Queue name
      * @param  array   $options      Optional: ['agent_id', 'printer', 'webhook_url', 'skip_validation']
      */
     public function printWithTemplate(
         string $template,
         array  $data,
         string $referenceId = '',
+        string $queue = '',
         array  $options = []
     ): array {
         $payload = array_merge([
             'template'     => $template,
             'data'         => $data,
             'reference_id' => $referenceId ?: null,
+            'queue'        => $queue ?: null,
         ], $options);
 
         return $this->post('/api/v1/print', $payload);
@@ -181,11 +190,13 @@ class PrintHubClient
      *
      * @param  string  $base64Pdf    Base64-encoded PDF string
      * @param  string  $referenceId  Optional reference
+     * @param  string  $queue        Optional: Send to a specific Virtual Queue name
      * @param  array   $options      Optional: ['agent_id', 'printer', 'webhook_url']
      */
     public function printRawPdf(
         string $base64Pdf,
         string $referenceId = '',
+        string $queue = '',
         array  $options = []
     ): array {
         $base64Pdf = preg_replace('/\s+/', '', $base64Pdf);
@@ -200,6 +211,7 @@ class PrintHubClient
         $payload = array_merge([
             'document_base64' => $base64Pdf,
             'reference_id'    => $referenceId ?: null,
+            'queue'           => $queue ?: null,
         ], $options);
 
         return $this->post('/api/v1/print', $payload);
@@ -228,6 +240,16 @@ class PrintHubClient
             $elapsed += $interval;
         }
         return ['status' => 'timeout', 'job_id' => $jobId];
+    }
+
+    // -------------------------------------------------------------------------
+    // Queue Discovery
+    // -------------------------------------------------------------------------
+
+    /** List all available virtual queues (profiles). */
+    public function getQueues(): array
+    {
+        return $this->get('/api/v1/queues')['queues'] ?? [];
     }
 
     // -------------------------------------------------------------------------

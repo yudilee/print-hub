@@ -7,6 +7,7 @@ use App\Models\ClientApp;
 use App\Models\DataSchema;
 use App\Models\PrintAgent;
 use App\Models\PrintJob;
+use App\Models\PrintProfile;
 use App\Models\PrintTemplate;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -72,6 +73,27 @@ class ClientAppController extends Controller
         ])->values();
 
         return response()->json(['agents' => $data]);
+    }
+
+    // -------------------------------------------------------------------------
+    // GET /api/v1/queues
+    // -------------------------------------------------------------------------
+
+    public function listQueues(Request $request)
+    {
+        if (! $this->authenticate($request)) return $this->unauthorized();
+
+        $queues = PrintProfile::with('agent:id,name,last_seen_at')
+            ->get()
+            ->map(fn($p) => [
+                'name'        => $p->name,
+                'description' => $p->description,
+                'printer'     => $p->default_printer,
+                'is_online'   => $p->agent ? $p->agent->isOnline() : false,
+                'agent_name'  => $p->agent?->name,
+            ]);
+
+        return response()->json(['queues' => $queues]);
     }
 
     // -------------------------------------------------------------------------
