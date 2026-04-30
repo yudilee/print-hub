@@ -45,7 +45,7 @@
         </thead>
         <tbody>
             @forelse($jobs as $job)
-            <tr>
+            <tr id="job-row-{{ $job->job_id }}" style="transition: background-color 0.5s;">
                 <td><code class="mono">{{ $job->job_id }}</code></td>
                 <td>{{ $job->agent->name ?? '—' }}</td>
                 <td style="font-size: 0.8rem;">{{ $job->printer_name }}</td>
@@ -55,11 +55,17 @@
                         <br><a href="{{ route('admin.jobs.download', $job) }}" style="font-size: 0.7rem; color: var(--primary); text-decoration: underline;" target="_blank">View PDF</a>
                     @endif
                 </td>
-                <td>
+                <td id="job-status-{{ $job->job_id }}">
                     @if($job->status === 'success')
                         <span class="badge badge-success">✓ Success</span>
                     @elseif($job->status === 'failed')
                         <span class="badge badge-danger">✗ Failed</span>
+                        <form action="{{ route('admin.jobs.retry', $job) }}" method="POST" style="display:inline; margin-left: 5px;">
+                            @csrf
+                            <button type="submit" class="btn btn-sm" style="padding: 2px 5px; font-size: 0.65rem; background: var(--primary); color: white; border: none; border-radius: 3px; cursor: pointer;" title="Retry this job">
+                                Retry
+                            </button>
+                        </form>
                     @else
                         <span class="badge badge-warning">{{ $job->status }}</span>
                         <form action="{{ route('admin.jobs.status', $job) }}" method="POST" style="display:inline; margin-left: 5px;">
@@ -79,7 +85,7 @@
                         @endforeach
                     @endif
                 </td>
-                <td style="font-size: 0.75rem; color: var(--danger); max-width: 200px; overflow: hidden; text-overflow: ellipsis;">
+                <td id="job-error-{{ $job->job_id }}" style="font-size: 0.75rem; color: var(--danger); max-width: 200px; overflow: hidden; text-overflow: ellipsis;">
                     {{ $job->error ?? '—' }}
                 </td>
                 <td style="color: var(--text-muted); font-size: 0.8rem; white-space: nowrap;">
@@ -115,5 +121,35 @@
         @endif
     </div>
     @endif
+    @endif
 </div>
+
+<script type="module">
+    if (window.Echo) {
+        window.Echo.channel('print-jobs')
+            .listen('.job.status.updated', (e) => {
+                const row = document.getElementById('job-row-' + e.job_id);
+                if (row) {
+                    const statusTd = document.getElementById('job-status-' + e.job_id);
+                    const errorTd = document.getElementById('job-error-' + e.job_id);
+                    
+                    if (e.status === 'success') {
+                        statusTd.innerHTML = '<span class="badge badge-success">✓ Success</span>';
+                        row.style.backgroundColor = 'rgba(34, 197, 94, 0.1)';
+                        setTimeout(() => row.style.backgroundColor = '', 2000);
+                        if (errorTd) errorTd.innerText = '—';
+                    } else if (e.status === 'failed') {
+                        statusTd.innerHTML = '<span class="badge badge-danger">✗ Failed</span>';
+                        row.style.backgroundColor = 'rgba(239, 68, 68, 0.1)';
+                        setTimeout(() => row.style.backgroundColor = '', 2000);
+                        if (errorTd) errorTd.innerText = e.error || '—';
+                    } else {
+                        statusTd.innerHTML = '<span class="badge badge-warning">' + e.status + '</span>';
+                        row.style.backgroundColor = 'rgba(245, 158, 11, 0.1)';
+                        setTimeout(() => row.style.backgroundColor = '', 2000);
+                    }
+                }
+            });
+    }
+</script>
 @endsection

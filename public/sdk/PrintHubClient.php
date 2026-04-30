@@ -1,126 +1,173 @@
 <?php
 
+use GuzzleHttp\Client;
+use GuzzleHttp\Promise\PromiseInterface;
+use GuzzleHttp\Exception\RequestException;
+
+class PrintHubException extends RuntimeException {}
+class PrintHubConnectionException extends PrintHubException {}
+class PrintHubValidationException extends PrintHubException {
+    public array $errors;
+    public function __construct(string $message, array $errors = []) {
+        parent::__construct($message);
+        $this->errors = $errors;
+    }
+}
+
 /**
- * PrintHubClient — Drop-in PHP SDK for Print Hub
+ * PrintHubClient — PHP SDK for Print Hub v2 (Multi-Branch Edition)
  *
- * Usage:
- *   require 'PrintHubClient.php';
- *   $hub = new PrintHubClient('http://print-hub:8082', 'your-api-key');
+ * Supports branch-aware printing, template discovery, schema validation,
+ * preview, batch printing, and job polling.
  *
- *   // Print with a template and a specific queue
- *   $result = $hub->printWithTemplate('invoice-rental', $data, 'INV-001', 'main-queue');
- *
- *   // Print a raw PDF to a specific queue
- *   $result = $hub->printRawPdf(base64_encode($pdfString), 'INV-001', 'main-queue');
- *
- *   // Discover what data a template needs
- *   $schema = $hub->getTemplateSchema('invoice-rental');
- *
- *   // Register a data schema (versioned)
- *   $hub->registerSchema('invoice_rental', [
- *       'label'  => 'Rental Invoice',
- *       'fields' => [
- *           'invoice_number' => ['label' => 'Invoice No', 'type' => 'string', 'required' => true],
- *           'total_amount'   => ['label' => 'Total', 'type' => 'number', 'format' => 'currency', 'currency_code' => 'IDR'],
- *       ],
- *       'tables' => [
- *           'items' => [
- *               'label' => 'Line Items',
- *               'columns' => [
- *                   'description' => ['label' => 'Description', 'type' => 'string'],
- *                   'qty'         => ['label' => 'Qty', 'type' => 'number', 'format' => 'integer'],
- *                   'subtotal'    => ['label' => 'Subtotal', 'type' => 'number', 'format' => 'currency', 'computed' => 'qty * unit_price'],
- *               ],
- *           ],
- *       ],
- *       'sample_data' => [...],
- *   ]);
+ * @version 2.0
  */
 class PrintHubClient
 {
-    private string $baseUrl;
-    private string $apiKey;
-    private int $timeout;
+    private Client $http;
+    private string $cacheDir;
+    private ?string $defaultBranchCode = null;
 
-    public function __construct(string $baseUrl, string $apiKey, int $timeout = 15)
+    /**
+     * Create a new PrintHubClient instance.
+     *
+     * @param string $baseUrl   The Print Hub server URL (e.g. https://print-hub.example.com)
+     * @param string $apiKey    Your client app API key (from Print Hub > Client Apps)
+     * @param int    $timeout   Request timeout in seconds
+     * @param string $cacheDir  Directory for caching schema data
+     */
+    public function __construct(string $baseUrl, string $apiKey, int $timeout = 15, string $cacheDir = '/tmp')
     {
-        $this->baseUrl = rtrim($baseUrl, '/');
-        $this->apiKey  = $apiKey;
-        $this->timeout = $timeout;
+        $this->http = new Client([
+            'base_uri' => rtrim($baseUrl, '/') . '/',
+            'timeout'  => $timeout,
+            'headers'  => [
+                'X-API-Key' => $apiKey,
+                'Content-Type' => 'application/json',
+                'Accept' => 'application/json',
+            ]
+        ]);
+        $this->cacheDir = rtrim($cacheDir, '/');
     }
 
-    // -------------------------------------------------------------------------
-    // Template Discovery
-    // -------------------------------------------------------------------------
+    // =========================================================================
+    // Branch Configuration
+    // =========================================================================
 
-    /** List all available templates with their field schemas. */
+    /**
+     * Set the default branch for all subsequent print/query calls.
+     *
+     * This avoids passing branchCode to every method. Can be overridden per-call.
+     *
+     * @param string $branchCode  e.g. "SDP-SBY"
+     * @return $this
+     */
+    public function setBranch(string $branchCode): self
+    {
+        $this->defaultBranchCode = $branchCode;
+        return $this;
+    }
+
+    /**
+     * Get the currently configured default branch code.
+     */
+    public function getBranchCode(): ?string
+    {
+        return $this->defaultBranchCode;
+    }
+
+    // =========================================================================
+    // Discovery
+    // =========================================================================
+
+    /**
+     * List all available branches.
+     *
+     * @return array  [['id' => 1, 'code' => 'SDP-SBY', 'name' => '...', 'company' => '...'], ...]
+     */
+    public function getBranches(): array
+    {
+        return $this->get('api/v1/branches')['branches'] ?? [];
+    }
+
+    /**
+     * List online agents, optionally filtered by branch.
+     *
+     * @param string|null $branchCode  Filter by branch code (null = all)
+     */
+    public function getOnlineAgents(?string $branchCode = null): array
+    {
+        $params = [];
+        $bc = $branchCode ?? $this->defaultBranchCode;
+        if ($bc) $params['branch_code'] = $bc;
+
+        $query = $params ? '?' . http_build_query($params) : '';
+        return $this->get("api/v1/agents/online{$query}")['agents'] ?? [];
+    }
+
+    /**
+     * List all available queues (print profiles).
+     */
+    public function getQueues(): array
+    {
+        return $this->get('api/v1/queues')['queues'] ?? [];
+    }
+
+    /**
+     * List all available templates.
+     */
     public function getTemplates(): array
     {
-        return $this->get('/api/v1/templates')['templates'] ?? [];
+        return $this->get('api/v1/templates')['templates'] ?? [];
     }
 
-    /** Get a single template's field schema by name. */
+    /**
+     * Get detailed info for a specific template.
+     */
     public function getTemplate(string $name): array
     {
-        return $this->get("/api/v1/templates/{$name}");
+        return $this->get("api/v1/templates/{$name}");
     }
 
     /**
-     * Get the required data schema for a template (bidirectional discovery).
-     * Returns: required_fields, required_tables, sample_data.
-     */
-    public function getTemplateSchema(string $name): array
-    {
-        return $this->get("/api/v1/templates/{$name}/schema");
-    }
-
-    // -------------------------------------------------------------------------
-    // Schema Registration (Versioned)
-    // -------------------------------------------------------------------------
-
-    /**
-     * Register or update a data schema with Print Hub.
-     * Creates a new version only when fields/tables structure changes.
+     * Get the required data schema for a template (cached for 10 minutes).
      *
-     * @param string $schemaName Unique identifier (e.g. 'invoice_rental')
-     * @param array  $schemaData Keys: 'label', 'fields', 'tables', 'sample_data'
+     * @param string $name      Template name
+     * @param bool   $useCache  Use local file cache
+     */
+    public function getTemplateSchema(string $name, bool $useCache = true): array
+    {
+        $cacheFile = $this->cacheDir . '/printhub_schema_' . md5($name) . '.json';
+        if ($useCache && file_exists($cacheFile) && filemtime($cacheFile) > (time() - 600)) {
+            return json_decode(file_get_contents($cacheFile), true);
+        }
+        $schema = $this->get("api/v1/templates/{$name}/schema");
+        file_put_contents($cacheFile, json_encode($schema));
+        return $schema;
+    }
+
+    // =========================================================================
+    // Schema Management
+    // =========================================================================
+
+    /**
+     * Register or update a data schema for template binding.
      */
     public function registerSchema(string $schemaName, array $schemaData): array
     {
         $payload = array_merge(['schema_name' => $schemaName], $schemaData);
-        return $this->post('/api/v1/schema', $payload);
+        return $this->post('api/v1/schema', $payload);
     }
-
-    /** Get version history for a schema. */
-    public function getSchemaVersions(string $schemaName): array
-    {
-        return $this->get("/api/v1/schema/{$schemaName}/versions");
-    }
-
-    /** List all schemas (latest versions by default). */
-    public function listSchemas(bool $allVersions = false): array
-    {
-        $query = $allVersions ? '?latest=false' : '';
-        return $this->get("/api/v1/schemas{$query}")['schemas'] ?? [];
-    }
-
-    // -------------------------------------------------------------------------
-    // Data Validation (Client-Side)
-    // -------------------------------------------------------------------------
 
     /**
-     * Validate data against a template's required schema before printing.
-     * Returns array of error messages (empty = valid).
-     *
-     * @param string $templateName   Template to validate against
-     * @param array  $data           The data to validate
+     * Validate data against a template's schema (client-side).
+     * Returns an array of error messages. Empty = valid.
      */
     public function validateData(string $templateName, array $data): array
     {
         $errors = [];
         $schema = $this->getTemplateSchema($templateName);
 
-        // Validate required fields
         foreach ($schema['required_fields'] ?? [] as $key => $meta) {
             $required = $meta['required'] ?? false;
             $value = $this->resolveValue($key, $data);
@@ -138,7 +185,6 @@ class PrintHubClient
             }
         }
 
-        // Validate tables
         foreach ($schema['required_tables'] ?? [] as $tableKey => $tableMeta) {
             $rows = $this->resolveValue($tableKey, $data);
             if ($rows !== null && !is_array($rows)) {
@@ -155,48 +201,104 @@ class PrintHubClient
         return $errors;
     }
 
-    // -------------------------------------------------------------------------
-    // Print Methods
-    // -------------------------------------------------------------------------
+    // =========================================================================
+    // Printing
+    // =========================================================================
 
     /**
-     * Print using a named template with data.
+     * Print using a named template (synchronous).
      *
-     * @param  string  $template     Template name
-     * @param  array   $data         Data to fill the template
-     * @param  string  $referenceId  Optional reference (e.g. invoice number)
-     * @param  string  $queue        Optional: Send to a specific Virtual Queue name
-     * @param  array   $options      Optional: ['agent_id', 'printer', 'webhook_url', 'skip_validation']
+     * The system uses branch_code to route the job to the correct agent/printer
+     * via the branch's configured template defaults.
+     *
+     * @param string      $template     Template name (e.g. "invoice_sewa")
+     * @param array       $data         Data to fill into the template
+     * @param string      $referenceId  Your reference ID for tracking
+     * @param string      $queue        Queue/profile name override (optional)
+     * @param string|null $branchCode   Branch code override (or uses default)
+     * @param array       $options      Additional options (skip_validation, copies, etc.)
+     *
+     * @return array  { status, job_id, agent, printer, template, queue }
+     * @throws PrintHubValidationException  if schema validation fails
      */
     public function printWithTemplate(
         string $template,
         array  $data,
         string $referenceId = '',
         string $queue = '',
+        ?string $branchCode = null,
         array  $options = []
     ): array {
+        $validation = $this->validateData($template, $data);
+        if (!empty($validation) && empty($options['skip_validation'])) {
+            throw new PrintHubValidationException("Schema validation failed", $validation);
+        }
+
+        $bc = $branchCode ?? $this->defaultBranchCode;
+
         $payload = array_merge([
             'template'     => $template,
             'data'         => $data,
             'reference_id' => $referenceId ?: null,
             'queue'        => $queue ?: null,
+            'branch_code'  => $bc,
         ], $options);
 
-        return $this->post('/api/v1/print', $payload);
+        return $this->post('api/v1/print', $payload);
     }
 
     /**
-     * Print a raw PDF document (no template needed).
+     * Print using a named template (asynchronous / non-blocking).
      *
-     * @param  string  $base64Pdf    Base64-encoded PDF string
-     * @param  string  $referenceId  Optional reference
-     * @param  string  $queue        Optional: Send to a specific Virtual Queue name
-     * @param  array   $options      Optional: ['agent_id', 'printer', 'webhook_url']
+     * Returns a Guzzle Promise. Resolve with ->wait() or use ->then().
+     */
+    public function printAsync(
+        string $template,
+        array  $data,
+        string $referenceId = '',
+        string $queue = '',
+        ?string $branchCode = null,
+        array  $options = []
+    ): PromiseInterface {
+        $validation = $this->validateData($template, $data);
+        if (!empty($validation) && empty($options['skip_validation'])) {
+            throw new PrintHubValidationException("Schema validation failed", $validation);
+        }
+
+        $bc = $branchCode ?? $this->defaultBranchCode;
+
+        $payload = array_merge([
+            'template'     => $template,
+            'data'         => $data,
+            'reference_id' => $referenceId ?: null,
+            'queue'        => $queue ?: null,
+            'branch_code'  => $bc,
+        ], $options);
+
+        return $this->http->postAsync('api/v1/print', ['json' => $payload])->then(
+            function ($response) {
+                return json_decode($response->getBody()->getContents(), true);
+            },
+            function ($exception) {
+                throw new PrintHubConnectionException("Async Print failed: " . $exception->getMessage());
+            }
+        );
+    }
+
+    /**
+     * Print a raw PDF file (base64 encoded).
+     *
+     * @param string      $base64Pdf    Base64-encoded PDF content
+     * @param string      $referenceId  Your reference ID for tracking
+     * @param string      $queue        Queue/profile name override
+     * @param string|null $branchCode   Branch code override (or uses default)
+     * @param array       $options      Additional options
      */
     public function printRawPdf(
         string $base64Pdf,
         string $referenceId = '',
         string $queue = '',
+        ?string $branchCode = null,
         array  $options = []
     ): array {
         $base64Pdf = preg_replace('/\s+/', '', $base64Pdf);
@@ -205,72 +307,133 @@ class PrintHubClient
             $base64Pdf = str_pad($base64Pdf, strlen($base64Pdf) + (4 - $padding), '=', STR_PAD_RIGHT);
         }
         if (strlen($base64Pdf) % 4 === 1) {
-            throw new RuntimeException("Invalid base64 string length for PDF document.");
+            throw new PrintHubException("Invalid base64 string length for PDF document.");
         }
+
+        $bc = $branchCode ?? $this->defaultBranchCode;
 
         $payload = array_merge([
             'document_base64' => $base64Pdf,
             'reference_id'    => $referenceId ?: null,
             'queue'           => $queue ?: null,
+            'branch_code'     => $bc,
         ], $options);
 
-        return $this->post('/api/v1/print', $payload);
+        return $this->post('api/v1/print', $payload);
     }
 
-    // -------------------------------------------------------------------------
-    // Job Status
-    // -------------------------------------------------------------------------
+    /**
+     * Print multiple jobs in a single request.
+     *
+     * Each job in the array can have: template, data, document_base64,
+     * printer, queue, branch_code, reference_id.
+     *
+     * @param array $jobs  Array of job payloads
+     */
+    public function printBatch(array $jobs): array
+    {
+        // Auto-fill branch_code for jobs that don't specify one
+        if ($this->defaultBranchCode) {
+            foreach ($jobs as &$job) {
+                if (empty($job['branch_code'])) {
+                    $job['branch_code'] = $this->defaultBranchCode;
+                }
+            }
+            unset($job);
+        }
 
-    /** Check the status of a print job. */
+        return $this->post('api/v1/print/batch', ['jobs' => $jobs]);
+    }
+
+    /**
+     * Generate a PDF preview without queuing a print job.
+     *
+     * @param string $template  Template name
+     * @param array  $data      Template data
+     * @param array  $options   Options (paper_size, orientation, etc.)
+     * @return string  Raw PDF binary content
+     */
+    public function preview(string $template, array $data, array $options = []): string
+    {
+        $payload = [
+            'template' => $template,
+            'data'     => $data,
+            'options'  => $options,
+        ];
+
+        try {
+            $response = $this->http->post('api/v1/preview', ['json' => $payload]);
+            return $response->getBody()->getContents();
+        } catch (RequestException $e) {
+            $res = $e->getResponse();
+            if ($res) {
+                $decoded = json_decode($res->getBody()->getContents(), true);
+                $message = $decoded['error'] ?? "HTTP " . $res->getStatusCode();
+                throw new PrintHubException("Preview failed: {$message}");
+            }
+            throw new PrintHubConnectionException("Preview connection error: " . $e->getMessage());
+        }
+    }
+
+    // =========================================================================
+    // Job Management
+    // =========================================================================
+
+    /**
+     * Check the status of a print job.
+     *
+     * @return array  { job_id, status, reference_id, printer, error, created_at, completed_at }
+     */
     public function jobStatus(string $jobId): array
     {
-        return $this->get("/api/v1/jobs/{$jobId}");
+        return $this->get("api/v1/jobs/{$jobId}");
     }
 
-    /** Wait for a job to complete (polling). */
-    public function waitForJob(string $jobId, int $maxSeconds = 30, int $interval = 2): array
+    /**
+     * Wait for a job to complete by polling.
+     *
+     * @param string $jobId           Job UUID
+     * @param int    $timeoutSeconds  Maximum time to wait
+     * @param int    $pollIntervalMs  Polling interval in milliseconds
+     * @return array  Final job status
+     * @throws PrintHubException  if timeout is reached
+     */
+    public function waitForJob(string $jobId, int $timeoutSeconds = 30, int $pollIntervalMs = 500): array
     {
-        $elapsed = 0;
-        while ($elapsed < $maxSeconds) {
+        $start = time();
+
+        while (true) {
             $status = $this->jobStatus($jobId);
-            if (in_array($status['status'] ?? '', ['completed', 'failed', 'error'])) {
+
+            if (in_array($status['status'] ?? '', ['success', 'failed'])) {
                 return $status;
             }
-            sleep($interval);
-            $elapsed += $interval;
+
+            if (time() - $start >= $timeoutSeconds) {
+                throw new PrintHubException("Timeout waiting for job {$jobId} after {$timeoutSeconds}s. Last status: " . ($status['status'] ?? 'unknown'));
+            }
+
+            usleep($pollIntervalMs * 1000);
         }
-        return ['status' => 'timeout', 'job_id' => $jobId];
     }
 
-    // -------------------------------------------------------------------------
-    // Queue Discovery
-    // -------------------------------------------------------------------------
+    // =========================================================================
+    // Connection Test
+    // =========================================================================
 
-    /** List all available virtual queues (profiles). */
-    public function getQueues(): array
-    {
-        return $this->get('/api/v1/queues')['queues'] ?? [];
-    }
-
-    // -------------------------------------------------------------------------
-    // Agent Discovery
-    // -------------------------------------------------------------------------
-
-    /** Get a list of currently online print agents. */
-    public function getOnlineAgents(): array
-    {
-        return $this->get('/api/v1/agents/online')['agents'] ?? [];
-    }
-
-    /** Test connection to Print Hub. */
+    /**
+     * Test the connection to Print Hub.
+     *
+     * @return array  { success, message, app_name, agents, server_time }
+     */
     public function testConnection(): array
     {
-        return $this->get('/api/v1/test');
+        return $this->get('api/v1/test');
     }
 
-    // -------------------------------------------------------------------------
-    // HTTP Internals
-    // -------------------------------------------------------------------------
+    // =========================================================================
+    // Internal Helpers
+    // =========================================================================
 
     private function get(string $path): array
     {
@@ -279,50 +442,24 @@ class PrintHubClient
 
     private function post(string $path, array $body): array
     {
-        return $this->request('POST', $path, $body);
+        return $this->request('POST', $path, ['json' => $body]);
     }
 
-    private function request(string $method, string $path, array $body = []): array
+    private function request(string $method, string $path, array $options = []): array
     {
-        $url = $this->baseUrl . $path;
-        $ch = curl_init($url);
-        curl_setopt_array($ch, [
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT        => $this->timeout,
-            CURLOPT_HTTPHEADER     => [
-                'X-API-Key: ' . $this->apiKey,
-                'Content-Type: application/json',
-                'Accept: application/json',
-            ],
-        ]);
-
-        if ($method === 'POST') {
-            curl_setopt($ch, CURLOPT_POST, true);
-            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($body));
+        try {
+            $response = $this->http->request($method, $path, $options);
+            return json_decode($response->getBody()->getContents(), true) ?? [];
+        } catch (RequestException $e) {
+            $res = $e->getResponse();
+            if ($res) {
+                $decoded = json_decode($res->getBody()->getContents(), true);
+                $message = $decoded['error'] ?? $decoded['message'] ?? "HTTP " . $res->getStatusCode();
+                throw new PrintHubException("PrintHubClient error: {$message} [{$res->getStatusCode()}]");
+            }
+            throw new PrintHubConnectionException("PrintHubClient connection error: " . $e->getMessage());
         }
-
-        $response = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $curlError = curl_error($ch);
-        curl_close($ch);
-
-        if ($curlError) {
-            throw new RuntimeException("PrintHubClient cURL error: {$curlError}");
-        }
-
-        $decoded = json_decode($response, true);
-
-        if ($httpCode >= 400) {
-            $message = $decoded['error'] ?? "HTTP {$httpCode}";
-            throw new RuntimeException("PrintHubClient error: {$message} [{$httpCode}]");
-        }
-
-        return $decoded ?? [];
     }
-
-    // -------------------------------------------------------------------------
-    // Helpers
-    // -------------------------------------------------------------------------
 
     private function resolveValue(string $key, array $data)
     {

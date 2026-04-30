@@ -9,9 +9,11 @@ use App\Models\PrintJob;
 use App\Models\PrintTemplate;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use App\Traits\LogsActivity;
 
 class AdminController extends Controller
 {
+    use LogsActivity;
     // ── Dashboard ──
 
     public function dashboard()
@@ -50,11 +52,14 @@ class AdminController extends Controller
             'agent_key' => Str::random(32),
         ]);
 
+        $this->logActivity('agent.created', null, ['name' => $data['name']]);
+
         return redirect()->route('admin.agents')->with('success', 'Agent created!');
     }
 
     public function agentDestroy(PrintAgent $agent)
     {
+        $this->logActivity('agent.deleted', $agent, ['name' => $agent->name]);
         $agent->delete();
         return redirect()->route('admin.agents')->with('success', 'Agent removed.');
     }
@@ -63,9 +68,10 @@ class AdminController extends Controller
 
     public function profilesIndex()
     {
-        $profiles = PrintProfile::with('agent')->latest()->get();
+        $profiles = PrintProfile::with(['agent', 'branch.company'])->latest()->get();
         $agents = PrintAgent::where('is_active', true)->get();
-        return view('admin.profiles', compact('profiles', 'agents'));
+        $branches = \App\Models\Branch::with('company')->active()->orderBy('name')->get();
+        return view('admin.profiles', compact('profiles', 'agents', 'branches'));
     }
 
     public function profileStore(Request $request)
@@ -73,6 +79,7 @@ class AdminController extends Controller
         $data = $request->validate([
             'name'            => 'required|string|max:255|unique:print_profiles,name',
             'description'     => 'nullable|string|max:255',
+            'branch_id'       => 'required|exists:branches,id',
             'paper_size'      => 'required|string',
             'is_custom'       => 'nullable',
             'custom_width'    => 'nullable|numeric|required_if:paper_size,CUSTOM',
@@ -108,6 +115,9 @@ class AdminController extends Controller
         unset($data['use_inches']);
 
         PrintProfile::create($data);
+
+        $this->logActivity('profile.created', null, ['name' => $data['name']]);
+
         return redirect()->route('admin.profiles')->with('success', 'Profile created!');
     }
 
@@ -159,6 +169,7 @@ class AdminController extends Controller
 
     public function profileDestroy(PrintProfile $profile)
     {
+        $this->logActivity('profile.deleted', $profile, ['name' => $profile->name]);
         $profile->delete();
         return redirect()->route('admin.profiles')->with('success', 'Profile removed.');
     }
@@ -387,11 +398,18 @@ class AdminController extends Controller
     {
         $data = $request->validate([
             'name' => 'required|string|max:255',
+            'allowed_origins' => 'nullable|string',
         ]);
+
+        $origins = null;
+        if (!empty($data['allowed_origins'])) {
+            $origins = array_map('trim', explode(',', $data['allowed_origins']));
+        }
 
         ClientApp::create([
             'name'    => $data['name'],
             'api_key' => (string) Str::uuid(),
+            'allowed_origins' => $origins,
         ]);
 
         return redirect()->route('admin.clients')->with('success', 'Client app registered!');
@@ -439,5 +457,27 @@ class AdminController extends Controller
         $job->update(['status' => $data['status']]);
 
         return redirect()->back()->with('success', "Job status updated to {$data['status']}");
+    }
+
+    public function jobRetry(PrintJob $job)
+    {
+        $newJob = $job->replicate();
+        $newJob->job_id = (string) Str::uuid();
+        $newJob->status = 'pending';
+        $newJob->error = null;
+        $newJob->agent_created_at = null;
+        $newJob->agent_completed_at = null;
+        $newJob->created_at = now();
+        $newJob->updated_at = now();
+        
+        if ($job->file_path && \Illuminate\Support\Facades\Storage::exists($job->file_path)) {
+            $ext = pathinfo($job->file_path, PATHINFO_EXTENSION);
+            $newJob->file_path = "print_jobs/{$newJob->job_id}.{$ext}";
+            \Illuminate\Support\Facades\Storage::copy($job->file_path, $newJob->file_path);
+        }
+
+        $newJob->save();
+
+        return redirect()->back()->with('success', 'Job retried! New Job ID: ' . $newJob->job_id);
     }
 }

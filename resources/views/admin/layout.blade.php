@@ -79,6 +79,14 @@
             border-left-color: var(--primary);
         }
         .nav-icon { font-size: 1.1rem; width: 20px; text-align: center; }
+        .nav-section {
+            padding: 1.5rem 1.5rem 0.5rem;
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
 
         /* Cards */
         .card {
@@ -170,8 +178,12 @@
         }
         .btn-primary { background: var(--primary); color: white; }
         .btn-primary:hover { background: var(--primary-hover); }
+        .btn-secondary { background: rgba(255, 255, 255, 0.08); color: var(--text); }
+        .btn-secondary:hover { background: rgba(255, 255, 255, 0.15); }
         .btn-danger { background: rgba(239, 68, 68, 0.15); color: var(--danger); }
         .btn-danger:hover { background: rgba(239, 68, 68, 0.25); }
+        .btn-warning { background: rgba(245, 158, 11, 0.15); color: var(--warning); }
+        .btn-warning:hover { background: rgba(245, 158, 11, 0.25); }
         .btn-sm { padding: 0.3rem 0.6rem; font-size: 0.75rem; }
 
         /* Forms */
@@ -238,6 +250,7 @@
         .pagination a:hover { background: var(--surface-hover); color: var(--text); }
         .pagination .active { background: var(--primary); color: white; border-color: var(--primary); }
     </style>
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body>
     <div class="layout">
@@ -262,10 +275,73 @@
                 <a href="{{ route('admin.templates') }}" class="nav-link {{ request()->routeIs('admin.templates*') ? 'active' : '' }}">
                     <span class="nav-icon">🎨</span> Print Templates
                 </a>
-                <a href="{{ route('admin.clients') }}" class="nav-link {{ request()->routeIs('admin.clients*') ? 'active' : '' }}">
-                    <span class="nav-icon">🔑</span> Client Apps
+
+                @if(auth()->user()?->isSuperAdmin())
+                <a href="{{ route('admin.clients') }}" class="nav-link {{ request()->routeIs('admin.clients') ? 'active' : '' }}">
+                    <span class="nav-icon">🔌</span> Client Apps
+                </a>
+                @endif
+
+                <div class="nav-section">Organization</div>
+                @if(auth()->user()?->isSuperAdmin())
+                <a href="{{ route('admin.companies') }}" class="nav-link {{ request()->routeIs('admin.companies') ? 'active' : '' }}">
+                    <span class="nav-icon">🏢</span> Companies
+                </a>
+                @endif
+                @if(auth()->user()?->hasAnyRole(['super-admin', 'company-admin', 'branch-admin']))
+                <a href="{{ route('admin.branches') }}" class="nav-link {{ request()->routeIs('admin.branches*') ? 'active' : '' }}">
+                    <span class="nav-icon">📍</span> Branches
+                </a>
+                @endif
+
+                <div class="nav-section">Access Control</div>
+                @if(auth()->user()?->hasAnyRole(['super-admin', 'company-admin']))
+                <a href="{{ route('admin.users') }}" class="nav-link {{ request()->routeIs('admin.users') ? 'active' : '' }}">
+                    <span class="nav-icon">👥</span> Users
+                </a>
+                @endif
+                <a href="{{ route('admin.sessions') }}" class="nav-link {{ request()->routeIs('admin.sessions') ? 'active' : '' }}">
+                    <span class="nav-icon">🛡️</span> Active Sessions
+                </a>
+                @if(auth()->user()?->hasAnyRole(['super-admin', 'company-admin', 'branch-admin']))
+                <a href="{{ route('admin.activity-logs') }}" class="nav-link {{ request()->routeIs('admin.activity-logs') ? 'active' : '' }}">
+                    <span class="nav-icon">📝</span> Activity Log
+                </a>
+                @endif
+
+                <div class="nav-section">Developer</div>
+                <a href="{{ route('admin.sdk-docs') }}" class="nav-link {{ request()->routeIs('admin.sdk-docs') ? 'active' : '' }}">
+                    <span class="nav-icon">📖</span> SDK Docs
                 </a>
             </nav>
+
+            <div style="margin-top: auto; padding: 1.5rem; border-top: 1px solid var(--border);">
+                @auth
+                <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem;">
+                    <div style="width: 32px; height: 32px; border-radius: 50%; background: var(--primary); display: flex; align-items: center; justify-content: center; font-weight: 600; color: white;">
+                        {{ substr(auth()->user()->name, 0, 1) }}
+                    </div>
+                    <div style="flex: 1; overflow: hidden;">
+                        <div style="font-size: 0.85rem; font-weight: 600; white-space: nowrap; text-overflow: ellipsis; overflow: hidden;">{{ auth()->user()->name }}</div>
+                        <div style="font-size: 0.7rem; color: var(--text-muted);">{{ ucfirst(str_replace('-', ' ', auth()->user()->role)) }}</div>
+                    </div>
+                </div>
+                @if(auth()->user()->branch)
+                <div style="font-size: 0.7rem; color: var(--text-muted); margin-bottom: 0.75rem; padding: 0.4rem 0.6rem; background: rgba(99, 102, 241, 0.08); border-radius: 4px;">
+                    📍 {{ auth()->user()->branch->name }}
+                    @if(auth()->user()->company)
+                        <br>🏢 {{ auth()->user()->company->code }}
+                    @endif
+                </div>
+                @endif
+                <form action="{{ route('logout') }}" method="POST">
+                    @csrf
+                    <button type="submit" class="btn btn-danger" style="width: 100%; justify-content: center;">
+                        <span class="nav-icon" style="font-size: 0.9rem;">🚪</span> Logout
+                    </button>
+                </form>
+                @endauth
+            </div>
         </aside>
         <main class="main">
             @if(session('success'))

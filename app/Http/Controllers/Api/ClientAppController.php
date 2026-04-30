@@ -354,6 +354,8 @@ class ClientAppController extends Controller
             'webhook_url'     => 'nullable|url',
             'options'         => 'nullable|array',
             'skip_validation' => 'nullable|boolean',
+            'branch_code'     => 'nullable|string',
+            'branch_id'       => 'nullable|integer',
         ]);
 
         // Must have either template or document
@@ -363,11 +365,42 @@ class ClientAppController extends Controller
             ], 422);
         }
 
+        // 0. Resolve Branch (if provided)
+        $branch = null;
+        $branchId = null;
+        if (!empty($data['branch_code'])) {
+            $branch = \App\Models\Branch::where('code', $data['branch_code'])->first();
+            if (!$branch) {
+                return response()->json(['error' => "Branch '{$data['branch_code']}' not found."], 404);
+            }
+            $branchId = $branch->id;
+        } elseif (!empty($data['branch_id'])) {
+            $branch = \App\Models\Branch::find($data['branch_id']);
+            if (!$branch) {
+                return response()->json(['error' => "Branch ID {$data['branch_id']} not found."], 404);
+            }
+            $branchId = $branch->id;
+        }
+
         // 1. Resolve Profile / Queue settings
         $profile = null;
         $profileName = $data['queue'] ?? $data['profile'] ?? null;
+
+        // Try explicit queue name first
         if ($profileName) {
             $profile = \App\Models\PrintProfile::with('agent')->where('name', $profileName)->first();
+        }
+
+        // If no explicit queue but branch + template → use branch template default
+        if (!$profile && $branch && !empty($data['template'])) {
+            $template = PrintTemplate::where('name', $data['template'])->first();
+            if ($template) {
+                $defaultProfile = $branch->getDefaultProfileForTemplate($template->id);
+                if ($defaultProfile) {
+                    $profile = $defaultProfile;
+                    $profileName = $profile->name;
+                }
+            }
         }
 
         // 2. Resolve Options (merge Profile -> Request)
@@ -389,8 +422,6 @@ class ClientAppController extends Controller
                 $profileOpts['paper_width_mm']  = $profile->custom_width;
                 $profileOpts['paper_height_mm'] = $profile->custom_height;
             } else {
-                // If it knows about standard sizes, we could map them here, 
-                // but for now we'll let the Engine handle standard names if needed.
                 $profileOpts['paper_size'] = $profile->paper_size;
                 
                 // Map known sizes to mm for the Engine
@@ -414,13 +445,9 @@ class ClientAppController extends Controller
             $options = array_merge($profileOpts, $options);
         }
 
-        // Auto-select agent if not specified
+        // 3. Auto-select agent
+        // Priority: explicit agent_id → profile's pinned agent → any online agent in branch → any online agent
         $agent = null;
-        
-        // Priority for Agent selection:
-        // 1. Explicit agent_id in request
-        // 2. Pinned agent_id in Queue/Profile
-        // 3. Fallback: Any online agent (if no pin or explicit ID)
         
         if (! empty($data['agent_id'])) {
             $agent = PrintAgent::where('id', $data['agent_id'])->where('is_active', true)->first();
@@ -429,7 +456,16 @@ class ClientAppController extends Controller
             if ($agent && !$agent->isOnline()) {
                 return response()->json(['error' => "The Hub assigned to queue '{$profileName}' is offline."], 503);
             }
-        } else {
+        } elseif ($branchId) {
+            // Find any online agent in the branch
+            $agent = PrintAgent::where('is_active', true)
+                ->where('branch_id', $branchId)
+                ->get()
+                ->first(fn($a) => $a->isOnline());
+        }
+
+        // Fallback: any online agent globally
+        if (! $agent) {
             $agent = PrintAgent::where('is_active', true)->get()->first(fn($a) => $a->isOnline());
         }
 
@@ -437,7 +473,7 @@ class ClientAppController extends Controller
             return response()->json(['error' => 'No online agent available.'], 503);
         }
 
-        // Auto-select printer (Priority: Request > Profile > Hub First Profile > Default)
+        // 4. Auto-select printer (Priority: Request > Profile > Default)
         $printer = $data['printer'] ?? null;
         if (!$printer && $profile) {
             $printer = $profile->default_printer;
@@ -493,6 +529,7 @@ class ClientAppController extends Controller
         $job = PrintJob::create([
             'job_id'          => $jobId,
             'print_agent_id'  => $agent->id,
+            'branch_id'       => $branchId,
             'printer_name'    => $printer,
             'type'            => $type,
             'status'          => 'pending',
@@ -608,5 +645,61 @@ class ClientAppController extends Controller
             'created_at'   => $job->created_at?->toISOString(),
             'completed_at' => $job->agent_completed_at?->toISOString(),
         ]);
+    // -------------------------------------------------------------------------
+    // POST /api/v1/preview  — Generate a PDF without queuing
+    // -------------------------------------------------------------------------
+
+    public function previewPrint(Request $request)
+    {
+        $app = $this->authenticate($request);
+        if (! $app) return $this->unauthorized();
+
+        $data = $request->validate([
+            'template'        => 'required|string',
+            'data'            => 'nullable|array',
+            'options'         => 'nullable|array',
+        ]);
+
+        $template = PrintTemplate::where('name', $data['template'])->first();
+        if (! $template) {
+            return response()->json(['error' => "Template not found."], 404);
+        }
+
+        $engine = new \App\Services\ContinuousFormEngine();
+        $pdfBinary = $engine->generate($template, $data['data'] ?? [], $data['options'] ?? []);
+
+        return response($pdfBinary, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="preview.pdf"'
+        ]);
+    }
+
+    // -------------------------------------------------------------------------
+    // POST /api/v1/print/batch  — Queue multiple jobs
+    // -------------------------------------------------------------------------
+
+    public function batchPrint(Request $request)
+    {
+        $app = $this->authenticate($request);
+        if (! $app) return $this->unauthorized();
+
+        $jobs = $request->validate([
+            'jobs' => 'required|array',
+            'jobs.*.template'        => 'nullable|string',
+            'jobs.*.data'            => 'nullable|array',
+            'jobs.*.document_base64' => 'nullable|string',
+            'jobs.*.printer'         => 'nullable|string',
+            'jobs.*.queue'           => 'nullable|string',
+            'jobs.*.reference_id'    => 'nullable|string',
+        ]);
+
+        $results = [];
+        foreach ($jobs['jobs'] as $jobData) {
+            $req = $request->duplicate(null, $jobData);
+            $res = $this->unifiedPrint($req);
+            $results[] = json_decode($res->getContent(), true);
+        }
+
+        return response()->json(['batch_results' => $results]);
     }
 }

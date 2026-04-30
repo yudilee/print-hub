@@ -47,6 +47,13 @@ class PrintHubController extends Controller
                 'printer' => $p->default_printer ?? '',
                 'options' => [
                     'paper_size' => $p->paper_size,
+                    'paper_width_mm' => $p->custom_width,
+                    'paper_height_mm' => $p->custom_height,
+                    'margin_top' => $p->margin_top,
+                    'margin_bottom' => $p->margin_bottom,
+                    'margin_left' => $p->margin_left,
+                    'margin_right' => $p->margin_right,
+                    'fit_to_page' => is_array($p->extra_options) ? ($p->extra_options['fit_to_page'] ?? false) : false,
                     'orientation' => $p->orientation,
                     'copies' => $p->copies,
                     'duplex' => $p->duplex,
@@ -71,6 +78,7 @@ class PrintHubController extends Controller
 
         $jobs = PrintJob::where('print_agent_id', $agent->id)
             ->where('status', 'pending')
+            ->orderBy('priority', 'desc')
             ->orderBy('created_at', 'asc')
             ->get();
 
@@ -156,6 +164,11 @@ class PrintHubController extends Controller
             ]);
         }
 
+        $jobToBroadcast = $job ?? \App\Models\PrintJob::where('job_id', $data['job_id'])->first();
+        if ($jobToBroadcast) {
+            event(new \App\Events\JobStatusUpdated($jobToBroadcast));
+        }
+
         return response()->json(['status' => 'received']);
     }
 
@@ -180,5 +193,39 @@ class PrintHubController extends Controller
         ]);
 
         return response()->json(['status' => 'ok']);
+    }
+
+    /**
+     * GET /api/print-hub/cors-origins
+     * Agent pulls allowed origins for its local CORS configuration.
+     */
+    public function getCorsOrigins(Request $request)
+    {
+        $agent = $this->authenticateAgent($request);
+        if (!$agent) {
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
+
+        $apps = \App\Models\ClientApp::where('is_active', true)->get();
+        $origins = [];
+
+        foreach ($apps as $app) {
+            if (is_array($app->allowed_origins)) {
+                foreach ($app->allowed_origins as $origin) {
+                    $origin = trim($origin);
+                    if ($origin) {
+                        $origins[] = $origin;
+                    }
+                }
+            }
+        }
+
+        // Always allow typical local dev
+        $origins[] = "http://127.0.0.1:*";
+        $origins[] = "http://localhost:*";
+
+        return response()->json([
+            'allowed_origins' => array_values(array_unique($origins))
+        ]);
     }
 }

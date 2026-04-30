@@ -394,10 +394,6 @@ class ContinuousFormEngine
         }, $rows);
     }
 
-    /**
-     * Evaluate simple math expressions like "qty * unit_price"
-     * Supports: +, -, *, / with column references
-     */
     protected function evaluateExpression(string $expression, array $rowData)
     {
         // Replace column references with their numeric values
@@ -413,10 +409,8 @@ class ContinuousFormEngine
         }
 
         try {
-            $result = 0;
-            // Use eval safely since we've validated the expression
-            @eval('$result = ' . $resolved . ';');
-            return $result;
+            $el = new \Symfony\Component\ExpressionLanguage\ExpressionLanguage();
+            return $el->evaluate($resolved);
         } catch (\Throwable $e) {
             return 0;
         }

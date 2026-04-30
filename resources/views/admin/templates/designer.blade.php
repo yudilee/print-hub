@@ -1018,6 +1018,15 @@
     function renderElements() {
         const c = document.getElementById('canvas');
         c.querySelectorAll('.design-element').forEach(el => el.remove());
+        
+        const activeSchemaId = document.getElementById('data-schema-select')?.value;
+        const activeSchema = availableSchemas.find(s => s.id == activeSchemaId);
+        let validKeys = []; let validTables = [];
+        if (activeSchema) {
+            validKeys = Object.keys(activeSchema.fields || {});
+            validTables = Object.keys(activeSchema.tables || {});
+        }
+
         elements.forEach(el => {
             if (el.hidden) return;
             const displayEl = JSON.parse(JSON.stringify(el));
@@ -1034,6 +1043,17 @@
             div.style.top = (displayEl.y * BASE_SCALE) + 'px';
             div.style.width = (displayEl.width * BASE_SCALE) + 'px';
             div.style.height = ((displayEl.height || 10) * BASE_SCALE) + 'px';
+
+            if (activeSchema && displayEl.type === 'field' && !validKeys.includes(displayEl.key) && displayEl.key) {
+                div.style.outline = '2px solid var(--danger)';
+                div.style.outlineOffset = '-2px';
+                div.title = 'Invalid field: ' + displayEl.key + ' is not in schema';
+            }
+            if (activeSchema && displayEl.type === 'table' && !validTables.includes(displayEl.key) && displayEl.key) {
+                div.style.outline = '2px solid var(--danger)';
+                div.style.outlineOffset = '-2px';
+                div.title = 'Invalid table: ' + displayEl.key + ' is not in schema';
+            }
 
             if (displayEl.type === 'line') {
                 div.innerHTML = `<div style="width:100%; height:${Math.max(1, displayEl.height*BASE_SCALE)}px; background:${displayEl.lineColor||'#000'}; border-radius:1px;"></div>`;
@@ -1274,7 +1294,14 @@
             html += `<div class="props-section"><div class="props-label">Table Columns</div><div class="prop-table">`;
             el.columns.forEach((col, idx) => {
                 html += `
-                    <div class="prop-item" style="background:rgba(255,255,255,0.03);"><div class="prop-key">Col ${idx+1}</div><div class="prop-val"><button onclick="deleteCol(${idx})" style="color:var(--danger);background:none;border:none;cursor:pointer;font-size:10px;">[×]</button></div></div>
+                    <div class="prop-item" style="background:rgba(255,255,255,0.03);">
+                        <div class="prop-key">Col ${idx+1}</div>
+                        <div class="prop-val" style="display:flex; gap:4px; padding-left:4px;">
+                            <button onclick="moveColUp(${idx})" style="color:var(--text);background:none;border:none;cursor:pointer;font-size:10px;">▲</button>
+                            <button onclick="moveColDown(${idx})" style="color:var(--text);background:none;border:none;cursor:pointer;font-size:10px;">▼</button>
+                            <button onclick="deleteCol(${idx})" style="color:var(--danger);background:none;border:none;cursor:pointer;font-size:10px;margin-left:auto;">[×]</button>
+                        </div>
+                    </div>
                     <div class="prop-item"><div class="prop-key">Label</div><div class="prop-val"><input type="text" value="${col.label}" oninput="updateCol(${idx},'label',this.value)"></div></div>
                     <div class="prop-item"><div class="prop-key">Key</div><div class="prop-val"><input type="text" value="${col.key}" oninput="updateCol(${idx},'key',this.value)"></div></div>
                     <div class="prop-item"><div class="prop-key">Width</div><div class="prop-val"><input type="number" value="${col.width}" oninput="updateCol(${idx},'width',parseFloat(this.value))"></div></div>
@@ -1302,6 +1329,8 @@
     function updateCol(idx, prop, val) { const el=elements.find(e=>e.id===activeId); if(el&&el.columns[idx]){el.columns[idx][prop]=val;renderElements();if(prop==='format_type')updateInspector();} }
     function addCol() { const el=elements.find(e=>e.id===activeId); if(el&&el.type==='table'){if(!el.columns)el.columns=[];el.columns.push({label:'Col',key:'key',width:30,align:'L'});updateInspector();} }
     function deleteCol(idx) { const el=elements.find(e=>e.id===activeId); if(el&&el.columns.length>1){el.columns.splice(idx,1);updateInspector();renderElements();} }
+    function moveColUp(idx) { pushHistory(); const el=elements.find(e=>e.id===activeId); if(el&&idx>0){const c=el.columns.splice(idx,1)[0]; el.columns.splice(idx-1,0,c); updateInspector(); renderElements(); } }
+    function moveColDown(idx) { pushHistory(); const el=elements.find(e=>e.id===activeId); if(el&&idx<el.columns.length-1){const c=el.columns.splice(idx,1)[0]; el.columns.splice(idx+1,0,c); updateInspector(); renderElements(); } }
     function updateElProps(prop,val) { pushHistory(); const el=elements.find(e=>e.id===activeId); if(el){el[prop]=val;renderElements();updateInspector();} }
     function deleteActive() { if(!confirm('Delete selected element(s)?'))return; pushHistory(); elements=elements.filter(el=>!activeIds.includes(el.id)); activeIds=[];activeId=null; renderElements();updateInspector(); }
 

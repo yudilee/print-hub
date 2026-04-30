@@ -22,7 +22,7 @@
                 </ul>
             </div>
         @endif
-        <div class="form-row">
+        <div class="form-row" style="grid-template-columns: 1fr 1fr 1fr;">
             <div class="form-group">
                 <label for="name">Queue identifier (e.g. invoice_sewa)</label>
                 <input type="text" name="name" id="name" required placeholder="unique_queue_name">
@@ -30,6 +30,15 @@
             <div class="form-group">
                 <label for="description">Description</label>
                 <input type="text" name="description" id="description" placeholder="e.g. Invoice Sewa A4 Portrait">
+            </div>
+            <div class="form-group">
+                <label for="branch_id">Branch <span style="color: var(--danger);">*</span></label>
+                <select name="branch_id" id="branch_id" required>
+                    <option value="">-- Select Branch --</option>
+                    @foreach($branches as $branch)
+                        <option value="{{ $branch->id }}">{{ $branch->company->code }} / {{ $branch->name }}</option>
+                    @endforeach
+                </select>
             </div>
         </div>
         <div class="form-row">
@@ -193,6 +202,7 @@ function applyDotMatrixDefaults() {
         <thead>
             <tr>
                 <th>Queue Name</th>
+                <th>Branch</th>
                 <th>Description</th>
                 <th>Connected Agent</th>
                 <th>Printer Name</th>
@@ -206,6 +216,14 @@ function applyDotMatrixDefaults() {
             @forelse($profiles as $profile)
             <tr>
                 <td><strong class="mono" style="color: var(--primary);">{{ $profile->name }}</strong></td>
+                <td>
+                    @if($profile->branch)
+                        <span class="badge badge-info">{{ $profile->branch->company->code ?? '' }}</span>
+                        <span style="font-size: 0.8rem;">{{ $profile->branch->name }}</span>
+                    @else
+                        <span style="color: var(--text-muted); font-style: italic;">Unassigned</span>
+                    @endif
+                </td>
                 <td style="color: var(--text-muted); font-size: 0.85rem;">{{ $profile->description ?? '—' }}</td>
                 <td>
                     @if($profile->agent)
@@ -249,7 +267,7 @@ function applyDotMatrixDefaults() {
                 </td>
             </tr>
             @empty
-            <tr><td colspan="8" style="color: var(--text-muted);">No profiles created yet.</td></tr>
+            <tr><td colspan="9" style="color: var(--text-muted);">No profiles created yet.</td></tr>
             @endforelse
         </tbody>
     </table>

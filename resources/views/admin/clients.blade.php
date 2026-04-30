@@ -166,6 +166,12 @@ $status = $hub->jobStatus($result['job_id']);</pre>
                 <input type="text" name="name" placeholder="e.g. Invoice Printer App" required
                        style="width:100%; padding:0.75rem; background:var(--bg); border:1px solid var(--border); color:var(--text); border-radius:8px; font-size:0.875rem;">
             </div>
+            <div style="margin-bottom:1rem;">
+                <label style="display:block; font-size:0.85rem; font-weight:500; margin-bottom:0.5rem;">Allowed Origins (CORS) <span style="font-weight:normal; color:var(--text-muted); font-size:0.75rem;">Optional</span></label>
+                <input type="text" name="allowed_origins" placeholder="e.g. https://app.example.com, http://localhost:8080"
+                       style="width:100%; padding:0.75rem; background:var(--bg); border:1px solid var(--border); color:var(--text); border-radius:8px; font-size:0.875rem;">
+                <div style="color:var(--text-muted); font-size:0.75rem; margin-top:0.3rem;">Comma separated list of URLs that can print directly to Trayprint via this app.</div>
+            </div>
             <div style="display:flex; gap:0.75rem; justify-content:flex-end; margin-top:1.5rem;">
                 <button type="button" onclick="document.getElementById('register-modal').style.display='none'"
                         style="padding:0.6rem 1.25rem; background:transparent; border:1px solid var(--border); color:var(--text); border-radius:8px; cursor:pointer;">Cancel</button>
