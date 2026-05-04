@@ -316,6 +316,7 @@ All migrations are in [`database/migrations/`](database/migrations/). The system
 | `2026_05_04_000002_add_scheduling_to_print_jobs.php` | Job scheduling and recurrence |
 | `2026_05_04_000003_create_print_documents_table.php` | Document upload management |
 | `2026_05_04_000004_add_approval_to_print_jobs.php` | Approval workflow |
+| `2026_05_04_000006_add_capabilities_to_print_agents_table.php` | Per-agent cached printer capabilities (JSON) |
 | `2026_05_04_000007_create_printer_pools.php` | Printer pooling and load balancing |
 | `2026_05_04_000009_add_finishing_to_print_profiles.php` | Finishing options |
 | `2026_05_04_000010_add_sustainability_to_profiles.php` | Sustainability metrics |
