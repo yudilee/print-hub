@@ -364,6 +364,9 @@
                 <a href="{{ route('admin.dashboard') }}" class="nav-link {{ request()->routeIs('admin.dashboard') ? 'active' : '' }}">
                     <x-icon name="dashboard" size="18"/> Dashboard
                 </a>
+                <a href="{{ route('admin.monitoring') }}" class="nav-link {{ request()->routeIs('admin.monitoring') ? 'active' : '' }}">
+                    <x-icon name="monitor" size="18"/> Monitoring
+                </a>
                 <a href="{{ route('admin.agents') }}" class="nav-link {{ request()->routeIs('admin.agents') ? 'active' : '' }}">
                     <x-icon name="agent" size="18"/> Agents
                 </a>
@@ -376,6 +379,19 @@
                 <a href="{{ route('admin.templates') }}" class="nav-link {{ request()->routeIs('admin.templates*') ? 'active' : '' }}">
                     <x-icon name="template" size="18"/> Print Templates
                 </a>
+
+                <div class="nav-section">Documents</div>
+                <a href="{{ route('admin.pools') }}" class="nav-link {{ request()->routeIs('admin.pools*') ? 'active' : '' }}">
+                    <x-icon name="pool" size="18"/> Printer Pools
+                </a>
+                <a href="{{ route('admin.documents') }}" class="nav-link {{ request()->routeIs('admin.documents') ? 'active' : '' }}">
+                    <x-icon name="document" size="18"/> Documents
+                </a>
+                @if(auth()->user()?->hasAnyRole(['super-admin', 'company-admin', 'branch-admin']))
+                <a href="{{ route('admin.approvals') }}" class="nav-link {{ request()->routeIs('admin.approvals') ? 'active' : '' }}">
+                    <x-icon name="approval" size="18"/> Approvals
+                </a>
+                @endif
 
                 @if(auth()->user()?->isSuperAdmin())
                 <a href="{{ route('admin.clients') }}" class="nav-link {{ request()->routeIs('admin.clients') ? 'active' : '' }}">
@@ -407,6 +423,16 @@
                 @if(auth()->user()?->hasAnyRole(['super-admin', 'company-admin', 'branch-admin']))
                 <a href="{{ route('admin.activity-logs') }}" class="nav-link {{ request()->routeIs('admin.activity-logs') ? 'active' : '' }}">
                     <x-icon name="activity" size="18"/> Activity Log
+                </a>
+                @endif
+
+                @if(auth()->user()?->isSuperAdmin())
+                <div class="nav-section">System</div>
+                <a href="{{ route('admin.sso-settings') }}" class="nav-link {{ request()->routeIs('admin.sso-settings') ? 'active' : '' }}">
+                    <x-icon name="settings" size="18"/> SSO Settings
+                </a>
+                <a href="{{ route('admin.ip-whitelist') }}" class="nav-link {{ request()->routeIs('admin.ip-whitelist') ? 'active' : '' }}">
+                    <x-icon name="shield" size="18"/> IP Whitelist
                 </a>
                 @endif
 

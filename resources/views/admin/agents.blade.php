@@ -62,6 +62,7 @@
                 <th>Status</th>
                 <th>Printers</th>
                 <th>Last Seen</th>
+                <th>Key Age</th>
                 <th>Jobs</th>
                 <th>Actions</th>
             </tr>
@@ -101,13 +102,23 @@
                         @endforeach
                         </div>
                     @else
-                        <span style="color: var(--text-muted); font-style: italic;">—</span>
+                        <span style="font-style: italic;">—</span>
                     @endif
                 </td>
                 <td style="font-size: 0.8rem; color: var(--text-muted);">
                     {{ $agent->last_seen_at ? $agent->last_seen_at->diffForHumans() : 'Never' }}
                     @if($agent->ip_address)
                         <br><code style="font-size: 0.7rem;">{{ $agent->ip_address }}</code>
+                    @endif
+                </td>
+                <td style="font-size: 0.8rem; white-space: nowrap;">
+                    @php $keyAge = $agent->last_key_rotated_at ? $agent->last_key_rotated_at->diffInDays(now()) : null; @endphp
+                    @if(is_null($keyAge))
+                        <span style="color: var(--text-muted); font-style: italic;">N/A</span>
+                    @elseif($keyAge > 90)
+                        <span style="background: rgba(245,158,11,0.15); color: var(--warning); padding: 2px 8px; border-radius: 10px; font-size: 0.75rem; font-weight: 500;">{{ $keyAge }} days</span>
+                    @else
+                        {{ $keyAge }} days
                     @endif
                 </td>
                 <td>{{ $agent->jobs_count }}</td>
@@ -124,7 +135,7 @@
                 </td>
             </tr>
             @empty
-            <tr><td colspan="8">
+            <tr><td colspan="9">
                 <x-empty-state icon="🖥️" title="No agents registered yet" description="Register your first print agent above to get started." actionText="+ Add Agent" :actionUrl="'#'" />
             </td></tr>
             @endforelse

@@ -27,10 +27,10 @@ class ContinuousFormEngine
         $pH = $options['paper_height_mm'] ?? $template->paper_height_mm;
         $orientation = (($options['orientation'] ?? 'portrait') === 'landscape') ? 'L' : 'P';
 
-        // Custom paper size in mm [width, height] 
+        // Custom paper size in mm [width, height]
         // FPDF(orientation, unit, size)
         $this->pdf = new FPDF($orientation, 'mm', [$pW, $pH]);
-        $this->pdf->SetAutoPageBreak(false); 
+        $this->pdf->SetAutoPageBreak(false);
 
         // Set Margins (priority: options > 0)
         $mT = (float)($options['margin_top'] ?? 0);
@@ -38,6 +38,14 @@ class ContinuousFormEngine
         $mL = (float)($options['margin_left'] ?? 0);
         $mR = (float)($options['margin_right'] ?? 0);
         $this->pdf->SetMargins($mL, $mT, $mR);
+
+        // ── Eco Mode / Sustainability ─────────────────────────────
+        // If eco_mode is enabled, force duplex and grayscale
+        $ecoMode = !empty($options['eco_mode']);
+        $grayscaleForce = !empty($options['grayscale_force']) || $ecoMode;
+        $pagesPerSheet = (int)($options['pages_per_sheet'] ?? 1);
+        $removeImages = !empty($options['remove_images']);
+        // ─────────────────────────────────────────────────────────
 
         // Find the table element if any
         $elements = $template->elements ?? [];
@@ -55,7 +63,15 @@ class ContinuousFormEngine
             $this->renderMultipageTable($tableElement, $rows);
         }
 
-        return $this->pdf->Output('S'); 
+        // Apply eco mode transformations after rendering
+        if ($ecoMode || $grayscaleForce || $pagesPerSheet > 1 || $removeImages) {
+            $this->applyEcoMode($ecoMode, $grayscaleForce, $pagesPerSheet, $removeImages, $options);
+        }
+
+        // Apply watermark if configured
+        $this->applyWatermark($options);
+
+        return $this->pdf->Output('S');
     }
 
     protected function renderPage()
@@ -443,5 +459,186 @@ class ContinuousFormEngine
         $g = hexdec(substr($hex, 2, 2));
         $b = hexdec(substr($hex, 4, 2));
         $this->pdf->SetFillColor($r, $g, $b);
+    }
+
+    // ── Watermarking ─────────────────────────────────────────
+
+    /**
+     * Apply watermark to all pages of the PDF.
+     *
+     * Watermark configuration can come from $options['watermark'] array or
+     * individual $options keys (watermark_text, watermark_opacity, etc.).
+     */
+    protected function applyWatermark(array $options): void
+    {
+        $wm = $options['watermark'] ?? $options;
+
+        $text     = $wm['watermark_text'] ?? null;
+        if (!$text) {
+            return;
+        }
+
+        $opacity  = (float) ($wm['watermark_opacity'] ?? 0.3);
+        $rotation = (int) ($wm['watermark_rotation'] ?? -45);
+        $position = $wm['watermark_position'] ?? 'center';
+
+        // Clamp values
+        $opacity  = max(0.1, min(1.0, $opacity));
+        $rotation = max(-90, min(90, $rotation));
+
+        $pageW = $this->pdf->w;
+        $pageH = $this->pdf->h;
+
+        // Font size relative to page (about 1/8 of shortest side)
+        $fontSize = min($pageW, $pageH) / 8;
+
+        $pages = $this->pdf->page; // total pages rendered
+        for ($i = 1; $i <= $pages; $i++) {
+            $this->pdf->page = $i;
+            $this->renderWatermarkOnPage($text, $fontSize, $opacity, $rotation, $position, $pageW, $pageH);
+        }
+
+        // Reset to first page
+        $this->pdf->page = 1;
+    }
+
+    /**
+     * Render watermark on a single page.
+     */
+    protected function renderWatermarkOnPage(
+        string $text,
+        float $fontSize,
+        float $opacity,
+        int $rotation,
+        string $position,
+        float $pageW,
+        float $pageH
+    ): void {
+        // Set the alpha channel for the watermark
+        $this->pdf->SetAlpha($opacity);
+
+        // Set watermark color (light gray)
+        $this->pdf->SetTextColor(180, 180, 180);
+        $this->pdf->SetFont('Arial', 'B', $fontSize);
+
+        if ($position === 'tile') {
+            $this->renderTiledWatermark($text, $fontSize, $rotation, $pageW, $pageH);
+        } else {
+            [$cx, $cy] = $this->getWatermarkPosition($position, $pageW, $pageH, $fontSize);
+            $this->pdf->Rotate($rotation, $cx, $cy);
+            $this->pdf->SetXY($cx - 10, $cy - $fontSize / 2);
+            $this->pdf->Cell(0, $fontSize, $text, 0, 0, 'C');
+            $this->pdf->Rotate(0);
+        }
+
+        // Reset alpha
+        $this->pdf->SetAlpha(1);
+    }
+
+    /**
+     * Get center coordinates for the given watermark position.
+     */
+    protected function getWatermarkPosition(string $position, float $pageW, float $pageH, float $fontSize): array
+    {
+        return match ($position) {
+            'top-left'      => [$pageW * 0.15, $pageH * 0.15],
+            'top-right'     => [$pageW * 0.85, $pageH * 0.15],
+            'bottom-left'   => [$pageW * 0.15, $pageH * 0.85],
+            'bottom-right'  => [$pageW * 0.85, $pageH * 0.85],
+            default         => [$pageW / 2, $pageH / 2], // center
+        };
+    }
+
+    /**
+     * Render a tiled (repeating) watermark across the page.
+     */
+    protected function renderTiledWatermark(string $text, float $fontSize, int $rotation, float $pageW, float $pageH): void
+    {
+        $spacing = $fontSize * 2.5;
+        $cols = ceil($pageW / $spacing) + 1;
+        $rows = ceil($pageH / $spacing) + 1;
+
+        for ($r = 0; $r < $rows; $r++) {
+            for ($c = 0; $c < $cols; $c++) {
+                $tx = $c * $spacing;
+                $ty = $r * $spacing + ($c % 2 === 0 ? 0 : $fontSize);
+                $this->pdf->Rotate($rotation, $tx, $ty);
+                $this->pdf->SetXY($tx, $ty);
+                $this->pdf->Cell($spacing, $fontSize, $text, 0, 0, 'C');
+                $this->pdf->Rotate(0);
+            }
+        }
+    }
+
+    // ── Eco Mode / Sustainability ─────────────────────────────
+
+    /**
+     * Apply eco-friendly transformations to the generated PDF.
+     *
+     * This method calculates estimated savings from eco-friendly print settings
+     * such as forced duplex, N-up layout, grayscale, and image removal.
+     * The actual printer-side settings are enforced by the TrayPrint agent.
+     */
+    protected function applyEcoMode(
+        bool $ecoMode,
+        bool $grayscaleForce,
+        int $pagesPerSheet,
+        bool $removeImages,
+        array $options
+    ): void {
+        $pagesBefore = $this->pdf->page;
+        $savings = [
+            'eco_mode'         => $ecoMode,
+            'grayscale_force'  => $grayscaleForce,
+            'pages_per_sheet'  => $pagesPerSheet,
+            'remove_images'    => $removeImages,
+            'pages_before'     => $pagesBefore,
+            'pages_after'      => $pagesBefore,
+        ];
+
+        // Estimate pages saved by N-up layout
+        if ($pagesPerSheet > 1 && $pagesBefore > 1) {
+            $pagesAfter = (int)ceil($pagesBefore / $pagesPerSheet);
+            $savings['pages_after'] = $pagesAfter;
+            $savings['pages_saved'] = $pagesBefore - $pagesAfter;
+            // ~5g CO₂ saved per page not printed
+            $savings['carbon_saved_grams'] = round(($pagesBefore - $pagesAfter) * 5, 2);
+        } else {
+            $savings['pages_saved'] = 0;
+            $savings['carbon_saved_grams'] = 0;
+        }
+
+        // Forced duplex: each page printed on both sides saves ~50% paper
+        if ($ecoMode && $pagesBefore > 1) {
+            $duplexPagesSaved = (int)floor($pagesBefore / 2);
+            $savings['duplex_saved'] = $duplexPagesSaved;
+            $savings['carbon_saved_grams'] += round($duplexPagesSaved * 5, 2);
+        } else {
+            $savings['duplex_saved'] = 0;
+        }
+
+        // Log the eco savings
+        \Illuminate\Support\Facades\Log::info('Eco Mode applied', [
+            'eco_mode'         => $ecoMode,
+            'grayscale_force'  => $grayscaleForce,
+            'pages_per_sheet'  => $pagesPerSheet,
+            'remove_images'    => $removeImages,
+            'pages_before'     => $pagesBefore,
+            'pages_after'      => $savings['pages_after'],
+            'pages_saved'      => $savings['pages_saved'],
+            'carbon_saved_g'   => $savings['carbon_saved_grams'],
+            'duplex_saved'     => $savings['duplex_saved'],
+        ]);
+
+        // Store savings data on the instance for later retrieval
+        $this->eco_savings = $savings;
+    }
+
+    /**
+     * Get the eco savings data from the last generated document.
+     */
+    public function getEcoSavings(): ?array
+    {
+        return $this->eco_savings ?? null;
     }
 }

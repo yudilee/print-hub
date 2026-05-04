@@ -18,6 +18,18 @@ return Application::configure(basePath: dirname(__DIR__))
             'permission'     => \App\Http\Middleware\CheckPermission::class,
             'session.activity' => \App\Http\Middleware\UpdateSessionActivity::class,
             'auth.api-key'   => \App\Http\Middleware\AuthenticateApiKey::class,
+            'force.tls'      => \App\Http\Middleware\ForceTls::class,
+            'ip.whitelist'   => \App\Http\Middleware\IpWhitelist::class,
+        ]);
+
+        // Apply TLS enforcement to web routes in production
+        $middleware->web(prepend: [
+            \App\Http\Middleware\ForceTls::class,
+        ]);
+
+        // Apply IP whitelisting to API routes if configured
+        $middleware->api(prepend: [
+            \App\Http\Middleware\IpWhitelist::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

@@ -51,6 +51,17 @@ class ProfileController extends Controller
             'media_type'        => 'nullable|string|in:plain,glossy,envelope,label,continuous_feed',
             'collate'           => 'nullable|boolean',
             'reverse_order'     => 'nullable|boolean',
+            // Watermark fields
+            'watermark_text'      => 'nullable|string|max:255',
+            'watermark_opacity'   => 'nullable|numeric|min:0.1|max:1',
+            'watermark_rotation'  => 'nullable|integer|min:-90|max:90',
+            'watermark_position'  => 'nullable|string|in:center,tile,top-left,top-right,bottom-left,bottom-right',
+            // Finishing fields
+            'finishing_staple'  => 'nullable|string|in:single,dual,saddle',
+            'finishing_punch'   => 'nullable|string|in:2,4',
+            'finishing_booklet' => 'nullable|boolean',
+            'finishing_fold'    => 'nullable|string|in:half,tri-fold,z-fold',
+            'finishing_bind'    => 'nullable|string|in:tape,comb,thermal',
         ]);
 
         $data['is_custom'] = ($request->paper_size === 'CUSTOM');
@@ -106,6 +117,17 @@ class ProfileController extends Controller
             'media_type'        => 'nullable|string|in:plain,glossy,envelope,label,continuous_feed',
             'collate'           => 'nullable|boolean',
             'reverse_order'     => 'nullable|boolean',
+            // Watermark fields
+            'watermark_text'      => 'nullable|string|max:255',
+            'watermark_opacity'   => 'nullable|numeric|min:0.1|max:1',
+            'watermark_rotation'  => 'nullable|integer|min:-90|max:90',
+            'watermark_position'  => 'nullable|string|in:center,tile,top-left,top-right,bottom-left,bottom-right',
+            // Finishing fields
+            'finishing_staple'  => 'nullable|string|in:single,dual,saddle',
+            'finishing_punch'   => 'nullable|string|in:2,4',
+            'finishing_booklet' => 'nullable|boolean',
+            'finishing_fold'    => 'nullable|string|in:half,tri-fold,z-fold',
+            'finishing_bind'    => 'nullable|string|in:tape,comb,thermal',
         ]);
 
         $data['is_custom'] = ($request->paper_size === 'CUSTOM');

@@ -18,15 +18,26 @@ class PrintAgent extends Model
 {
     use BranchScopeable;
 
-    protected $fillable = ['name', 'agent_key', 'ip_address', 'location', 'department', 'last_seen_at', 'is_active', 'printers', 'branch_id'];
+    protected $fillable = ['name', 'agent_key', 'ip_address', 'location', 'department', 'last_seen_at', 'is_active', 'printers', 'capabilities', 'branch_id', 'last_key_rotated_at'];
 
     protected $hidden = ['agent_key'];
 
     protected $casts = [
-        'last_seen_at' => 'datetime',
-        'is_active'    => 'boolean',
-        'printers'     => 'array',
+        'last_seen_at'        => 'datetime',
+        'last_key_rotated_at' => 'datetime',
+        'is_active'           => 'boolean',
+        'printers'            => 'array',
+        'capabilities'        => 'array',
     ];
+
+    protected static function booted(): void
+    {
+        static::creating(function (PrintAgent $agent) {
+            if (is_null($agent->last_key_rotated_at)) {
+                $agent->last_key_rotated_at = now();
+            }
+        });
+    }
 
     // ── Relationships ────────────────────────────────────────
 

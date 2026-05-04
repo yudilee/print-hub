@@ -1,9 +1,11 @@
 <?php
 
 use App\Http\Controllers\Admin\AgentController;
+use App\Http\Controllers\Admin\ApprovalController as AdminApprovalController;
 use App\Http\Controllers\Admin\BranchController;
 use App\Http\Controllers\Admin\ClientAppController;
 use App\Http\Controllers\Admin\CompanyController;
+use App\Http\Controllers\Admin\DocumentController as AdminDocumentController;
 use App\Http\Controllers\Admin\JobController;
 use App\Http\Controllers\Admin\ProfileController;
 use App\Http\Controllers\Admin\SessionController;
@@ -21,6 +23,13 @@ use App\Models\User;
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:30,1');
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+
+// Single Sign-On (SSO) routes
+Route::prefix('auth/sso')->group(function () {
+    Route::get('/', [\App\Http\Controllers\Auth\SsoController::class, 'login'])->name('sso.login');
+    Route::post('/callback', [\App\Http\Controllers\Auth\SsoController::class, 'callback'])->name('sso.callback');
+    Route::get('/metadata', [\App\Http\Controllers\Auth\SsoController::class, 'metadata'])->name('sso.metadata');
+});
 
 // Password Reset
 Route::get('/forgot-password', function () {
@@ -133,8 +142,46 @@ Route::middleware(['auth', 'session.activity'])->group(function () {
     // Activity Log
     Route::get('/activity-logs', [ActivityLogController::class, 'index'])->name('admin.activity-logs');
 
+    // Documents (Feature 2)
+    Route::get('/documents', [AdminDocumentController::class, 'index'])->name('admin.documents');
+    Route::post('/documents/upload', [AdminDocumentController::class, 'upload'])->name('admin.documents.upload');
+    Route::delete('/documents/{id}', [AdminDocumentController::class, 'destroy'])->name('admin.documents.destroy');
+
+    // Monitoring Dashboard (Feature 5)
+    Route::get('/monitoring', [\App\Http\Controllers\Admin\MonitoringController::class, 'index'])->name('admin.monitoring');
+    Route::get('/monitoring/stats', [\App\Http\Controllers\Admin\MonitoringController::class, 'stats'])->name('admin.monitoring.stats');
+    Route::get('/monitoring/agent-health', [\App\Http\Controllers\Admin\MonitoringController::class, 'agentHealth'])->name('admin.monitoring.agent-health');
+    Route::get('/monitoring/job-timeline', [\App\Http\Controllers\Admin\MonitoringController::class, 'jobTimeline'])->name('admin.monitoring.job-timeline');
+
+    // Approvals (Feature 3)
+    Route::get('/approvals', [AdminApprovalController::class, 'index'])->name('admin.approvals');
+    Route::post('/approvals/{id}/approve', [AdminApprovalController::class, 'approve'])->name('admin.approvals.approve');
+    Route::post('/approvals/{id}/reject', [AdminApprovalController::class, 'reject'])->name('admin.approvals.reject');
+
     // SDK Documentation
     Route::get('/sdk-docs', function () {
         return view('admin.sdk-docs');
     })->name('admin.sdk-docs');
+
+    // Printer Pools (Feature 5)
+    Route::get('/pools', [\App\Http\Controllers\Admin\PoolController::class, 'index'])->name('admin.pools');
+    Route::get('/pools/create', [\App\Http\Controllers\Admin\PoolController::class, 'edit'])->name('admin.pools.create');
+    Route::post('/pools', [\App\Http\Controllers\Admin\PoolController::class, 'store'])->name('admin.pools.store');
+    Route::get('/pools/{pool}/edit', [\App\Http\Controllers\Admin\PoolController::class, 'edit'])->name('admin.pools.edit');
+    Route::put('/pools/{pool}', [\App\Http\Controllers\Admin\PoolController::class, 'update'])->name('admin.pools.update');
+    Route::delete('/pools/{pool}', [\App\Http\Controllers\Admin\PoolController::class, 'destroy'])->name('admin.pools.destroy');
+
+    // SSO Settings (super-admin only)
+    Route::middleware('role:super-admin')->group(function () {
+        Route::get('/sso', function () {
+            return view('admin.sso.index');
+        })->name('admin.sso-settings');
+    });
+
+    // IP Whitelist settings page (super-admin only)
+    Route::middleware('role:super-admin')->group(function () {
+        Route::get('/ip-whitelist', function () {
+            return view('admin.ip-whitelist');
+        })->name('admin.ip-whitelist');
+    });
 });

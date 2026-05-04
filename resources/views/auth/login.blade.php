@@ -32,5 +32,14 @@
     <a href="{{ route('password.request') }}" class="forgot-link">Forgot password?</a>
     <button type="submit" class="btn-primary">Sign In</button>
 </form>
+
+@if(config('sso.enabled'))
+<div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border);">
+    <p style="text-align: center; color: var(--text-muted); font-size: 0.8rem; margin-bottom: 0.75rem;">Or sign in with</p>
+    <a href="{{ route('sso.login') }}" class="btn-primary" style="display: flex; justify-content: center; text-decoration: none;">
+        SSO Login ({{ ucfirst(config('sso.provider', 'saml2')) }})
+    </a>
+</div>
+@endif
 </div>
 @endsection

@@ -135,4 +135,34 @@ return [
     */
     'agent_online_threshold' => env('AGENT_ONLINE_THRESHOLD', 2),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Agent Auto-Update Configuration
+    |--------------------------------------------------------------------------
+    |
+    | These values control the auto-update mechanism for TrayPrint agents.
+    | Set AGENT_LATEST_VERSION to the newest available version, and provide
+    | a download URL where the agent can fetch the installer.
+    |
+    */
+
+    'agent_latest_version' => env('AGENT_LATEST_VERSION', '1.0.0'),
+    'agent_download_url'   => env('AGENT_DOWNLOAD_URL', ''),
+    'agent_release_notes'  => env('AGENT_RELEASE_NOTES', ''),
+    'agent_sha256'         => env('AGENT_SHA256', ''),
+    'agent_mandatory'      => env('AGENT_MANDATORY', false),
+
+    /*
+    |--------------------------------------------------------------------------
+    | IP Whitelist for API Access
+    |--------------------------------------------------------------------------
+    |
+    | Comma-separated list of IP addresses or CIDR ranges allowed to access
+    | the API when IP whitelisting is enforced. Leave empty to allow all IPs.
+    | Example: "192.168.1.0/24,10.0.0.1"
+    |
+    */
+
+    'api_ip_whitelist' => env('API_IP_WHITELIST', ''),
+
 ];

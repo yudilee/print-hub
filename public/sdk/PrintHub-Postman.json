@@ -1,0 +1,263 @@
+{
+  "info": {
+    "name": "Print Hub API",
+    "description": "Complete API collection for Print Hub print management middleware. Import this collection, then set `base_url` and `api_key` variables in Postman's Variables tab.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "https://print-hub.example.com/api/v1" },
+    { "key": "api_key", "value": "your-api-key-here" },
+    { "key": "job_id", "value": "" },
+    { "key": "template_name", "value": "invoice_sewa" },
+    { "key": "branch_code", "value": "SDP-MAIN" },
+    { "key": "document_id", "value": "" }
+  ],
+  "auth": {
+    "type": "apikey",
+    "apikey": [
+      { "key": "key", "value": "X-API-Key", "type": "string" },
+      { "key": "value", "value": "{{api_key}}", "type": "string" },
+      { "key": "in", "value": "header", "type": "string" }
+    ]
+  },
+  "item": [
+    {
+      "name": "Connection & Health",
+      "item": [
+        {
+          "name": "Test Connection",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/test"
+          }
+        },
+        {
+          "name": "System Health",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/health"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Discovery",
+      "item": [
+        {
+          "name": "List Branches",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/branches"
+          }
+        },
+        {
+          "name": "List Online Agents",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/agents/online?branch_code={{branch_code}}",
+              "query": [
+                { "key": "branch_code", "value": "{{branch_code}}" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "List Queues",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/queues?branch_code={{branch_code}}&detailed=true",
+              "query": [
+                { "key": "branch_code", "value": "{{branch_code}}" },
+                { "key": "detailed", "value": "true" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Templates",
+      "item": [
+        {
+          "name": "List Templates",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/templates"
+          }
+        },
+        {
+          "name": "Get Template Details",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/templates/{{template_name}}"
+          }
+        },
+        {
+          "name": "Get Template Schema",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/templates/{{template_name}}/schema"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Data Schemas",
+      "item": [
+        {
+          "name": "Register Schema",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"schema_name\": \"invoice_sewa\",\n    \"label\": \"Sewa Invoice\",\n    \"fields\": {\n        \"no_invoice\": { \"label\": \"Invoice No\", \"type\": \"string\", \"required\": true },\n        \"customer\": { \"label\": \"Customer\", \"type\": \"string\", \"required\": true },\n        \"total\": { \"label\": \"Total\", \"type\": \"number\", \"required\": true }\n    },\n    \"tables\": {\n        \"items\": {\n            \"label\": \"Items\",\n            \"columns\": {\n                \"description\": { \"label\": \"Description\", \"type\": \"string\" },\n                \"qty\": { \"label\": \"Qty\", \"type\": \"number\" },\n                \"price\": { \"label\": \"Price\", \"type\": \"number\" }\n            }\n        }\n    }\n}"
+            },
+            "url": "{{base_url}}/schema"
+          }
+        },
+        {
+          "name": "List Schemas",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/schemas"
+          }
+        },
+        {
+          "name": "Schema Version History",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/schema/{{template_name}}/versions"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Printing",
+      "item": [
+        {
+          "name": "Submit Print Job (Template)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"template\": \"{{template_name}}\",\n    \"data\": {\n        \"no_invoice\": \"INV-001\",\n        \"customer\": \"PT Example\",\n        \"total\": 150000\n    },\n    \"branch_code\": \"{{branch_code}}\",\n    \"reference_id\": \"INV-001\",\n    \"options\": {\n        \"copies\": 1\n    }\n}"
+            },
+            "url": "{{base_url}}/print"
+          }
+        },
+        {
+          "name": "Batch Print",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"jobs\": [\n        {\n            \"template\": \"{{template_name}}\",\n            \"data\": { \"no_invoice\": \"INV-001\", \"customer\": \"PT ABC\", \"total\": 150000 },\n            \"reference_id\": \"INV-001\"\n        },\n        {\n            \"template\": \"{{template_name}}\",\n            \"data\": { \"no_invoice\": \"INV-002\", \"customer\": \"PT XYZ\", \"total\": 200000 },\n            \"reference_id\": \"INV-002\"\n        }\n    ]\n}"
+            },
+            "url": "{{base_url}}/print/batch"
+          }
+        },
+        {
+          "name": "Preview PDF",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"template\": \"{{template_name}}\",\n    \"data\": {\n        \"no_invoice\": \"INV-001\",\n        \"customer\": \"PT Example\",\n        \"total\": 150000\n    }\n}"
+            },
+            "url": "{{base_url}}/preview"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Job Management",
+      "item": [
+        {
+          "name": "Check Job Status",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/jobs/{{job_id}}"
+          }
+        },
+        {
+          "name": "Cancel Job",
+          "request": {
+            "method": "DELETE",
+            "url": "{{base_url}}/jobs/{{job_id}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Document Management",
+      "item": [
+        {
+          "name": "Upload Document",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "multipart/form-data" }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "file", "type": "file", "src": "" },
+                { "key": "label", "value": "Invoice Document" }
+              ]
+            },
+            "url": "{{base_url}}/documents/upload"
+          }
+        },
+        {
+          "name": "List Documents",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/documents"
+          }
+        },
+        {
+          "name": "Get Document",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/documents/{{document_id}}"
+          }
+        },
+        {
+          "name": "Preview Document",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/documents/{{document_id}}/preview"
+          }
+        },
+        {
+          "name": "Download Document",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/documents/{{document_id}}/download"
+          }
+        },
+        {
+          "name": "Delete Document",
+          "request": {
+            "method": "DELETE",
+            "url": "{{base_url}}/documents/{{document_id}}"
+          }
+        }
+      ]
+    }
+  ]
+}

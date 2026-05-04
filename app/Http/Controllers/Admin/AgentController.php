@@ -69,7 +69,10 @@ class AgentController extends Controller
     public function regenerateKey(PrintAgent $agent)
     {
         $rawKey = Str::random(32);
-        $agent->update(['agent_key' => PrintAgent::hashKey($rawKey)]);
+        $agent->update([
+            'agent_key'          => PrintAgent::hashKey($rawKey),
+            'last_key_rotated_at' => now(),
+        ]);
 
         $this->logActivity('agent.key_regenerated', $agent, ['name' => $agent->name]);
 

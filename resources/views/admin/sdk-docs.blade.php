@@ -32,13 +32,28 @@
                 <a href="#template-guide" class="toc-link" data-section="template-guide">6. Template Designer Guide</a>
                 <a href="#webhooks" class="toc-link" data-section="webhooks">7. Webhooks</a>
                 <a href="#errors" class="toc-link" data-section="errors">8. Error Reference</a>
-                <a href="#sdk-client" class="toc-link" data-section="sdk-client">9. SDK Client (PHP)</a>
-                <a href="#rate-limiting" class="toc-link" data-section="rate-limiting">10. Rate Limiting</a>
-                <a href="#postman" class="toc-link" data-section="postman">11. Postman Collection</a>
+                <a href="#sdk-php" class="toc-link" data-section="sdk-php">9. SDK — PHP</a>
+                <a href="#sdk-python" class="toc-link" data-section="sdk-python">10. SDK — Python</a>
+                <a href="#sdk-nodejs" class="toc-link" data-section="sdk-nodejs">11. SDK — Node.js</a>
+                <a href="#openapi" class="toc-link" data-section="openapi">12. OpenAPI / Swagger</a>
+                <a href="#postman" class="toc-link" data-section="postman">13. Postman Collection</a>
+                <a href="#rate-limiting" class="toc-link" data-section="rate-limiting">14. Rate Limiting</a>
             </nav>
             <div class="toc-download">
-                <a href="{{ route('admin.clients.sdk') }}" class="btn btn-primary" style="width:100%;justify-content:center;text-decoration:none;">
-                    ⬇️ Download PHP SDK
+                <a href="{{ asset('sdk/PrintHubClient.php') }}" class="btn btn-primary" style="width:100%;justify-content:center;text-decoration:none;margin-bottom:0.25rem;" download>
+                    ⬇️ PHP SDK
+                </a>
+                <a href="{{ asset('sdk/PrintHubClient.py') }}" class="btn btn-primary" style="width:100%;justify-content:center;text-decoration:none;margin-bottom:0.25rem;" download>
+                    ⬇️ Python SDK
+                </a>
+                <a href="{{ asset('sdk/PrintHubClient.mjs') }}" class="btn btn-primary" style="width:100%;justify-content:center;text-decoration:none;margin-bottom:0.25rem;" download>
+                    ⬇️ Node.js SDK
+                </a>
+                <a href="{{ asset('sdk/openapi.yaml') }}" class="btn btn-secondary" style="width:100%;justify-content:center;text-decoration:none;margin-bottom:0.25rem;" download>
+                    📄 OpenAPI Spec
+                </a>
+                <a href="{{ asset('sdk/PrintHub-Postman.json') }}" class="btn btn-secondary" style="width:100%;justify-content:center;text-decoration:none;" download>
+                    📮 Postman Collection
                 </a>
             </div>
         </div>
@@ -1435,8 +1450,8 @@ console.log(data);</code></pre>
         {{-- ================================================================= --}}
         {{-- 9. SDK CLIENT (PHP) --}}
         {{-- ================================================================= --}}
-        <section class="card doc-section" id="sdk-client">
-            <div class="card-header"><h2>9. SDK Client (PHP)</h2></div>
+        <section class="card doc-section" id="sdk-php">
+            <div class="card-header"><h2>9. SDK — PHP</h2></div>
 
             <p>Print Hub provides a <strong>PHP SDK client</strong> for easy integration with PHP applications. The SDK is a single-file class that wraps the REST API with convenient methods, caching, retry logic, and schema validation.</p>
 
@@ -1717,10 +1732,485 @@ public function print(Invoice $invoice, PrintHubClient $printHub)
         </section>
 
         {{-- ================================================================= --}}
-        {{-- 10. RATE LIMITING --}}
+        {{-- 10. SDK — Python --}}
+        {{-- ================================================================= --}}
+        <section class="card doc-section" id="sdk-python">
+            <div class="card-header"><h2>10. SDK — Python</h2></div>
+
+            <p>Print Hub provides a <strong>Python SDK client</strong> for Python 3.8+ applications. The SDK is a single-file module that wraps the REST API with convenient methods, automatic retry with exponential backoff, and custom exception classes.</p>
+
+            <h3>Installation</h3>
+            <p>Requires the <code>requests</code> library.</p>
+            <div class="code-block-wrapper">
+                <button class="copy-btn" onclick="copyCode(this)" title="Copy to clipboard">📋</button>
+                <pre class="code-block"><code>pip install requests
+
+# Download PrintHubClient.py:
+# {{ asset('sdk/PrintHubClient.py') }}</code></pre>
+            </div>
+
+            <h3>Initialization</h3>
+            <div class="code-block-wrapper">
+                <button class="copy-btn" onclick="copyCode(this)" title="Copy to clipboard">📋</button>
+                <pre class="code-block"><code>from printhub_client import PrintHubClient
+
+client = PrintHubClient(
+    base_url="https://print-hub.example.com",
+    api_key="your-api-key-here",
+    timeout=15,
+    max_retries=2,
+    retry_delay_ms=200,
+)
+
+# (Optional) Set a default branch
+client.set_branch("SDP-SBY")</code></pre>
+            </div>
+
+            <h3>Constructor Parameters</h3>
+            <table>
+                <thead><tr><th>Parameter</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
+                <tbody>
+                    <tr><td><code>base_url</code></td><td>str</td><td>—</td><td>Print Hub server URL (required)</td></tr>
+                    <tr><td><code>api_key</code></td><td>str</td><td>—</td><td>Client app API key (required)</td></tr>
+                    <tr><td><code>timeout</code></td><td>int</td><td><code>15</code></td><td>Request timeout in seconds</td></tr>
+                    <tr><td><code>max_retries</code></td><td>int</td><td><code>2</code></td><td>Max retries on transient failures</td></tr>
+                    <tr><td><code>retry_delay_ms</code></td><td>int</td><td><code>200</code></td><td>Initial retry delay (exponential backoff)</td></tr>
+                </tbody>
+            </table>
+
+            <h3>Available Methods</h3>
+
+            <div class="method-block">
+                <div class="method-sig"><code>set_branch(branch_code) → PrintHubClient</code></div>
+                <p>Set the default branch for all subsequent calls.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>get_branch_code() → str | None</code></div>
+                <p>Returns the currently configured default branch code.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>test_connection() → dict</code></div>
+                <p>Test connection to Print Hub.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>health() → dict</code></div>
+                <p>Get system health information.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>get_branches() → list</code></div>
+                <p>List all active branches.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>get_online_agents(branch_code=None) → list</code></div>
+                <p>List online agents, optionally filtered by branch.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>get_queues(branch_code=None, detailed=False) → list</code></div>
+                <p>List print queues.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>get_templates() → list</code></div>
+                <p>List all available print templates.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>get_template(name) → dict</code></div>
+                <p>Get detailed info for a specific template.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>get_template_schema(name) → dict</code></div>
+                <p>Get the required data schema for a template.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>register_schema(schema_name, schema_data) → dict</code></div>
+                <p>Register or update a data schema.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>list_schemas() → list</code></div>
+                <p>List all registered data schemas.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>schema_versions(schema_name) → list</code></div>
+                <p>Get version history for a schema.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>print_with_template(template, data, reference_id='', branch_code=None, options=None) → dict</code></div>
+                <p>The primary method for template-based printing.</p>
+                <div class="code-block-wrapper">
+                    <button class="copy-btn" onclick="copyCode(this)" title="Copy to clipboard">📋</button>
+                    <pre class="code-block"><code>result = client.print_with_template(
+    template="invoice_sewa",
+    data={"no_invoice": "INV-001", "customer": "PT ABC", "total": 150000},
+    reference_id="INV-001",
+    branch_code="SDP-SBY",
+    options={"copies": 2, "color_mode": "monochrome"},
+)
+print(f"Job queued: {result['job_id']}")</code></pre>
+                </div>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>print_raw_pdf(base64_pdf, reference_id='', branch_code=None, options=None, printer_name=None) → dict</code></div>
+                <p>Print a raw base64-encoded PDF without using a template.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>print_batch(jobs) → dict</code></div>
+                <p>Submit up to 50 print jobs in a single request.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>preview(template, data, options=None) → bytes</code></div>
+                <p>Generate a PDF preview. Returns raw PDF binary content.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>job_status(job_id) → dict</code></div>
+                <p>Check the current status of a print job.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>cancel_job(job_id) → dict</code></div>
+                <p>Cancel a pending print job.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>wait_for_job(job_id, timeout_seconds=30, poll_interval_ms=500) → dict</code></div>
+                <p>Poll until a job reaches a terminal status.</p>
+            </div>
+
+            <h3>Exception Classes</h3>
+            <table>
+                <thead><tr><th>Exception</th><th>When Thrown</th></tr></thead>
+                <tbody>
+                    <tr><td><code>PrintHubError</code></td><td>Base exception for all SDK errors</td></tr>
+                    <tr><td><code>PrintHubConnectionError</code></td><td>Network-level errors (connection refused, timeout, DNS failure)</td></tr>
+                    <tr><td><code>PrintHubValidationError</code></td><td>Schema validation failed — check <code>.errors</code> for details</td></tr>
+                </tbody>
+            </table>
+
+            <h3>Example Usage</h3>
+            <div class="code-block-wrapper">
+                <button class="copy-btn" onclick="copyCode(this)" title="Copy to clipboard">📋</button>
+                <pre class="code-block"><code>from printhub_client import PrintHubClient, PrintHubError, PrintHubValidationError
+
+client = PrintHubClient(
+    base_url="https://print-hub.example.com",
+    api_key="your-api-key-here",
+)
+
+try:
+    # Check connection
+    status = client.test_connection()
+    print(f"Connected: {status['message']}")
+
+    # Print a document
+    result = client.print_with_template(
+        template="invoice_sewa",
+        data={"no_invoice": "INV-001", "customer": "PT ABC", "total": 150000},
+        reference_id="INV-001",
+        options={"copies": 1, "color_mode": "monochrome"},
+    )
+    print(f"Job ID: {result['job_id']}")
+
+    # Wait for completion
+    final = client.wait_for_job(result['job_id'], timeout_seconds=60)
+    print(f"Final status: {final['status']}")
+
+except PrintHubValidationError as e:
+    print(f"Validation errors: {e.errors}")
+except PrintHubError as e:
+    print(f"Error: {e}")</code></pre>
+            </div>
+        </section>
+
+        {{-- ================================================================= --}}
+        {{-- 11. SDK — Node.js --}}
+        {{-- ================================================================= --}}
+        <section class="card doc-section" id="sdk-nodejs">
+            <div class="card-header"><h2>11. SDK — Node.js (ESM)</h2></div>
+
+            <p>Print Hub provides a <strong>Node.js SDK client</strong> in ESM format. Requires Node.js 18+ (native <code>fetch</code>) or 16+ with <code>node-fetch</code>. The SDK uses modern <code>async/await</code>, automatic retry with exponential backoff, and typed error classes.</p>
+
+            <h3>Installation</h3>
+            <p>No external dependencies required for Node.js 18+. For Node.js 16, install <code>node-fetch</code>:</p>
+            <div class="code-block-wrapper">
+                <button class="copy-btn" onclick="copyCode(this)" title="Copy to clipboard">📋</button>
+                <pre class="code-block"><code>npm install node-fetch  # Only for Node.js 16
+
+# Download PrintHubClient.mjs:
+# {{ asset('sdk/PrintHubClient.mjs') }}</code></pre>
+            </div>
+
+            <h3>Initialization</h3>
+            <div class="code-block-wrapper">
+                <button class="copy-btn" onclick="copyCode(this)" title="Copy to clipboard">📋</button>
+                <pre class="code-block"><code>import { PrintHubClient } from './PrintHubClient.mjs';
+
+const client = new PrintHubClient({
+    baseUrl: 'https://print-hub.example.com',
+    apiKey:  'your-api-key-here',
+    timeout: 15,
+    maxRetries: 2,
+    retryDelayMs: 200,
+});
+
+// (Optional) Set a default branch
+client.setBranch('SDP-SBY');</code></pre>
+            </div>
+
+            <h3>Constructor Options</h3>
+            <table>
+                <thead><tr><th>Option</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
+                <tbody>
+                    <tr><td><code>baseUrl</code></td><td>string</td><td>—</td><td>Print Hub server URL (required)</td></tr>
+                    <tr><td><code>apiKey</code></td><td>string</td><td>—</td><td>Client app API key (required)</td></tr>
+                    <tr><td><code>timeout</code></td><td>number</td><td><code>15</code></td><td>Request timeout in seconds</td></tr>
+                    <tr><td><code>maxRetries</code></td><td>number</td><td><code>2</code></td><td>Max retries on transient failures</td></tr>
+                    <tr><td><code>retryDelayMs</code></td><td>number</td><td><code>200</code></td><td>Initial retry delay (exponential backoff)</td></tr>
+                </tbody>
+            </table>
+
+            <h3>Available Methods</h3>
+
+            <div class="method-block">
+                <div class="method-sig"><code>setBranch(branchCode) → PrintHubClient</code></div>
+                <p>Set the default branch for all subsequent calls.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>getBranchCode() → string | null</code></div>
+                <p>Returns the currently configured default branch code.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>testConnection() → Promise<object></code></div>
+                <p>Test connection to Print Hub.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>health() → Promise<object></code></div>
+                <p>Get system health information.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>getBranches() → Promise<array></code></div>
+                <p>List all active branches.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>getOnlineAgents(branchCode?) → Promise<array></code></div>
+                <p>List online agents, optionally filtered by branch.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>getQueues({ branchCode, detailed }) → Promise<array></code></div>
+                <p>List print queues.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>getTemplates() → Promise<array></code></div>
+                <p>List all available print templates.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>getTemplate(name) → Promise<object></code></div>
+                <p>Get detailed info for a specific template.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>getTemplateSchema(name) → Promise<object></code></div>
+                <p>Get the required data schema for a template.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>registerSchema(schemaName, schemaData) → Promise<object></code></div>
+                <p>Register or update a data schema.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>listSchemas() → Promise<array></code></div>
+                <p>List all registered data schemas.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>schemaVersions(schemaName) → Promise<array></code></div>
+                <p>Get version history for a schema.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>printWithTemplate({ template, data, referenceId, branchCode, options }) → Promise<object></code></div>
+                <p>The primary method for template-based printing.</p>
+                <div class="code-block-wrapper">
+                    <button class="copy-btn" onclick="copyCode(this)" title="Copy to clipboard">📋</button>
+                    <pre class="code-block"><code>const result = await client.printWithTemplate({
+    template: 'invoice_sewa',
+    data: { no_invoice: 'INV-001', customer: 'PT ABC', total: 150000 },
+    referenceId: 'INV-001',
+    branchCode: 'SDP-SBY',
+    options: { copies: 2, color_mode: 'monochrome' },
+});
+console.log(`Job queued: ${result.job_id}`);</code></pre>
+                </div>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>printRawPdf({ base64Pdf, referenceId, branchCode, options, printerName }) → Promise<object></code></div>
+                <p>Print a raw base64-encoded PDF without using a template.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>printBatch(jobs) → Promise<object></code></div>
+                <p>Submit up to 50 print jobs in a single request.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>preview(template, data, options) → Promise<Buffer></code></div>
+                <p>Generate a PDF preview. Returns a Buffer with the PDF content.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>jobStatus(jobId) → Promise<object></code></div>
+                <p>Check the current status of a print job.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>cancelJob(jobId) → Promise<object></code></div>
+                <p>Cancel a pending print job.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>waitForJob(jobId, timeoutSeconds=30, pollIntervalMs=500) → Promise<object></code></div>
+                <p>Poll until a job reaches a terminal status.</p>
+            </div>
+
+            <h3>Error Handling</h3>
+            <div class="code-block-wrapper">
+                <button class="copy-btn" onclick="copyCode(this)" title="Copy to clipboard">📋</button>
+                <pre class="code-block"><code>import {
+    PrintHubClient,
+    PrintHubError,
+    PrintHubValidationError,
+    PrintHubConnectionError,
+} from './PrintHubClient.mjs';
+
+const client = new PrintHubClient({
+    baseUrl: 'https://print-hub.example.com',
+    apiKey:  'your-api-key-here',
+});
+
+try {
+    const result = await client.printWithTemplate({
+        template: 'invoice_sewa',
+        data: { no_invoice: 'INV-001', customer: 'PT ABC', total: 150000 },
+    });
+    console.log(`Job: ${result.job_id}`);
+} catch (err) {
+    if (err instanceof PrintHubValidationError) {
+        console.error('Validation errors:', err.errors);
+    } else if (err instanceof PrintHubConnectionError) {
+        console.error('Network error — Print Hub unreachable');
+    } else {
+        console.error('Error:', err.message);
+    }
+}</code></pre>
+            </div>
+        </section>
+
+        {{-- ================================================================= --}}
+        {{-- 12. OPENAPI / SWAGGER SPECIFICATION --}}
+        {{-- ================================================================= --}}
+        <section class="card doc-section" id="openapi">
+            <div class="card-header"><h2>12. OpenAPI / Swagger Specification</h2></div>
+
+            <p>Print Hub exposes a comprehensive <strong>OpenAPI 3.0.3 specification</strong> that describes the entire Client API surface. You can use this spec to:</p>
+
+            <ul>
+                <li>Generate client SDKs in any language using <a href="https://openapi-generator.tech" target="_blank">OpenAPI Generator</a></li>
+                <li>Import into API tools like <a href="https://insomnia.rest" target="_blank">Insomnia</a>, <a href="https://www.postman.com" target="_blank">Postman</a>, or <a href="https://swagger.io/tools/swagger-ui/" target="_blank">Swagger UI</a></li>
+                <li>Validate API requests and responses automatically</li>
+                <li>Generate interactive API documentation</li>
+            </ul>
+
+            <div class="code-block-wrapper">
+                <button class="copy-btn" onclick="copyCode(this)" title="Copy to clipboard">📋</button>
+                <pre class="code-block"><code># Download the OpenAPI spec:
+# {{ asset('sdk/openapi.yaml') }}
+
+# Validate with swagger-cli:
+npx swagger-cli validate openapi.yaml
+
+# Generate a Python client:
+npx @openapitools/openapi-generator-cli generate \
+    -i openapi.yaml \
+    -g python \
+    -o ./printhub-client-python
+
+# Generate a TypeScript client:
+npx @openapitools/openapi-generator-cli generate \
+    -i openapi.yaml \
+    -g typescript-fetch \
+    -o ./printhub-client-ts</code></pre>
+            </div>
+
+            <h3>Specification Overview</h3>
+            <table>
+                <thead><tr><th>Section</th><th>Endpoints</th></tr></thead>
+                <tbody>
+                    <tr><td>Connection & Health</td><td><code>GET /test</code>, <code>GET /health</code></td></tr>
+                    <tr><td>Discovery</td><td><code>GET /branches</code>, <code>GET /agents/online</code>, <code>GET /queues</code></td></tr>
+                    <tr><td>Templates</td><td><code>GET /templates</code>, <code>GET /templates/{name}</code>, <code>GET /templates/{name}/schema</code></td></tr>
+                    <tr><td>Data Schemas</td><td><code>POST /schema</code>, <code>GET /schemas</code>, <code>GET /schema/{name}/versions</code></td></tr>
+                    <tr><td>Printing</td><td><code>POST /print</code>, <code>POST /print/batch</code>, <code>POST /preview</code></td></tr>
+                    <tr><td>Job Management</td><td><code>GET /jobs/{job_id}</code>, <code>DELETE /jobs/{job_id}</code></td></tr>
+                    <tr><td>Document Management</td><td><code>POST /documents/upload</code>, <code>GET /documents</code>, <code>GET /documents/{id}</code>, <code>GET /documents/{id}/preview</code>, <code>GET /documents/{id}/download</code>, <code>DELETE /documents/{id}</code></td></tr>
+                </tbody>
+            </table>
+
+            <div class="tip-box">
+                <strong>💡 Tip:</strong> The OpenAPI spec includes full JSON Schema definitions for all request/response bodies, making it ideal for code generation and API testing.
+            </div>
+        </section>
+
+        {{-- ================================================================= --}}
+        {{-- 13. POSTMAN COLLECTION --}}
+        {{-- ================================================================= --}}
+        <section class="card doc-section" id="postman">
+            <div class="card-header"><h2>13. Postman Collection</h2></div>
+
+            <p>Download the Postman Collection JSON and import it into <a href="https://www.postman.com" target="_blank">Postman</a> to get a pre-configured collection with all endpoints. Replace <code>@{{base_url}}</code> and <code>@{{api_key}}</code> variables in Postman with your server URL and API key.</p>
+
+            <div class="code-block-wrapper">
+                <button class="copy-btn" onclick="copyCode(this)" title="Copy to clipboard">📋</button>
+                <pre class="code-block"><code># Download the Postman Collection:
+# {{ asset('sdk/PrintHub-Postman.json') }}
+
+# Import via CLI (requires postmanctl or Newman):
+# newman run PrintHub-Postman.json --env-var "base_url=https://print-hub.example.com/api/v1" --env-var "api_key=your-key"</code></pre>
+            </div>
+
+            <div class="tip-box">
+                <strong>💡 Tip:</strong> After importing, set the <code>base_url</code> and <code>api_key</code> variables in Postman's "Variables" tab. The auth is pre-configured to use <code>X-API-Key</code> header with your variable.
+            </div>
+        </section>
+
+        {{-- ================================================================= --}}
+        {{-- 14. RATE LIMITING --}}
         {{-- ================================================================= --}}
         <section class="card doc-section" id="rate-limiting">
-            <div class="card-header"><h2>10. Rate Limiting</h2></div>
+            <div class="card-header"><h2>14. Rate Limiting</h2></div>
 
             <p>Print Hub uses Laravel's built-in rate limiter to protect the API from abuse. Rate limits are applied per API key.</p>
 
@@ -1770,229 +2260,6 @@ Retry-After: 42</code></pre>
             </div>
         </section>
 
-        {{-- ================================================================= --}}
-        {{-- 11. POSTMAN COLLECTION --}}
-        {{-- ================================================================= --}}
-        <section class="card doc-section" id="postman">
-            <div class="card-header"><h2>11. Postman Collection</h2></div>
-
-            <p>Import the following JSON into <a href="https://www.postman.com" target="_blank">Postman</a> to get a pre-configured collection with all endpoints. Replace <code>@{{base_url}}</code> and <code>@{{api_key}}</code> variables in Postman with your server URL and API key.</p>
-
-            <div class="code-block-wrapper">
-                <button class="copy-btn" onclick="copyCode(this)" title="Copy to clipboard">📋</button>
-                <pre class="code-block"><code>{
-    "info": {
-        "name": "Print Hub API",
-        "description": "Complete API collection for Print Hub print management middleware",
-        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
-    },
-    "variable": [
-        { "key": "base_url", "value": "{{ config('app.url') }}/api/v1" },
-        { "key": "api_key", "value": "your-api-key-here" },
-        { "key": "job_id", "value": "" },
-        { "key": "template_name", "value": "invoice_sewa" },
-        { "key": "branch_code", "value": "SDP-MAIN" }
-    ],
-    "auth": {
-        "type": "apikey",
-        "apikey": [
-            { "key": "key", "value": "X-API-Key", "type": "string" },
-            { "key": "value", "value": "@{{api_key}}", "type": "string" },
-            { "key": "in", "value": "header", "type": "string" }
-        ]
-    },
-    "item": [
-        {
-            "name": "Connection & Health",
-            "item": [
-                {
-                    "name": "Test Connection",
-                    "request": {
-                        "method": "GET",
-                        "url": "@{{base_url}}/test"
-                    }
-                },
-                {
-                    "name": "System Health",
-                    "request": {
-                        "method": "GET",
-                        "url": "@{{base_url}}/health"
-                    }
-                }
-            ]
-        },
-        {
-            "name": "Discovery",
-            "item": [
-                {
-                    "name": "List Branches",
-                    "request": {
-                        "method": "GET",
-                        "url": "@{{base_url}}/branches"
-                    }
-                },
-                {
-                    "name": "List Online Agents",
-                    "request": {
-                        "method": "GET",
-                        "url": "@{{base_url}}/agents/online",
-                        "url": {
-                            "raw": "@{{base_url}}/agents/online?branch_code=@{{branch_code}}",
-                            "query": [
-                                { "key": "branch_code", "value": "@{{branch_code}}" }
-                            ]
-                        }
-                    }
-                },
-                {
-                    "name": "List Queues",
-                    "request": {
-                        "method": "GET",
-                        "url": "@{{base_url}}/queues?detailed=true",
-                        "url": {
-                            "raw": "@{{base_url}}/queues?branch_code=@{{branch_code}}&detailed=true",
-                            "query": [
-                                { "key": "branch_code", "value": "@{{branch_code}}" },
-                                { "key": "detailed", "value": "true" }
-                            ]
-                        }
-                    }
-                }
-            ]
-        },
-        {
-            "name": "Templates",
-            "item": [
-                {
-                    "name": "List Templates",
-                    "request": {
-                        "method": "GET",
-                        "url": "@{{base_url}}/templates"
-                    }
-                },
-                {
-                    "name": "Get Template Details",
-                    "request": {
-                        "method": "GET",
-                        "url": "@{{base_url}}/templates/@{{template_name}}"
-                    }
-                },
-                {
-                    "name": "Get Template Schema",
-                    "request": {
-                        "method": "GET",
-                        "url": "@{{base_url}}/templates/@{{template_name}}/schema"
-                    }
-                }
-            ]
-        },
-        {
-            "name": "Data Schemas",
-            "item": [
-                {
-                    "name": "Register Schema",
-                    "request": {
-                        "method": "POST",
-                        "header": [
-                            { "key": "Content-Type", "value": "application/json" }
-                        ],
-                        "body": {
-                            "mode": "raw",
-                            "raw": "{\n    \"schema_name\": \"invoice_sewa\",\n    \"label\": \"Sewa Invoice\",\n    \"fields\": {\n        \"no_invoice\": { \"label\": \"Invoice No\", \"type\": \"string\", \"required\": true },\n        \"customer\": { \"label\": \"Customer\", \"type\": \"string\", \"required\": true },\n        \"total\": { \"label\": \"Total\", \"type\": \"number\", \"required\": true }\n    },\n    \"tables\": {\n        \"items\": {\n            \"label\": \"Items\",\n            \"columns\": {\n                \"description\": { \"label\": \"Description\", \"type\": \"string\" },\n                \"qty\": { \"label\": \"Qty\", \"type\": \"number\" },\n                \"price\": { \"label\": \"Price\", \"type\": \"number\" }\n            }\n        }\n    }\n}"
-                        },
-                        "url": "@{{base_url}}/schema"
-                    }
-                },
-                {
-                    "name": "List Schemas",
-                    "request": {
-                        "method": "GET",
-                        "url": "@{{base_url}}/schemas"
-                    }
-                },
-                {
-                    "name": "Schema Version History",
-                    "request": {
-                        "method": "GET",
-                        "url": "@{{base_url}}/schema/@{{template_name}}/versions"
-                    }
-                }
-            ]
-        },
-        {
-            "name": "Printing",
-            "item": [
-                {
-                    "name": "Submit Print Job (Template)",
-                    "request": {
-                        "method": "POST",
-                        "header": [
-                            { "key": "Content-Type", "value": "application/json" }
-                        ],
-                        "body": {
-                            "mode": "raw",
-                            "raw": "{\n    \"template\": \"@{{template_name}}\",\n    \"data\": {\n        \"no_invoice\": \"INV-001\",\n        \"customer\": \"PT Example\",\n        \"total\": 150000\n    },\n    \"branch_code\": \"@{{branch_code}}\",\n    \"reference_id\": \"INV-001\",\n    \"options\": {\n        \"copies\": 1\n    }\n}"
-                        },
-                        "url": "@{{base_url}}/print"
-                    }
-                },
-                {
-                    "name": "Batch Print",
-                    "request": {
-                        "method": "POST",
-                        "header": [
-                            { "key": "Content-Type", "value": "application/json" }
-                        ],
-                        "body": {
-                            "mode": "raw",
-                            "raw": "{\n    \"jobs\": [\n        {\n            \"template\": \"@{{template_name}}\",\n            \"data\": { \"no_invoice\": \"INV-001\", \"customer\": \"PT ABC\", \"total\": 150000 },\n            \"reference_id\": \"INV-001\"\n        },\n        {\n            \"template\": \"@{{template_name}}\",\n            \"data\": { \"no_invoice\": \"INV-002\", \"customer\": \"PT XYZ\", \"total\": 200000 },\n            \"reference_id\": \"INV-002\"\n        }\n    ]\n}"
-                        },
-                        "url": "@{{base_url}}/print/batch"
-                    }
-                },
-                {
-                    "name": "Preview PDF",
-                    "request": {
-                        "method": "POST",
-                        "header": [
-                            { "key": "Content-Type", "value": "application/json" }
-                        ],
-                        "body": {
-                            "mode": "raw",
-                            "raw": "{\n    \"template\": \"@{{template_name}}\",\n    \"data\": {\n        \"no_invoice\": \"INV-001\",\n        \"customer\": \"PT Example\",\n        \"total\": 150000\n    }\n}"
-                        },
-                        "url": "@{{base_url}}/preview"
-                    }
-                }
-            ]
-        },
-        {
-            "name": "Job Management",
-            "item": [
-                {
-                    "name": "Check Job Status",
-                    "request": {
-                        "method": "GET",
-                        "url": "@{{base_url}}/jobs/@{{job_id}}"
-                    }
-                },
-                {
-                    "name": "Cancel Job",
-                    "request": {
-                        "method": "DELETE",
-                        "url": "@{{base_url}}/jobs/@{{job_id}}"
-                    }
-                }
-            ]
-        }
-    ]
-}</code></pre>
-            </div>
-
-            <div class="tip-box">
-                <strong>💡 Tip:</strong> After importing, set the <code>base_url</code> and <code>api_key</code> variables in Postman's "Variables" tab. The auth is pre-configured to use <code>X-API-Key</code> header with your variable.
-            </div>
-        </section>
 
     </div>
 </div>

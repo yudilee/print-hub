@@ -427,20 +427,29 @@ class ClientAppController extends Controller
     {
         $app  = $this->app($request);
         $data = $request->validate([
-            'template'        => 'nullable|string',
-            'data'            => 'nullable|array',
-            'document_base64' => 'nullable|string',
-            'type'            => 'nullable|string',
-            'agent_id'        => 'nullable|integer|exists:print_agents,id',
-            'printer'         => 'nullable|string',
-            'profile'         => 'nullable|string',
-            'queue'           => 'nullable|string',
-            'reference_id'    => 'nullable|string',
-            'webhook_url'     => 'nullable|url',
-            'options'         => 'nullable|array',
-            'skip_validation' => 'nullable|boolean',
-            'branch_code'     => 'nullable|string',
-            'branch_id'       => 'nullable|integer',
+            'template'         => 'nullable|string',
+            'data'             => 'nullable|array',
+            'document_base64'  => 'nullable|string',
+            'type'             => 'nullable|string',
+            'agent_id'         => 'nullable|integer|exists:print_agents,id',
+            'printer'          => 'nullable|string',
+            'pool_id'          => 'nullable|integer|exists:printer_pools,id',
+            'profile'          => 'nullable|string',
+            'queue'            => 'nullable|string',
+            'reference_id'     => 'nullable|string',
+            'webhook_url'      => 'nullable|url',
+            'options'          => 'nullable|array',
+            'skip_validation'  => 'nullable|boolean',
+            'branch_code'      => 'nullable|string',
+            'branch_id'        => 'nullable|integer',
+            'priority'         => 'nullable|integer|min:0|max:255',
+            // Scheduling fields (Feature 1)
+            'scheduled_at'     => 'nullable|date',
+            'recurrence'       => 'nullable|string|in:daily,weekly,monthly,none',
+            'recurrence_end_at'=> 'nullable|date',
+            'recurrence_count' => 'nullable|integer|min:0',
+            // Document field (Feature 2)
+            'document_id'      => 'nullable|integer|exists:print_documents,id',
         ]);
 
         if (empty($data['template']) && empty($data['document_base64'])) {
@@ -487,8 +496,17 @@ class ClientAppController extends Controller
             return ApiResponse::serviceUnavailable('NO_AGENT_AVAILABLE', $e->getMessage());
         }
 
-        // 4. Resolve printer
-        $printer = PrintJobOrchestrator::resolvePrinter($data['printer'] ?? null, $profile);
+        // 4. Resolve printer (pool_id takes precedence over printer_name)
+        $poolId = $data['pool_id'] ?? null;
+        if ($poolId) {
+            try {
+                $printer = $orchestrator->selectPrinterFromPool((int) $poolId, $agent->id);
+            } catch (\RuntimeException $e) {
+                return ApiResponse::serviceUnavailable('POOL_ERROR', $e->getMessage());
+            }
+        } else {
+            $printer = PrintJobOrchestrator::resolvePrinter($data['printer'] ?? null, $profile);
+        }
 
         // 5. Generate document
         $orchestrator        = new PrintJobOrchestrator();
@@ -520,6 +538,15 @@ class ClientAppController extends Controller
             $templateName = null;
         }
 
+        // Validate document_id if provided (Feature 2)
+        $documentId = $data['document_id'] ?? null;
+        if ($documentId) {
+            $document = \App\Models\PrintDocument::find($documentId);
+            if (!$document) {
+                return ApiResponse::notFound('DOCUMENT_NOT_FOUND', 'Document not found.');
+            }
+        }
+
         // 6. Create job record
         $orchestrator->createJob(
             $filePath,
@@ -532,17 +559,28 @@ class ClientAppController extends Controller
             $data['reference_id'] ?? null,
             $templateName,
             ! empty($data['template']) ? ($data['data'] ?? null) : null,
+            (int) ($data['priority'] ?? 0),
+            documentId: $documentId,
+            scheduledAt: $data['scheduled_at'] ?? null,
+            recurrence: $data['recurrence'] ?? null,
+            recurrenceEndAt: $data['recurrence_end_at'] ?? null,
+            recurrenceCount: $data['recurrence_count'] ?? null,
+            poolId: $poolId,
         );
 
         $jobId = pathinfo($filePath, PATHINFO_FILENAME);
 
         $responseData = [
-            'status'   => 'queued',
-            'job_id'   => $jobId,
-            'agent'    => $agent->name,
-            'printer'  => $printer,
-            'template' => $templateName,
-            'queue'    => $profile ? $profile->name : null,
+            'status'            => 'queued',
+            'job_id'            => $jobId,
+            'agent'             => $agent->name,
+            'printer'           => $printer,
+            'template'          => $templateName,
+            'priority'          => (int) ($data['priority'] ?? 0),
+            'queue'             => $profile ? $profile->name : null,
+            'scheduled_at'      => $data['scheduled_at'] ?? null,
+            'recurrence'        => $data['recurrence'] ?? null,
+            'document_id'       => $documentId,
         ];
 
         if (! empty($validationWarnings)) {
@@ -579,6 +617,7 @@ class ClientAppController extends Controller
         return ApiResponse::success([
             'job_id'       => $job->job_id,
             'status'       => $job->status,
+            'priority'     => $job->priority,
             'reference_id' => $job->reference_id,
             'printer'      => $job->printer_name,
             'template'     => $job->template_name,

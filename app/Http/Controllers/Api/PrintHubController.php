@@ -90,6 +90,27 @@ class PrintHubController extends Controller
                 'media_type'         => $p->media_type,
                 'collate'            => $p->collate,
                 'reverse_order'      => $p->reverse_order,
+
+                // Watermark fields
+                'watermark_text'     => $p->watermark_text ?? '',
+                'watermark_opacity'  => (float)($p->watermark_opacity ?? 0.3),
+                'watermark_rotation' => (int)($p->watermark_rotation ?? -45),
+                'watermark_position' => $p->watermark_position ?? 'center',
+
+                // Finishing fields
+                'finishing_staple'   => $p->finishing_staple ?? '',
+                'finishing_punch'    => $p->finishing_punch ?? '',
+                'finishing_booklet'  => (bool)($p->finishing_booklet ?? false),
+                'finishing_fold'     => $p->finishing_fold ?? '',
+                'finishing_bind'     => $p->finishing_bind ?? '',
+
+                // Eco / sustainability fields
+                'eco_mode'           => (bool)($p->eco_mode ?? false),
+                'grayscale_force'    => (bool)($p->grayscale_force ?? false),
+                'pages_per_sheet'    => (int)($p->pages_per_sheet ?? 1),
+                'remove_images'      => (bool)($p->remove_images ?? false),
+                'duplex_saved'       => (int)($p->duplex_saved ?? 0),
+                'carbon_saved'       => (float)($p->carbon_saved ?? 0),
             ];
         });
 
@@ -111,8 +132,10 @@ class PrintHubController extends Controller
             ->where('created_at', '<', now()->subMinutes(10))
             ->update(['status' => 'pending']);
 
+        // Exclude jobs pending approval — only return approved or auto_approved
         $jobs = PrintJob::where('print_agent_id', $agent->id)
             ->where('status', 'pending')
+            ->whereIn('approval_status', ['approved', 'auto_approved'])
             ->orderBy('priority', 'desc')
             ->orderBy('created_at', 'asc')
             ->get();
@@ -124,11 +147,17 @@ class PrintHubController extends Controller
             }
 
             return [
-                'job_id'          => $job->job_id,
-                'printer'         => $job->printer_name,
-                'type'            => $job->type,
-                'options'         => $job->options,
-                'document_base64' => $base64,
+                'job_id'           => $job->job_id,
+                'printer'          => $job->printer_name,
+                'type'             => $job->type,
+                'priority'         => $job->priority,
+                'options'          => $job->options,
+                'document_base64'  => $base64,
+                'scheduled_at'     => $job->scheduled_at?->toISOString(),
+                'recurrence'       => $job->recurrence,
+                'recurrence_end_at'=> $job->recurrence_end_at?->toISOString(),
+                'recurrence_count' => $job->recurrence_count,
+                'approval_status'  => $job->approval_status,
             ];
         });
 
@@ -169,21 +198,20 @@ class PrintHubController extends Controller
                 'agent_completed_at'  => $data['completed_at'] ?? null,
             ]);
 
-            // Fire webhook if configured
-            if ($job->webhook_url) {
-                try {
-                    \Illuminate\Support\Facades\Http::timeout(5)->post($job->webhook_url, [
-                        'reference_id' => $job->reference_id,
-                        'job_id'       => $job->job_id,
-                        'status'       => $job->status,
-                        'error'        => $job->error,
-                    ]);
-                } catch (\Exception $e) {
-                    \Illuminate\Support\Facades\Log::warning('Webhook delivery failed: ' . $e->getMessage(), [
-                        'job_id'      => $job->job_id,
-                        'webhook_url' => $job->webhook_url,
-                    ]);
-                }
+            // Fire webhook via WebhookService
+            try {
+                $eventType = $job->status === 'success' ? 'job.completed' : 'job.failed';
+                app(\App\Services\WebhookService::class)->dispatch($eventType, [
+                    'reference_id' => $job->reference_id,
+                    'job_id'       => $job->job_id,
+                    'status'       => $job->status,
+                    'error'        => $job->error,
+                    'printer'      => $job->printer_name,
+                ]);
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::warning('WebhookService dispatch failed: ' . $e->getMessage(), [
+                    'job_id' => $job->job_id,
+                ]);
             }
         } else {
             // Unregistered job (local/direct print), create for historical records
@@ -205,6 +233,18 @@ class PrintHubController extends Controller
             event(new \App\Events\JobStatusUpdated($jobToBroadcast));
         }
 
+        // Dispatch QueueUpdated for admin dashboard
+        try {
+            $queueData = [
+                'total_pending'    => \App\Models\PrintJob::where('status', 'pending')->count(),
+                'total_processing' => \App\Models\PrintJob::where('status', 'processing')->count(),
+                'total_queued'     => \App\Models\PrintJob::whereIn('status', ['pending', 'processing'])->count(),
+            ];
+            event(new \App\Events\QueueUpdated($queueData));
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::warning('Failed to dispatch QueueUpdated: ' . $e->getMessage());
+        }
+
         return ApiResponse::success(['status' => 'received']);
     }
 
@@ -219,14 +259,30 @@ class PrintHubController extends Controller
         if (! $agent) return $this->unauthorized();
 
         $data = $request->validate([
-            'printers'   => 'required|array',
-            'printers.*' => 'required|string',
+            'printers'      => 'required|array',
+            'printers.*'    => 'required|string',
+            'capabilities'  => 'nullable|array',
         ]);
 
-        $agent->update([
+        $wasOnline = $agent->isOnline();
+
+        $updateData = [
             'printers'     => $data['printers'],
             'last_seen_at' => now(),
-        ]);
+        ];
+
+        // Store capabilities as JSON if provided
+        if ($request->has('capabilities')) {
+            $updateData['capabilities'] = $data['capabilities'];
+        }
+
+        $agent->update($updateData);
+
+        // Dispatch AgentStatusUpdated if status changed (online → offline or offline → online)
+        $agent->refresh();
+        if ($wasOnline !== $agent->isOnline()) {
+            event(new \App\Events\AgentStatusUpdated($agent));
+        }
 
         return ApiResponse::success(['status' => 'ok']);
     }
@@ -261,6 +317,29 @@ class PrintHubController extends Controller
 
         return ApiResponse::success([
             'allowed_origins' => array_values(array_unique($origins)),
+        ]);
+    }
+
+    // -------------------------------------------------------------------------
+    // GET /api/v1/agents/version
+    // GET /api/print-hub/agent/version
+    // Returns the latest available agent version for auto-update.
+    // -------------------------------------------------------------------------
+
+    public function getAgentVersion(Request $request)
+    {
+        $latestVersion = config('app.agent_latest_version', '1.0.0');
+        $downloadUrl   = config('app.agent_download_url', '');
+        $releaseNotes  = config('app.agent_release_notes', '');
+        $sha256        = config('app.agent_sha256', '');
+        $mandatory     = config('app.agent_mandatory', false);
+
+        return ApiResponse::success([
+            'latest_version' => $latestVersion,
+            'download_url'   => $downloadUrl,
+            'release_notes'  => $releaseNotes,
+            'sha256'         => $sha256,
+            'mandatory'      => (bool) $mandatory,
         ]);
     }
 }

@@ -23,7 +23,7 @@ class JobStatusUpdated implements ShouldBroadcast
     public function broadcastOn(): array
     {
         return [
-            new Channel('print-jobs'),
+            new Channel('job.' . $this->job->job_id),
         ];
     }
 

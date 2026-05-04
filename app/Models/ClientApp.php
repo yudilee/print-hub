@@ -13,15 +13,31 @@ use Illuminate\Database\Eloquent\Model;
  */
 class ClientApp extends Model
 {
-    protected $fillable = ['name', 'api_key', 'is_active', 'last_used_at', 'allowed_origins'];
+    protected $fillable = [
+        'name', 'api_key', 'is_active', 'last_used_at', 'allowed_origins', 'last_key_rotated_at',
+        'webhook_events', 'webhook_retry_count', 'webhook_timeout', 'webhook_secret',
+    ];
 
     protected $hidden = ['api_key'];
 
     protected $casts = [
-        'is_active'       => 'boolean',
-        'last_used_at'    => 'datetime',
-        'allowed_origins' => 'array',
+        'is_active'           => 'boolean',
+        'last_used_at'        => 'datetime',
+        'last_key_rotated_at' => 'datetime',
+        'allowed_origins'     => 'array',
+        'webhook_events'      => 'array',
+        'webhook_retry_count' => 'integer',
+        'webhook_timeout'     => 'integer',
     ];
+
+    protected static function booted(): void
+    {
+        static::creating(function (ClientApp $app) {
+            if (is_null($app->last_key_rotated_at)) {
+                $app->last_key_rotated_at = now();
+            }
+        });
+    }
 
     /**
      * Hash a raw API key for storage.
@@ -37,5 +53,12 @@ class ClientApp extends Model
     public static function findByKey(string $rawKey): ?self
     {
         return static::where('api_key', static::hashKey($rawKey))->first();
+    }
+
+    // ── Relationships ────────────────────────────────────────
+
+    public function webhookDeliveries(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(WebhookDelivery::class);
     }
 }

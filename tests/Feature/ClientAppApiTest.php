@@ -155,6 +155,7 @@ class ClientAppApiTest extends TestCase
                     'agent'    => 'Test Agent',
                     'printer'  => 'Test Printer',
                     'template' => 'test_template',
+                    'priority' => 0,
                 ],
             ]);
     }
@@ -208,8 +209,9 @@ class ClientAppApiTest extends TestCase
         $response->assertStatus(202)
             ->assertJson([
                 'data' => [
-                    'status' => 'queued',
-                    'agent'  => 'Test Agent',
+                    'status'   => 'queued',
+                    'agent'    => 'Test Agent',
+                    'priority' => 0,
                 ],
             ]);
     }
@@ -222,6 +224,7 @@ class ClientAppApiTest extends TestCase
             'printer_name'   => 'Test Printer',
             'type'           => 'pdf',
             'status'         => 'pending',
+            'priority'       => 0,
             'file_path'      => 'print_jobs/test.pdf',
         ]);
 
@@ -231,9 +234,10 @@ class ClientAppApiTest extends TestCase
         $response->assertOk()
             ->assertJson([
                 'data' => [
-                    'job_id'  => 'test-job-uuid',
-                    'status'  => 'pending',
-                    'printer' => 'Test Printer',
+                    'job_id'   => 'test-job-uuid',
+                    'status'   => 'pending',
+                    'printer'  => 'Test Printer',
+                    'priority' => 0,
                 ],
             ]);
     }

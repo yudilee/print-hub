@@ -10,12 +10,21 @@
 </div>
 
 {{-- Filters --}}
-<div class="filter-bar" x-data="{ statusFilter: '', dateFrom: '', dateTo: '' }">
+<div class="filter-bar" x-data="{ statusFilter: '', scheduleFilter: '', dateFrom: '', dateTo: '' }">
     <form action="{{ route('admin.jobs') }}" method="GET" style="display:flex; gap:0.75rem; align-items:center; width:100%; flex-wrap: wrap;">
         <select name="status" x-model="statusFilter">
             <option value="">All Statuses</option>
             <option value="success" {{ request('status') === 'success' ? 'selected' : '' }}>✓ Success</option>
             <option value="failed" {{ request('status') === 'failed' ? 'selected' : '' }}>✗ Failed</option>
+            <option value="pending" {{ request('status') === 'pending' ? 'selected' : '' }}>⏳ Pending</option>
+            <option value="processing" {{ request('status') === 'processing' ? 'selected' : '' }}>🔄 Processing</option>
+            <option value="queued" {{ request('status') === 'queued' ? 'selected' : '' }}>📋 Queued</option>
+            <option value="scheduled" {{ request('status') === 'scheduled' ? 'selected' : '' }}>📅 Scheduled</option>
+        </select>
+        <select name="scheduled_filter">
+            <option value="">All Jobs</option>
+            <option value="scheduled" {{ request('scheduled_filter') === 'scheduled' ? 'selected' : '' }}>📅 Scheduled Only</option>
+            <option value="recurring" {{ request('scheduled_filter') === 'recurring' ? 'selected' : '' }}>🔄 Recurring Only</option>
         </select>
         <select name="agent_id">
             <option value="">All Agents</option>
@@ -40,6 +49,8 @@
                 class="btn btn-sm" :class="quickFilter === 'failed' ? 'btn-danger' : 'btn-secondary'">✗ Failed</button>
         <button @click="quickFilter = 'pending'; $el.closest('.filter-bar').querySelector('[name=status]').value = 'pending'"
                 class="btn btn-sm" :class="quickFilter === 'pending' ? 'btn-warning' : 'btn-secondary'">⏳ Pending</button>
+        <button @click="quickFilter = 'scheduled'; $el.closest('.filter-bar').querySelector('[name=status]').value = 'scheduled'; $el.closest('.filter-bar').querySelector('[name=scheduled_filter]').value = 'scheduled'"
+                class="btn btn-sm" :class="quickFilter === 'scheduled' ? 'btn-info' : 'btn-secondary'">📅 Scheduled</button>
     </div>
 </div>
 
@@ -55,6 +66,8 @@
                 <th>Printer</th>
                 <th>Type</th>
                 <th>Status</th>
+                <th>Scheduled At</th>
+                <th>Recurrence</th>
                 <th>Options</th>
                 <th>Error</th>
                 <th>Time</th>
@@ -83,6 +96,8 @@
                                 Retry
                             </button>
                         </form>
+                    @elseif($job->status === 'scheduled' || $job->status === 'queued')
+                        <span class="badge badge-info">{{ $job->status }}</span>
                     @else
                         <span class="badge badge-warning">{{ $job->status }}</span>
                         <form action="{{ route('admin.jobs.status', $job) }}" method="POST" style="display:inline; margin-left: 5px;">
@@ -92,6 +107,20 @@
                                 Mark Success
                             </button>
                         </form>
+                    @endif
+                </td>
+                <td style="font-size: 0.8rem; white-space: nowrap;">
+                    @if($job->scheduled_at)
+                        <span style="color: var(--info);">{{ $job->scheduled_at->format('d M H:i') }}</span>
+                    @else
+                        <span style="color: var(--text-muted);">—</span>
+                    @endif
+                </td>
+                <td>
+                    @if($job->recurrence && $job->recurrence !== 'none')
+                        <span class="badge badge-info">{{ $job->recurrence }}</span>
+                    @else
+                        <span style="color: var(--text-muted);">—</span>
                     @endif
                 </td>
                 <td style="font-size: 0.75rem; color: var(--text-muted);">
@@ -110,7 +139,7 @@
                 </td>
             </tr>
             @empty
-            <tr><td colspan="8">
+            <tr><td colspan="10">
                 <x-empty-state icon="📋" title="No jobs found" description="Jobs will appear here when print tasks are submitted through agents or the API." />
             </td></tr>
             @endforelse

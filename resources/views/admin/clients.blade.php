@@ -70,6 +70,7 @@
                         <th style="padding:0.875rem 1rem; text-align:left; font-size:0.75rem; font-weight:600; color:var(--text-muted); text-transform:uppercase;">API Key</th>
                         <th style="padding:0.875rem 1rem; text-align:left; font-size:0.75rem; font-weight:600; color:var(--text-muted); text-transform:uppercase;">Status</th>
                         <th style="padding:0.875rem 1rem; text-align:left; font-size:0.75rem; font-weight:600; color:var(--text-muted); text-transform:uppercase;">Last Used</th>
+                        <th style="padding:0.875rem 1rem; text-align:left; font-size:0.75rem; font-weight:600; color:var(--text-muted); text-transform:uppercase;">Key Age</th>
                         <th style="padding:0.875rem 1rem; text-align:left; font-size:0.75rem; font-weight:600; color:var(--text-muted); text-transform:uppercase;">Actions</th>
                     </tr>
                 </thead>
@@ -91,6 +92,16 @@
                         </td>
                         <td style="padding:1rem; color:var(--text-muted); font-size:0.85rem;">
                             {{ $client->last_used_at ? $client->last_used_at->diffForHumans() : 'Never' }}
+                        </td>
+                        <td style="padding:1rem; font-size:0.85rem; white-space: nowrap;">
+                            @php $keyAge = $client->last_key_rotated_at ? $client->last_key_rotated_at->diffInDays(now()) : null; @endphp
+                            @if(is_null($keyAge))
+                                <span style="color: var(--text-muted); font-style: italic;">N/A</span>
+                            @elseif($keyAge > 90)
+                                <span style="background:rgba(245,158,11,0.15); color:var(--warning); padding:2px 8px; border-radius:10px; font-size:0.75rem; font-weight:500;">{{ $keyAge }} days</span>
+                            @else
+                                {{ $keyAge }} days
+                            @endif
                         </td>
                         <td style="padding:1rem;">
                             <div style="display: flex; gap: 6px;">
@@ -157,9 +168,9 @@ $status = $hub->jobStatus($result['job_id']);</pre>
     </div>
 </div>
 
-{{-- Register Modal --}}
+{{-- Register / Edit Modal --}}
 <div id="register-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:9999; align-items:center; justify-content:center;">
-    <div style="background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:2rem; width:400px; max-width:90vw;">
+    <div style="background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:2rem; width:500px; max-width:90vw;">
         <h2 style="font-size:1.1rem; font-weight:600; margin-bottom:0.5rem;">Register Client App</h2>
         <p style="color:var(--text-muted); font-size:0.85rem; margin-bottom:1.5rem;">An API key will be auto-generated.</p>
         <form method="POST" action="{{ route('admin.clients.store') }}">
@@ -175,6 +186,38 @@ $status = $hub->jobStatus($result['job_id']);</pre>
                        style="width:100%; padding:0.75rem; background:var(--bg); border:1px solid var(--border); color:var(--text); border-radius:8px; font-size:0.875rem;">
                 <div style="color:var(--text-muted); font-size:0.75rem; margin-top:0.3rem;">Comma separated list of URLs that can print directly to Trayprint via this app.</div>
             </div>
+
+            <div style="border-top:1px solid var(--border); margin:1rem 0; padding-top:1rem;">
+                <div style="font-weight:600; font-size:0.8rem; color:var(--text-muted); margin-bottom:0.75rem;">🔔 Webhook Configuration</div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Webhook URL</label>
+                        <input type="url" name="webhook_url" placeholder="https://app.example.com/webhook">
+                    </div>
+                    <div class="form-group">
+                        <label>Webhook Secret <span style="font-weight:normal; color:var(--text-muted);">(for HMAC signing)</span></label>
+                        <input type="text" name="webhook_secret" placeholder="Optional secret key">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Retry Count</label>
+                        <input type="number" name="webhook_retry_count" value="3" min="0" max="10">
+                    </div>
+                    <div class="form-group">
+                        <label>Timeout (seconds)</label>
+                        <input type="number" name="webhook_timeout" value="10" min="1" max="60">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Subscribed Events <span style="font-weight:normal; color:var(--text-muted);">(comma separated, leave empty for all)</span></label>
+                    <input type="text" name="webhook_events" placeholder="e.g. job.created, job.completed, job.failed">
+                    <div style="color:var(--text-muted); font-size:0.75rem; margin-top:0.3rem;">
+                        Supported: job.created, job.completed, job.failed, job.approved, job.rejected, agent.online, agent.offline, printer.added, printer.removed
+                    </div>
+                </div>
+            </div>
+
             <div style="display:flex; gap:0.75rem; justify-content:flex-end; margin-top:1.5rem;">
                 <button type="button" onclick="document.getElementById('register-modal').style.display='none'"
                         style="padding:0.6rem 1.25rem; background:transparent; border:1px solid var(--border); color:var(--text); border-radius:8px; cursor:pointer;">Cancel</button>
@@ -183,4 +226,12 @@ $status = $hub->jobStatus($result['job_id']);</pre>
         </form>
     </div>
 </div>
+
+{{-- Include webhook fields in the table too --}}
+<script>
+    // Pass client app webhook data to table rows if needed
+    document.addEventListener('DOMContentLoaded', function() {
+        // Hide/show webhook events as badges can be added dynamically
+    });
+</script>
 @endsection
