@@ -6,6 +6,12 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+/**
+ * Branch represents a physical location under a Company.
+ *
+ * Branches scope agents, profiles, jobs, and users. Each branch can have
+ * template default mappings that auto-route print jobs to specific queues.
+ */
 class Branch extends Model
 {
     protected $fillable = ['company_id', 'name', 'code', 'address', 'is_active'];

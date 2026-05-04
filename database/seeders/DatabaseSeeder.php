@@ -46,11 +46,13 @@ class DatabaseSeeder extends Seeder
         PrintProfile::whereNull('branch_id')->update(['branch_id' => $sdpMain->id]);
 
         // 4. Create / update super-admin user at HQ
+        $defaultPassword = env('SEEDER_DEFAULT_PASSWORD', \Illuminate\Support\Str::random(16));
+
         User::updateOrCreate(
             ['email' => 'yudi.it@hrmsby.co.id'],
             [
                 'name'        => 'Yudi (Admin)',
-                'password'    => \Illuminate\Support\Facades\Hash::make('lcs119'),
+                'password'    => \Illuminate\Support\Facades\Hash::make($defaultPassword),
                 'role'        => 'super-admin',
                 'auth_source' => 'local',
                 'branch_id'   => $hq->id,
@@ -66,6 +68,11 @@ class DatabaseSeeder extends Seeder
                 'branch_id'  => $hq->id,
                 'company_id' => $hrm->id,
             ]);
+        }
+
+        // 5. Seed demo data in non-production environments
+        if (!app()->environment('production')) {
+            $this->call(DemoDataSeeder::class);
         }
     }
 }

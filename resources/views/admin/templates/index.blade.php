@@ -2,6 +2,8 @@
 @section('title', 'Templates')
 
 @section('content')
+<x-breadcrumb :items="[['label' => 'Dashboard', 'url' => route('admin.dashboard')], ['label' => 'Templates']]" />
+
 <div class="page-header">
     <h1>Print Templates</h1>
     <p>Design millimeter-perfect layouts for pre-printed continuous forms</p>

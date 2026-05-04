@@ -9,4 +9,9 @@ Artisan::command('inspire', function () {
 
 use Illuminate\Support\Facades\Schedule;
 
-Schedule::command('print-hub:cleanup --days=30')->dailyAt('02:00');
+// Revert jobs stuck in "processing" for > 5 minutes — runs every minute
+Schedule::command('print-hub:revert-stale-jobs')->everyMinute()->withoutOverlapping();
+
+// Clean up old job files — runs weekly at 02:00 on Sunday
+Schedule::command('print-hub:cleanup-jobs')->weeklyOn(0, '02:00');
+

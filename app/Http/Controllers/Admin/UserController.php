@@ -59,7 +59,7 @@ class UserController extends Controller
         $data = $request->validate([
             'name'       => 'required|string|max:255',
             'email'      => 'required|email|unique:users',
-            'password'   => 'required|string|min:6',
+            'password'   => 'required|string|min:8',
             'role'       => ['required', 'string', Rule::in(PermissionConfig::roleKeys())],
             'branch_id'  => 'nullable|exists:branches,id',
             'company_id' => 'nullable|exists:companies,id',

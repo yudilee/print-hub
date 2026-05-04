@@ -8,44 +8,46 @@ use Illuminate\Support\Facades\Route;
 // Print Agent API  (authenticated by agent_key Bearer token)
 // ─────────────────────────────────────────────
 Route::prefix('print-hub')->middleware('throttle:120,1')->group(function () {
-    Route::get('/profiles', [PrintHubController::class, 'getProfiles']);
-    Route::get('/queue',    [PrintHubController::class, 'getQueue']);
-    Route::post('/jobs',    [PrintHubController::class, 'reportJob']);
-    Route::post('/status',  [PrintHubController::class, 'updateStatus']);
+    Route::get('/profiles',     [PrintHubController::class, 'getProfiles']);
+    Route::get('/queue',        [PrintHubController::class, 'getQueue']);
+    Route::post('/jobs',        [PrintHubController::class, 'reportJob']);
+    Route::post('/status',      [PrintHubController::class, 'updateStatus']);
     Route::get('/cors-origins', [PrintHubController::class, 'getCorsOrigins']);
+    Route::post('/heartbeat',   [PrintHubController::class, 'heartbeat']);
 });
 
 // ─────────────────────────────────────────────
 // Client Apps API  (authenticated by X-API-Key header)
 // ─────────────────────────────────────────────
-Route::prefix('v1')->middleware('throttle:60,1')->group(function () {
+Route::prefix('v1')->middleware(['throttle:60,1', 'auth.api-key'])->group(function () {
     // Test Connection
     Route::get('/test', [ClientAppController::class, 'testConnection']);
 
-    // Discovery (no auth needed for agent list)
+    // Discovery
     Route::get('/agents/online', [ClientAppController::class, 'getOnlineAgents']);
+    Route::get('/branches',      [ClientAppController::class, 'listBranches']);
     Route::get('/queues',        [ClientAppController::class, 'listQueues']);
 
     // Template discovery
-    Route::get('/templates',       [ClientAppController::class, 'listTemplates']);
-    Route::get('/templates/{name}', [ClientAppController::class, 'getTemplate']);
-
-    // Data schema registration & discovery
-    Route::post('/schema',  [ClientAppController::class, 'registerSchema']);
-    Route::get('/schemas',  [ClientAppController::class, 'listSchemas']);
-    Route::get('/schema/{name}/versions', [ClientAppController::class, 'schemaVersions']);
-
-    // Bidirectional: discover what data a template needs
+    Route::get('/templates',            [ClientAppController::class, 'listTemplates']);
+    Route::get('/templates/{name}',     [ClientAppController::class, 'getTemplate']);
     Route::get('/templates/{name}/schema', [ClientAppController::class, 'getTemplateSchema']);
 
-    // Unified print endpoint
-    Route::post('/print', [ClientAppController::class, 'unifiedPrint']);
-    Route::post('/print/batch', [ClientAppController::class, 'batchPrint']);
-    Route::post('/preview', [ClientAppController::class, 'previewPrint']);
+    // Data schema registration & discovery
+    Route::post('/schema',                    [ClientAppController::class, 'registerSchema']);
+    Route::get('/schemas',                    [ClientAppController::class, 'listSchemas']);
+    Route::get('/schema/{name}/versions',     [ClientAppController::class, 'schemaVersions']);
 
-    // Legacy submit (backwards compat)
-    Route::post('/jobs', [ClientAppController::class, 'submitJob']);
+    // Print endpoints
+    Route::post('/print',        [ClientAppController::class, 'unifiedPrint']);
+    Route::post('/print/batch',  [ClientAppController::class, 'batchPrint']);
+    Route::post('/preview',      [ClientAppController::class, 'previewPrint']);
 
-    // Job status check
-    Route::get('/jobs/{job_id}', [ClientAppController::class, 'jobStatus']);
+    // Job management
+    Route::post('/jobs',              [ClientAppController::class, 'submitJob']);    // legacy
+    Route::get('/jobs/{job_id}',      [ClientAppController::class, 'jobStatus']);
+    Route::delete('/jobs/{job_id}',   [ClientAppController::class, 'cancelJob']);
+
+    // Health
+    Route::get('/health', [ClientAppController::class, 'health']);
 });

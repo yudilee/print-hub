@@ -20,25 +20,32 @@ class PrintHubControllerTest extends TestCase
 
     public function test_get_profiles_success()
     {
+        $rawKey = Str::random(32);
+
         $agent = PrintAgent::create([
             'name' => 'Test Agent',
-            'agent_key' => Str::random(32),
+            'agent_key' => PrintAgent::hashKey($rawKey),
             'ip_address' => '127.0.0.1',
             'is_active' => true,
         ]);
 
-        $response = $this->withHeader('X-Agent-Key', $agent->agent_key)
+        $response = $this->withHeader('X-Agent-Key', $rawKey)
             ->getJson('/api/print-hub/profiles');
 
         $response->assertStatus(200);
-        $response->assertJsonStructure(['profiles']);
+        $response->assertJsonStructure([
+            'success',
+            'data' => ['profiles'],
+        ]);
     }
 
     public function test_report_job_status()
     {
+        $rawKey = Str::random(32);
+
         $agent = PrintAgent::create([
             'name' => 'Test Agent',
-            'agent_key' => Str::random(32),
+            'agent_key' => PrintAgent::hashKey($rawKey),
             'ip_address' => '127.0.0.1',
             'is_active' => true,
         ]);
@@ -52,7 +59,7 @@ class PrintHubControllerTest extends TestCase
             'file_path' => 'test.pdf',
         ]);
 
-        $response = $this->withHeader('X-Agent-Key', $agent->agent_key)
+        $response = $this->withHeader('X-Agent-Key', $rawKey)
             ->postJson('/api/print-hub/jobs', [
                 'job_id' => $job->job_id,
                 'printer' => 'Epson L3110',

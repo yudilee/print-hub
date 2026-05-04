@@ -40,12 +40,19 @@ class AuthController extends Controller
     {
         Auth::login($user, $request->boolean('remember'));
         $request->session()->regenerate();
-        
-        \App\Models\UserSession::recordLogin(
-            $user->id,
-            session()->getId(),
-            $request->ip(),
-            $request->userAgent()
+
+        \App\Models\UserSession::where('user_id', $user->id)
+            ->update(['is_current' => false]);
+
+        \App\Models\UserSession::updateOrCreate(
+            ['session_id' => session()->getId()],
+            [
+                'user_id' => $user->id,
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+                'is_current' => true,
+                'last_active_at' => now(),
+            ]
         );
     }
 

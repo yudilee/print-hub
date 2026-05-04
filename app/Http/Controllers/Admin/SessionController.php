@@ -12,18 +12,34 @@ class SessionController extends Controller
     public function index()
     {
         $sessions = DB::table('sessions')
-            ->whereNotNull('user_id')
             ->orderBy('last_activity', 'desc')
-            ->get();
-            
+            ->get()
+            ->filter(function ($session) {
+                if (!empty($session->user_id)) {
+                    return true;
+                }
+                $payload = $session->payload;
+                $data = @unserialize(base64_decode($payload));
+                if (is_array($data)) {
+                    foreach ($data as $key => $value) {
+                        if (str_starts_with($key, 'login_web_')) {
+                            $session->user_id = $value;
+                            return true;
+                        }
+                    }
+                }
+                return false;
+            })
+            ->values();
+
         $userIds = $sessions->pluck('user_id')->unique();
         $users = User::whereIn('id', $userIds)->get()->keyBy('id');
-        
+
         foreach ($sessions as $session) {
             $session->user = $users->get($session->user_id);
         }
 
-        return view('admin.users.sessions', compact('sessions'));
+        return view('admin.users.sessions', ['sessions' => $sessions]);
     }
 
     public function destroy($id)

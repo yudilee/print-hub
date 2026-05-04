@@ -2,15 +2,17 @@
 @section('title', 'Job History')
 
 @section('content')
+<x-breadcrumb :items="[['label' => 'Dashboard', 'url' => route('admin.dashboard')], ['label' => 'Jobs']]" />
+
 <div class="page-header">
     <h1>Print Job History</h1>
     <p>All print jobs reported by agents across your organization</p>
 </div>
 
 {{-- Filters --}}
-<div class="filter-bar">
-    <form action="{{ route('admin.jobs') }}" method="GET" style="display:flex; gap:0.75rem; align-items:center; width:100%;">
-        <select name="status">
+<div class="filter-bar" x-data="{ statusFilter: '', dateFrom: '', dateTo: '' }">
+    <form action="{{ route('admin.jobs') }}" method="GET" style="display:flex; gap:0.75rem; align-items:center; width:100%; flex-wrap: wrap;">
+        <select name="status" x-model="statusFilter">
             <option value="">All Statuses</option>
             <option value="success" {{ request('status') === 'success' ? 'selected' : '' }}>✓ Success</option>
             <option value="failed" {{ request('status') === 'failed' ? 'selected' : '' }}>✗ Failed</option>
@@ -21,9 +23,24 @@
                 <option value="{{ $agent->id }}" {{ request('agent_id') == $agent->id ? 'selected' : '' }}>{{ $agent->name }}</option>
             @endforeach
         </select>
+        <input type="date" name="date_from" x-model="dateFrom" value="{{ request('date_from') }}"
+               style="padding: 6px 10px; font-size: 0.8rem; background: var(--bg); border: 1px solid var(--border); color: var(--text); border-radius: 6px;">
+        <span style="color: var(--text-muted); font-size: 0.75rem;">to</span>
+        <input type="date" name="date_to" x-model="dateTo" value="{{ request('date_to') }}"
+               style="padding: 6px 10px; font-size: 0.8rem; background: var(--bg); border: 1px solid var(--border); color: var(--text); border-radius: 6px;">
         <button class="btn btn-primary btn-sm">Filter</button>
         <a href="{{ route('admin.jobs') }}" class="btn btn-sm" style="color: var(--text-muted);">Reset</a>
     </form>
+    <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;" x-data="{ quickFilter: '' }">
+        <button @click="quickFilter = ''; $el.closest('.filter-bar').querySelector('[name=status]').value = ''"
+                class="btn btn-sm" :class="quickFilter === '' ? 'btn-primary' : 'btn-secondary'">All</button>
+        <button @click="quickFilter = 'success'; $el.closest('.filter-bar').querySelector('[name=status]').value = 'success'"
+                class="btn btn-sm" :class="quickFilter === 'success' ? 'btn-success' : 'btn-secondary'">✓ Success</button>
+        <button @click="quickFilter = 'failed'; $el.closest('.filter-bar').querySelector('[name=status]').value = 'failed'"
+                class="btn btn-sm" :class="quickFilter === 'failed' ? 'btn-danger' : 'btn-secondary'">✗ Failed</button>
+        <button @click="quickFilter = 'pending'; $el.closest('.filter-bar').querySelector('[name=status]').value = 'pending'"
+                class="btn btn-sm" :class="quickFilter === 'pending' ? 'btn-warning' : 'btn-secondary'">⏳ Pending</button>
+    </div>
 </div>
 
 <div class="card">
@@ -93,7 +110,9 @@
                 </td>
             </tr>
             @empty
-            <tr><td colspan="8" style="color: var(--text-muted);">No jobs found.</td></tr>
+            <tr><td colspan="8">
+                <x-empty-state icon="📋" title="No jobs found" description="Jobs will appear here when print tasks are submitted through agents or the API." />
+            </td></tr>
             @endforelse
         </tbody>
     </table>

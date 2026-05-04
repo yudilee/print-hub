@@ -2,482 +2,70 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\ClientApp;
 use App\Models\PrintAgent;
-use App\Models\PrintProfile;
 use App\Models\PrintJob;
+use App\Models\PrintProfile;
 use App\Models\PrintTemplate;
-use Illuminate\Http\Request;
-use Illuminate\Support\Str;
-use App\Traits\LogsActivity;
+use Illuminate\Support\Facades\Auth;
 
 class AdminController extends Controller
 {
-    use LogsActivity;
-    // ── Dashboard ──
-
     public function dashboard()
     {
-        $agents = PrintAgent::withCount('jobs')->get();
-        $profiles = PrintProfile::all();
-        $recentJobs = PrintJob::with('agent')->latest()->take(30)->get();
+        $user           = Auth::user();
+        $visibleBranches = $user->getVisibleBranchIds();
+        $isSuperAdmin   = $user->isSuperAdmin();
+
+        // Scope agents & jobs to the user's visible branches
+        $agentsQuery = PrintAgent::withCount('jobs');
+        $jobsQuery   = PrintJob::with('agent');
+
+        if (! $isSuperAdmin && ! empty($visibleBranches)) {
+            $agentsQuery->whereIn('branch_id', $visibleBranches);
+            $jobsQuery->whereIn('branch_id', $visibleBranches);
+        }
+
+        $agents     = $agentsQuery->get();
+        $profiles   = PrintProfile::all();
+        $recentJobs = $jobsQuery->latest()->take(30)->get();
+
+        // Job status breakdown for the mini chart
+        $jobsByStatus = PrintJob::query()
+            ->when(! $isSuperAdmin && ! empty($visibleBranches), fn($q) => $q->whereIn('branch_id', $visibleBranches))
+            ->selectRaw("status, COUNT(*) as count")
+            ->groupBy('status')
+            ->pluck('count', 'status')
+            ->toArray();
+
+        $totalJobs   = array_sum($jobsByStatus);
+        $successJobs = $jobsByStatus['success']    ?? 0;
+        $failedJobs  = $jobsByStatus['failed']     ?? 0;
+        $pendingJobs = $jobsByStatus['pending']    ?? 0;
+        $processingJobs = $jobsByStatus['processing'] ?? 0;
+
+        // Jobs created today (scoped)
+        $todayJobs = PrintJob::query()
+            ->when(! $isSuperAdmin && ! empty($visibleBranches), fn($q) => $q->whereIn('branch_id', $visibleBranches))
+            ->whereDate('created_at', today())
+            ->count();
+
+        // Success rate (last 100 completed jobs)
+        $completed  = $successJobs + $failedJobs;
+        $successRate = $completed > 0 ? round(($successJobs / $completed) * 100) : null;
 
         $stats = [
-            'total_agents' => $agents->count(),
-            'online_agents' => $agents->filter(fn($a) => $a->isOnline())->count(),
-            'total_profiles' => $profiles->count(),
-            'total_jobs' => PrintJob::count(),
-            'failed_jobs' => PrintJob::where('status', 'failed')->count(),
+            'total_agents'    => $agents->count(),
+            'online_agents'   => $agents->filter(fn($a) => $a->isOnline())->count(),
+            'total_profiles'  => $profiles->count(),
+            'total_jobs'      => $totalJobs,
+            'failed_jobs'     => $failedJobs,
+            'today_jobs'      => $todayJobs,
+            'pending_jobs'    => $pendingJobs,
+            'processing_jobs' => $processingJobs,
+            'success_rate'    => $successRate,
+            'jobs_by_status'  => $jobsByStatus,
         ];
 
         return view('admin.dashboard', compact('agents', 'profiles', 'recentJobs', 'stats'));
-    }
-
-    // ── Agents CRUD ──
-
-    public function agentsIndex()
-    {
-        $agents = PrintAgent::withCount('jobs')->latest()->get();
-        return view('admin.agents', compact('agents'));
-    }
-
-    public function agentStore(Request $request)
-    {
-        $data = $request->validate([
-            'name' => 'required|string|max:255',
-        ]);
-
-        PrintAgent::create([
-            'name' => $data['name'],
-            'agent_key' => Str::random(32),
-        ]);
-
-        $this->logActivity('agent.created', null, ['name' => $data['name']]);
-
-        return redirect()->route('admin.agents')->with('success', 'Agent created!');
-    }
-
-    public function agentDestroy(PrintAgent $agent)
-    {
-        $this->logActivity('agent.deleted', $agent, ['name' => $agent->name]);
-        $agent->delete();
-        return redirect()->route('admin.agents')->with('success', 'Agent removed.');
-    }
-
-    // ── Profiles CRUD ──
-
-    public function profilesIndex()
-    {
-        $profiles = PrintProfile::with(['agent', 'branch.company'])->latest()->get();
-        $agents = PrintAgent::where('is_active', true)->get();
-        $branches = \App\Models\Branch::with('company')->active()->orderBy('name')->get();
-        return view('admin.profiles', compact('profiles', 'agents', 'branches'));
-    }
-
-    public function profileStore(Request $request)
-    {
-        $data = $request->validate([
-            'name'            => 'required|string|max:255|unique:print_profiles,name',
-            'description'     => 'nullable|string|max:255',
-            'branch_id'       => 'required|exists:branches,id',
-            'paper_size'      => 'required|string',
-            'is_custom'       => 'nullable',
-            'custom_width'    => 'nullable|numeric|required_if:paper_size,CUSTOM',
-            'custom_height'   => 'nullable|numeric|required_if:paper_size,CUSTOM',
-            'margin_top'      => 'nullable|numeric',
-            'margin_bottom'   => 'nullable|numeric',
-            'margin_left'     => 'nullable|numeric',
-            'margin_right'    => 'nullable|numeric',
-            'orientation'     => 'required|string',
-            'copies'          => 'required|integer|min:1',
-            'duplex'          => 'required|string',
-            'print_agent_id'  => 'required|exists:print_agents,id',
-            'default_printer' => 'required|string|max:255',
-            'fit_to_page'     => 'nullable|boolean',
-            'use_inches'      => 'nullable',
-        ]);
-
-        $data['is_custom'] = ($request->paper_size === 'CUSTOM');
-
-        // Convert Inches to MM if unit was selected
-        if ($data['is_custom'] && $request->has('use_inches')) {
-            if (!empty($data['custom_width']))  $data['custom_width']  *= 25.4;
-            if (!empty($data['custom_height'])) $data['custom_height'] *= 25.4;
-        }
-        
-        // Handle extra options
-        $data['extra_options'] = [
-            'fit_to_page' => $request->has('fit_to_page')
-        ];
-
-        // Strip non-database fields to avoid mass-assignment issues
-        unset($data['fit_to_page']);
-        unset($data['use_inches']);
-
-        PrintProfile::create($data);
-
-        $this->logActivity('profile.created', null, ['name' => $data['name']]);
-
-        return redirect()->route('admin.profiles')->with('success', 'Profile created!');
-    }
-
-    public function profileTestPrint(Request $request, PrintProfile $profile)
-    {
-        $request->validate([
-            'file' => 'required|file|mimes:pdf|max:10240', // 10MB PDF
-        ]);
-
-        // Ensure we have an agent for testing
-        $agent = $profile->agent;
-        if (!$agent) {
-            // Fallback to first online agent if generic pool
-            $agent = PrintAgent::where('is_active', true)->get()->first(fn($a) => $a->isOnline());
-        }
-
-        if (!$agent) {
-            return redirect()->back()->with('error', 'No online agent available to process the test print.');
-        }
-
-        // Save PDF to private storage
-        $jobId = (string) Str::uuid();
-        $path = $request->file('file')->storeAs('print_jobs', "{$jobId}.pdf", 'local');
-
-        // Create Print Job
-        PrintJob::create([
-            'job_id' => $jobId,
-            'print_agent_id' => $agent->id,
-            'printer_name' => $profile->default_printer ?: 'Default',
-            'type' => 'pdf',
-            'status' => 'pending',
-            'file_path' => $path,
-            'options' => [
-                'orientation' => $profile->orientation,
-                'paper_size' => $profile->paper_size,
-                'paper_width_mm' => $profile->custom_width,
-                'paper_height_mm' => $profile->custom_height,
-                'margin_top' => $profile->margin_top,
-                'margin_bottom' => $profile->margin_bottom,
-                'margin_left' => $profile->margin_left,
-                'margin_right' => $profile->margin_right,
-                'fit_to_page' => $profile->extra_options['fit_to_page'] ?? false,
-                'copies' => 1,
-            ],
-        ]);
-
-        return redirect()->back()->with('success', "Test print job created! ID: {$jobId}. Monitor its status on the Dashboard.");
-    }
-
-    public function profileDestroy(PrintProfile $profile)
-    {
-        $this->logActivity('profile.deleted', $profile, ['name' => $profile->name]);
-        $profile->delete();
-        return redirect()->route('admin.profiles')->with('success', 'Profile removed.');
-    }
-
-    public function profileEdit(PrintProfile $profile)
-    {
-        $agents = PrintAgent::where('is_active', true)->get();
-        return view('admin.edit_profile', compact('profile', 'agents'));
-    }
-
-    public function profileUpdate(Request $request, PrintProfile $profile)
-    {
-        $data = $request->validate([
-            'name'            => 'required|string|max:255|unique:print_profiles,name,' . $profile->id,
-            'description'     => 'nullable|string|max:255',
-            'paper_size'      => 'required|string',
-            'custom_width'    => 'nullable|numeric|required_if:paper_size,CUSTOM',
-            'custom_height'   => 'nullable|numeric|required_if:paper_size,CUSTOM',
-            'margin_top'      => 'nullable|numeric',
-            'margin_bottom'   => 'nullable|numeric',
-            'margin_left'     => 'nullable|numeric',
-            'margin_right'    => 'nullable|numeric',
-            'orientation'     => 'required|string',
-            'copies'          => 'required|integer|min:1',
-            'duplex'          => 'required|string',
-            'print_agent_id'  => 'required|exists:print_agents,id',
-            'default_printer' => 'required|string|max:255',
-            'fit_to_page'     => 'nullable|boolean',
-            'use_inches'      => 'nullable',
-        ]);
-
-        $data['is_custom'] = ($request->paper_size === 'CUSTOM');
-
-        // Convert Inches to MM if unit was selected
-        if ($data['is_custom'] && $request->has('use_inches')) {
-            if (!empty($data['custom_width']))  $data['custom_width']  *= 25.4;
-            if (!empty($data['custom_height'])) $data['custom_height'] *= 25.4;
-        }
-        
-        // Handle extra options
-        $data['extra_options'] = [
-            'fit_to_page' => $request->has('fit_to_page')
-        ];
-
-        // Strip non-database fields to avoid mass-assignment issues
-        unset($data['fit_to_page']);
-        unset($data['use_inches']);
-
-        $profile->update($data);
-        return redirect()->route('admin.profiles')->with('success', 'Profile updated!');
-    }
-
-    // ── Templates CRUD ──
-
-    public function templatesIndex()
-    {
-        $templates = \App\Models\PrintTemplate::orderBy('name')->get();
-        return view('admin.templates.index', compact('templates'));
-    }
-
-    public function templateCreate()
-    {
-        $schemas = \App\Models\DataSchema::where('is_latest', true)->orderBy('schema_name')->get();
-        return view('admin.templates.designer', ['template' => new \App\Models\PrintTemplate(), 'schemas' => $schemas]);
-    }
-
-    public function templateStore(Request $request)
-    {
-        $data = $request->validate([
-            'name' => 'required|unique:print_templates,name',
-            'data_schema_id' => 'nullable|exists:data_schemas,id',
-            'data_schema_version' => 'nullable|integer',
-            'paper_width_mm' => 'required|numeric',
-            'paper_height_mm' => 'required|numeric',
-            'elements' => 'nullable|array',
-            'styles' => 'nullable|array',
-            'background_config' => 'nullable|array',
-            'background_image_path' => 'nullable|string'
-        ]);
-
-        // Auto-set schema version from the selected schema
-        if (!empty($data['data_schema_id']) && empty($data['data_schema_version'])) {
-            $schema = \App\Models\DataSchema::find($data['data_schema_id']);
-            if ($schema) $data['data_schema_version'] = $schema->version;
-        }
-
-        \App\Models\PrintTemplate::create($data);
-
-        return response()->json(['status' => 'ok']);
-    }
-
-    public function templateEdit(\App\Models\PrintTemplate $template)
-    {
-        $schemas = \App\Models\DataSchema::where('is_latest', true)->orderBy('schema_name')->get();
-        $template->load('dataSchema');
-        return view('admin.templates.designer', compact('template', 'schemas'));
-    }
-
-    public function templateUpdate(Request $request, \App\Models\PrintTemplate $template)
-    {
-        $data = $request->validate([
-            'name' => 'required|unique:print_templates,name,' . $template->id,
-            'data_schema_id' => 'nullable|exists:data_schemas,id',
-            'data_schema_version' => 'nullable|integer',
-            'paper_width_mm' => 'required|numeric',
-            'paper_height_mm' => 'required|numeric',
-            'elements' => 'nullable|array',
-            'styles' => 'nullable|array',
-            'background_config' => 'nullable|array',
-            'background_image_path' => 'nullable|string'
-        ]);
-
-        // Auto-set schema version from the selected schema
-        if (!empty($data['data_schema_id']) && empty($data['data_schema_version'])) {
-            $schema = \App\Models\DataSchema::find($data['data_schema_id']);
-            if ($schema) $data['data_schema_version'] = $schema->version;
-        }
-
-        $template->update($data);
-
-        return response()->json(['status' => 'ok']);
-    }
-
-    public function templateDestroy(\App\Models\PrintTemplate $template)
-    {
-        $template->delete();
-        return redirect()->route('admin.templates')->with('success', 'Template deleted.');
-    }
-
-    public function templateJobHistory(\App\Models\PrintTemplate $template)
-    {
-        $jobs = \App\Models\PrintJob::where('template_name', $template->name)
-            ->whereNotNull('template_data')
-            ->orderByDesc('created_at')
-            ->limit(10)
-            ->get();
-            
-        return response()->json(['jobs' => $jobs]);
-    }
-
-    public function templateUploadBg(Request $request)
-    {
-        $request->validate([
-            'image' => 'required|image|max:2048'
-        ]);
-
-        $path = $request->file('image')->store('template_bg', 'public');
-
-        return response()->json([
-            'status' => 'ok',
-            'url' => '/storage/' . $path
-        ]);
-    }
-
-    public function templatePreview(Request $request)
-    {
-        $data = $request->validate([
-            'paper_width_mm' => 'required|numeric',
-            'paper_height_mm' => 'required|numeric',
-            'elements' => 'nullable|array',
-            'styles' => 'nullable|array',
-            'background_config' => 'nullable|array',
-            'background_image_path' => 'nullable|string',
-            'sample_data' => 'nullable|array'
-        ]);
-
-        $template = new \App\Models\PrintTemplate($data);
-        $engine = new \App\Services\ContinuousFormEngine();
-        $pdfBinary = $engine->generate($template, $data['sample_data'] ?? []);
-
-        return response($pdfBinary)
-            ->header('Content-Type', 'application/pdf')
-            ->header('Content-Disposition', 'inline; filename="preview.pdf"');
-    }
-
-    public function templateTestPrint(Request $request)
-    {
-        $data = $request->validate([
-            'template_data' => 'required|array',
-            'sample_data' => 'nullable|array',
-            'agent_id' => 'required|exists:print_agents,id',
-            'printer_name' => 'required|string'
-        ]);
-
-        $tplData = $data['template_data'];
-        $template = new \App\Models\PrintTemplate($tplData);
-        
-        $engine = new \App\Services\ContinuousFormEngine();
-        $pdfBinary = $engine->generate($template, $data['sample_data'] ?? []);
-
-        $jobId = (string) Str::uuid();
-        $filePath = "print_jobs/{$jobId}.pdf";
-        \Illuminate\Support\Facades\Storage::put($filePath, $pdfBinary);
-
-        $job = PrintJob::create([
-            'job_id' => $jobId,
-            'print_agent_id' => $data['agent_id'],
-            'printer_name' => $data['printer_name'],
-            'type' => 'pdf',
-            'status' => 'pending',
-            'file_path' => $filePath,
-        ]);
-
-        return response()->json(['status' => 'ok', 'job_id' => $jobId]);
-    }
-
-    public function templateClone(PrintTemplate $template)
-    {
-        $clone = $template->replicate();
-        $clone->name = $template->name . ' (Copy)';
-        $clone->save();
-
-        return redirect()->route('admin.templates.edit', $clone)
-            ->with('success', 'Template cloned successfully.');
-    }
-
-    // ── Client Apps CRUD ──
-
-    public function clientsIndex()
-    {
-        $clients = ClientApp::latest()->get();
-        return view('admin.clients', compact('clients'));
-    }
-
-    public function clientStore(Request $request)
-    {
-        $data = $request->validate([
-            'name' => 'required|string|max:255',
-            'allowed_origins' => 'nullable|string',
-        ]);
-
-        $origins = null;
-        if (!empty($data['allowed_origins'])) {
-            $origins = array_map('trim', explode(',', $data['allowed_origins']));
-        }
-
-        ClientApp::create([
-            'name'    => $data['name'],
-            'api_key' => (string) Str::uuid(),
-            'allowed_origins' => $origins,
-        ]);
-
-        return redirect()->route('admin.clients')->with('success', 'Client app registered!');
-    }
-
-    public function clientDestroy(ClientApp $client)
-    {
-        $client->delete();
-        return redirect()->route('admin.clients')->with('success', 'Client app removed.');
-    }
-
-    // ── Jobs ──
-
-    public function jobsIndex(Request $request)
-    {
-        $query = PrintJob::with('agent')->latest();
-
-        if ($request->filled('status')) {
-            $query->where('status', $request->status);
-        }
-        if ($request->filled('agent_id')) {
-            $query->where('print_agent_id', $request->agent_id);
-        }
-
-        $jobs = $query->paginate(50);
-        $agents = PrintAgent::all();
-        return view('admin.jobs', compact('jobs', 'agents'));
-    }
-
-    public function downloadDocument(PrintJob $job)
-    {
-        if (!$job->file_path || !\Illuminate\Support\Facades\Storage::exists($job->file_path)) {
-            abort(404, 'Document not found or deleted.');
-        }
-
-        return response()->file(storage_path('app/private/' . $job->file_path));
-    }
-
-    public function updateJobStatus(Request $request, PrintJob $job)
-    {
-        $data = $request->validate([
-            'status' => 'required|in:success,failed,processing,pending',
-        ]);
-
-        $job->update(['status' => $data['status']]);
-
-        return redirect()->back()->with('success', "Job status updated to {$data['status']}");
-    }
-
-    public function jobRetry(PrintJob $job)
-    {
-        $newJob = $job->replicate();
-        $newJob->job_id = (string) Str::uuid();
-        $newJob->status = 'pending';
-        $newJob->error = null;
-        $newJob->agent_created_at = null;
-        $newJob->agent_completed_at = null;
-        $newJob->created_at = now();
-        $newJob->updated_at = now();
-        
-        if ($job->file_path && \Illuminate\Support\Facades\Storage::exists($job->file_path)) {
-            $ext = pathinfo($job->file_path, PATHINFO_EXTENSION);
-            $newJob->file_path = "print_jobs/{$newJob->job_id}.{$ext}";
-            \Illuminate\Support\Facades\Storage::copy($job->file_path, $newJob->file_path);
-        }
-
-        $newJob->save();
-
-        return redirect()->back()->with('success', 'Job retried! New Job ID: ' . $newJob->job_id);
     }
 }

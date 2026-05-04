@@ -6,6 +6,12 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 
+/**
+ * Company represents a legal entity in the multi-tenant system.
+ *
+ * Each company has multiple branches, users, and agents. Companies are
+ * the top-level organizational unit for data scoping.
+ */
 class Company extends Model
 {
     protected $fillable = ['name', 'code', 'short_name', 'is_active'];

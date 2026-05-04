@@ -1,90 +1,140 @@
 <?php
 
+use App\Http\Controllers\Admin\AgentController;
+use App\Http\Controllers\Admin\BranchController;
+use App\Http\Controllers\Admin\ClientAppController;
+use App\Http\Controllers\Admin\CompanyController;
+use App\Http\Controllers\Admin\JobController;
+use App\Http\Controllers\Admin\ProfileController;
+use App\Http\Controllers\Admin\SessionController;
+use App\Http\Controllers\Admin\TemplateController;
+use App\Http\Controllers\Admin\ActivityLogController;
+use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\AuthController;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Facades\Route;
+use App\Models\User;
 
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
-Route::post('/login', [AuthController::class, 'login']);
+Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:30,1');
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+
+// Password Reset
+Route::get('/forgot-password', function () {
+    return view('auth.forgot-password');
+})->name('password.request');
+Route::post('/forgot-password', function (Request $request) {
+    $request->validate(['email' => 'required|email']);
+    $status = Password::sendResetLink($request->only('email'));
+    return $status === Password::RESET_LINK_SENT
+        ? back()->with(['status' => __($status)])
+        : back()->withErrors(['email' => __($status)]);
+})->name('password.email');
+Route::get('/reset-password/{token}', function (string $token) {
+    return view('auth.reset-password', ['token' => $token]);
+})->name('password.reset');
+Route::post('/reset-password', function (Request $request) {
+    $request->validate([
+        'token' => 'required',
+        'email' => 'required|email',
+        'password' => 'required|min:8|confirmed',
+    ]);
+    $status = Password::reset($request->only('email', 'password', 'password_confirmation', 'token'),
+        function (User $user, string $password) {
+            $user->forceFill(['password' => Hash::make($password)])->save();
+            event(new \Illuminate\Auth\Events\PasswordReset($user));
+        }
+    );
+    return $status === Password::PASSWORD_RESET
+        ? redirect()->route('login')->with('status', __($status))
+        : back()->withErrors(['email' => [__($status)]]);
+})->name('password.update');
 
 Route::middleware(['auth', 'session.activity'])->group(function () {
     // Dashboard
     Route::get('/', [AdminController::class, 'dashboard'])->name('admin.dashboard');
 
     // Agents
-    Route::get('/agents', [AdminController::class, 'agentsIndex'])->name('admin.agents');
-    Route::post('/agents', [AdminController::class, 'agentStore'])->name('admin.agents.store');
-    Route::delete('/agents/{agent}', [AdminController::class, 'agentDestroy'])->name('admin.agents.destroy');
+    Route::get('/agents', [AgentController::class, 'index'])->name('admin.agents');
+    Route::post('/agents', [AgentController::class, 'store'])->name('admin.agents.store');
+    Route::put('/agents/{agent}', [AgentController::class, 'update'])->name('admin.agents.update');
+    Route::post('/agents/{agent}/regenerate-key', [AgentController::class, 'regenerateKey'])->name('admin.agents.regenerate-key');
+    Route::delete('/agents/{agent}', [AgentController::class, 'destroy'])->name('admin.agents.destroy');
 
     // Profiles
-    Route::get('/profiles', [AdminController::class, 'profilesIndex'])->name('admin.profiles');
-    Route::post('/profiles', [AdminController::class, 'profileStore'])->name('admin.profiles.store');
-    Route::delete('/profiles/{profile}', [AdminController::class, 'profileDestroy'])->name('admin.profiles.destroy');
-    Route::post('/profiles/{profile}/test-print', [AdminController::class, 'profileTestPrint'])->name('admin.profiles.test-print');
-    Route::get('/profiles/{profile}/edit', [AdminController::class, 'profileEdit'])->name('admin.profiles.edit');
-    Route::put('/profiles/{profile}', [AdminController::class, 'profileUpdate'])->name('admin.profiles.update');
+    Route::get('/profiles', [ProfileController::class, 'index'])->name('admin.profiles');
+    Route::post('/profiles', [ProfileController::class, 'store'])->name('admin.profiles.store');
+    Route::delete('/profiles/{profile}', [ProfileController::class, 'destroy'])->name('admin.profiles.destroy');
+    Route::post('/profiles/{profile}/test-print', [ProfileController::class, 'testPrint'])->name('admin.profiles.test-print');
+    Route::get('/profiles/{profile}/edit', [ProfileController::class, 'edit'])->name('admin.profiles.edit');
+    Route::put('/profiles/{profile}', [ProfileController::class, 'update'])->name('admin.profiles.update');
 
     // Templates
-    Route::get('/templates', [AdminController::class, 'templatesIndex'])->name('admin.templates');
-    Route::get('/templates/create', [AdminController::class, 'templateCreate'])->name('admin.templates.create');
-    Route::post('/templates', [AdminController::class, 'templateStore'])->name('admin.templates.store');
-    Route::get('/templates/{template}/edit', [AdminController::class, 'templateEdit'])->name('admin.templates.edit');
-    Route::put('/templates/{template}', [AdminController::class, 'templateUpdate'])->name('admin.templates.update');
-    Route::delete('/templates/{template}', [AdminController::class, 'templateDestroy'])->name('admin.templates.destroy');
-    Route::post('/templates/upload-bg', [AdminController::class, 'templateUploadBg'])->name('admin.templates.upload-bg');
-    Route::post('/templates/preview', [AdminController::class, 'templatePreview'])->name('admin.templates.preview');
-    Route::post('/templates/test-print', [AdminController::class, 'templateTestPrint'])->name('admin.templates.test-print');
-    Route::post('/templates/{template}/clone', [AdminController::class, 'templateClone'])->name('admin.templates.clone');
-    Route::get('/templates/{template}/job-history', [AdminController::class, 'templateJobHistory'])->name('admin.templates.job-history');
+    Route::get('/templates', [TemplateController::class, 'index'])->name('admin.templates');
+    Route::get('/templates/create', [TemplateController::class, 'create'])->name('admin.templates.create');
+    Route::post('/templates', [TemplateController::class, 'store'])->name('admin.templates.store');
+    Route::get('/templates/{template}/edit', [TemplateController::class, 'edit'])->name('admin.templates.edit');
+    Route::put('/templates/{template}', [TemplateController::class, 'update'])->name('admin.templates.update');
+    Route::delete('/templates/{template}', [TemplateController::class, 'destroy'])->name('admin.templates.destroy');
+    Route::post('/templates/upload-bg', [TemplateController::class, 'uploadBg'])->name('admin.templates.upload-bg');
+    Route::post('/templates/preview', [TemplateController::class, 'preview'])->name('admin.templates.preview');
+    Route::post('/templates/test-print', [TemplateController::class, 'testPrint'])->name('admin.templates.test-print');
+    Route::post('/templates/{template}/clone', [TemplateController::class, 'clone'])->name('admin.templates.clone');
+    Route::get('/templates/{template}/job-history', [TemplateController::class, 'jobHistory'])->name('admin.templates.job-history');
 
     // Job History
-    Route::get('/jobs', [AdminController::class, 'jobsIndex'])->name('admin.jobs');
-    Route::get('/jobs/{job}/download', [AdminController::class, 'downloadDocument'])->name('admin.jobs.download');
-    Route::post('/jobs/{job}/status', [AdminController::class, 'updateJobStatus'])->name('admin.jobs.status');
-    Route::post('/jobs/{job}/retry', [AdminController::class, 'jobRetry'])->name('admin.jobs.retry');
+    Route::get('/jobs', [JobController::class, 'index'])->name('admin.jobs');
+    Route::get('/jobs/{job}/download', [JobController::class, 'download'])->name('admin.jobs.download');
+    Route::post('/jobs/{job}/status', [JobController::class, 'updateStatus'])->name('admin.jobs.status');
+    Route::post('/jobs/{job}/retry', [JobController::class, 'retry'])->name('admin.jobs.retry');
 
     // Client Apps
-    Route::get('/clients', [AdminController::class, 'clientsIndex'])->name('admin.clients');
-    Route::post('/clients', [AdminController::class, 'clientStore'])->name('admin.clients.store');
-    Route::delete('/clients/{client}', [AdminController::class, 'clientDestroy'])->name('admin.clients.destroy');
+    Route::get('/clients', [ClientAppController::class, 'index'])->name('admin.clients');
+    Route::post('/clients', [ClientAppController::class, 'store'])->name('admin.clients.store');
+    Route::post('/clients/{client}/regenerate-key', [ClientAppController::class, 'regenerateKey'])->name('admin.clients.regenerate-key');
+    Route::delete('/clients/{client}', [ClientAppController::class, 'destroy'])->name('admin.clients.destroy');
     Route::get('/clients/sdk', function () {
         return response()->file(public_path('sdk/PrintHubClient.php'), [
-            'Content-Type' => 'application/octet-stream',
+            'Content-Type'        => 'application/octet-stream',
             'Content-Disposition' => 'attachment; filename="PrintHubClient.php"',
         ]);
     })->name('admin.clients.sdk');
 
-    // Companies (super-admin)
-    Route::get('/companies', [\App\Http\Controllers\Admin\CompanyController::class, 'index'])->name('admin.companies');
-    Route::post('/companies', [\App\Http\Controllers\Admin\CompanyController::class, 'store'])->name('admin.companies.store');
-    Route::put('/companies/{company}', [\App\Http\Controllers\Admin\CompanyController::class, 'update'])->name('admin.companies.update');
-    Route::delete('/companies/{company}', [\App\Http\Controllers\Admin\CompanyController::class, 'destroy'])->name('admin.companies.destroy');
+    // Companies (super-admin only)
+    Route::middleware('role:super-admin')->group(function () {
+        Route::get('/companies', [CompanyController::class, 'index'])->name('admin.companies');
+        Route::post('/companies', [CompanyController::class, 'store'])->name('admin.companies.store');
+        Route::put('/companies/{company}', [CompanyController::class, 'update'])->name('admin.companies.update');
+        Route::delete('/companies/{company}', [CompanyController::class, 'destroy'])->name('admin.companies.destroy');
+    });
 
     // Branches
-    Route::get('/branches', [\App\Http\Controllers\Admin\BranchController::class, 'index'])->name('admin.branches');
-    Route::post('/branches', [\App\Http\Controllers\Admin\BranchController::class, 'store'])->name('admin.branches.store');
-    Route::put('/branches/{branch}', [\App\Http\Controllers\Admin\BranchController::class, 'update'])->name('admin.branches.update');
-    Route::delete('/branches/{branch}', [\App\Http\Controllers\Admin\BranchController::class, 'destroy'])->name('admin.branches.destroy');
-    Route::get('/branches/{branch}/template-defaults', [\App\Http\Controllers\Admin\BranchController::class, 'templateDefaults'])->name('admin.branches.template-defaults');
-    Route::post('/branches/{branch}/template-defaults', [\App\Http\Controllers\Admin\BranchController::class, 'saveTemplateDefaults'])->name('admin.branches.template-defaults.save');
+    Route::get('/branches', [BranchController::class, 'index'])->name('admin.branches');
+    Route::post('/branches', [BranchController::class, 'store'])->name('admin.branches.store');
+    Route::put('/branches/{branch}', [BranchController::class, 'update'])->name('admin.branches.update');
+    Route::delete('/branches/{branch}', [BranchController::class, 'destroy'])->name('admin.branches.destroy');
+    Route::get('/branches/{branch}/template-defaults', [BranchController::class, 'templateDefaults'])->name('admin.branches.template-defaults');
+    Route::post('/branches/{branch}/template-defaults', [BranchController::class, 'saveTemplateDefaults'])->name('admin.branches.template-defaults.save');
 
     // Users
-    Route::get('/users', [\App\Http\Controllers\Admin\UserController::class, 'index'])->name('admin.users');
-    Route::post('/users', [\App\Http\Controllers\Admin\UserController::class, 'store'])->name('admin.users.store');
-    Route::put('/users/{user}', [\App\Http\Controllers\Admin\UserController::class, 'update'])->name('admin.users.update');
-    Route::put('/users/{user}/reset-password', [\App\Http\Controllers\Admin\UserController::class, 'resetPassword'])->name('admin.users.reset-password');
-    Route::delete('/users/{user}', [\App\Http\Controllers\Admin\UserController::class, 'destroy'])->name('admin.users.destroy');
+    Route::get('/users', [UserController::class, 'index'])->name('admin.users');
+    Route::post('/users', [UserController::class, 'store'])->name('admin.users.store');
+    Route::put('/users/{user}', [UserController::class, 'update'])->name('admin.users.update');
+    Route::put('/users/{user}/reset-password', [UserController::class, 'resetPassword'])->name('admin.users.reset-password');
+    Route::delete('/users/{user}', [UserController::class, 'destroy'])->name('admin.users.destroy');
 
     // Sessions
-    Route::get('/sessions', [\App\Http\Controllers\Admin\SessionController::class, 'index'])->name('admin.sessions');
-    Route::delete('/sessions/{id}', [\App\Http\Controllers\Admin\SessionController::class, 'destroy'])->name('admin.sessions.destroy');
+    Route::get('/sessions', [SessionController::class, 'index'])->name('admin.sessions');
+    Route::delete('/sessions/{id}', [SessionController::class, 'destroy'])->name('admin.sessions.destroy');
+
     // Activity Log
-    Route::get('/activity-logs', [\App\Http\Controllers\Admin\ActivityLogController::class, 'index'])->name('admin.activity-logs');
+    Route::get('/activity-logs', [ActivityLogController::class, 'index'])->name('admin.activity-logs');
 
     // SDK Documentation
     Route::get('/sdk-docs', function () {
         return view('admin.sdk-docs');
     })->name('admin.sdk-docs');
 });
-

@@ -18,14 +18,21 @@
         display: flex; flex-direction: column; align-items: center; padding: 1rem 0; gap: 1rem;
     }
     .designer-workspace {
-        flex: 1; background: #0b0f19; overflow: auto; position: relative;
+        flex: 1; background: var(--bg); overflow: auto; position: relative;
         display: flex; align-items: flex-start; justify-content: flex-start;
-        padding: 40px; 
+        padding: 40px;
     }
     .designer-right-props {
         width: 320px; background: var(--surface); border-left: 1px solid var(--border);
         display: flex; flex-direction: column;
     }
+    @media (max-width: 1100px) {
+        .designer-right-props { width: 260px; }
+    }
+    @media (max-width: 900px) {
+        .designer-right-props { width: 220px; }
+    }
+    .designer-main-wrapper { overflow-x: auto; flex: 1; display: flex; }
     
     .designer-tabs { display: flex; border-bottom: 1px solid var(--border); background: rgba(0,0,0,0.1); }
     .tab-item { 
@@ -75,7 +82,7 @@
     .ruler-top { top: 0; left: 40px; right: 0; height: 25px; border-bottom: 1px solid var(--border); }
     .ruler-left { top: 40px; left: 0; bottom: 0; width: 25px; border-right: 1px solid var(--border); }
 
-    #canvas-wrapper { position: relative; background: #1e293b; box-shadow: 0 0 50px rgba(0,0,0,0.5); transform-origin: top left; }
+    #canvas-wrapper { position: relative; background: var(--surface); box-shadow: 0 0 50px rgba(0,0,0,0.5); transform-origin: top left; }
     #canvas { position: relative; background: white; overflow: hidden; }
     #canvas-bg-img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain; opacity: 0.4; pointer-events: none; }
     
@@ -120,13 +127,13 @@
     .ctx-separator { border-top:1px solid var(--border); margin:4px 0; }
 
     /* Coordinate tooltip */
-    #coord-tip { position:fixed; background:rgba(15,23,42,0.9); color:#94a3b8; font-size:10px; padding:3px 7px; border-radius:4px; pointer-events:none; display:none; z-index:8000; font-family:monospace; }
+    #coord-tip { position:fixed; background:var(--surface); color:var(--text-muted); font-size:10px; padding:3px 7px; border-radius:4px; pointer-events:none; display:none; z-index:8000; font-family:monospace; box-shadow:0 2px 8px rgba(0,0,0,0.3); }
 
     /* Snap grid overlay */
     #snap-grid { position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; display:none; }
 
     /* Minimap */
-    #minimap { position:absolute; bottom:10px; right:10px; background:rgba(15,23,42,0.85); border:1px solid var(--border); border-radius:6px; overflow:hidden; cursor:pointer; }
+    #minimap { position:absolute; bottom:10px; right:10px; background:var(--surface); border:1px solid var(--border); border-radius:6px; overflow:hidden; cursor:pointer; box-shadow:0 2px 12px rgba(0,0,0,0.3); }
     #minimap-canvas { display:block; }
 
     /* Layer row controls */
@@ -221,6 +228,7 @@
     </div>
 
     <div class="designer-main">
+        <div class="designer-main-wrapper">
         <div class="designer-left-toolbar">
             <button onclick="addElement('field')" class="tool-btn" title="Add Data Field (T)">T</button>
             <button onclick="addElement('label')" class="tool-btn" title="Add Static Label (L)">Aa</button>
@@ -335,6 +343,7 @@
                 </div>
             </div>
         </div>
+    </div>
     </div>
 </div>
 

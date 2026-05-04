@@ -2,6 +2,8 @@
 @section('title', 'Companies')
 
 @section('content')
+<x-breadcrumb :items="[['label' => 'Dashboard', 'url' => route('admin.dashboard')], ['label' => 'Companies']]" />
+
 <div class="page-header">
     <h1>Companies</h1>
     <p>Manage companies within the Hartono Raya Motor Group.</p>
@@ -92,7 +94,9 @@
                 </td>
             </tr>
             @empty
-            <tr><td colspan="6" style="color: var(--text-muted);">No companies registered yet.</td></tr>
+            <tr><td colspan="6">
+                <x-empty-state icon="🏢" title="No companies registered yet" description="Create a company to start organizing branches and users." actionText="+ Create Company" :actionUrl="'#'" />
+            </td></tr>
             @endforelse
         </tbody>
     </table>

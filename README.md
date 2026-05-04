@@ -1,59 +1,174 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Print Hub
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+A centralized print management middleware for multi-branch organizations. Print Hub sits between client applications (ERP, accounting, dealership systems) and desktop print agents, managing template-based PDF generation, job routing, and print status tracking.
 
-## About Laravel
+## Architecture
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+```
+Client Apps (ERP, CRM, etc.)
+        │
+        ▼
+   ┌─────────┐      ┌──────────────┐
+   │ Print   │◄────►│ Print Agents │──► Physical Printers
+   │ Hub     │      │ (TrayPrint)  │
+   └─────────┘      └──────────────┘
+        │
+        ▼
+   ┌─────────┐
+   │ Admin   │  (Web UI for management)
+   │ Panel   │
+   └─────────┘
+```
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+### Key Concepts
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+| Concept | Description |
+|---------|-------------|
+| **Company** | Top-level tenant (e.g., "HRM Auto Group") |
+| **Branch** | Physical location under a company |
+| **Print Agent** | Desktop PC running TrayPrint that connects to physical printers |
+| **Print Profile** | Named configuration (paper size, orientation, margins, target printer) |
+| **Print Template** | Drag-and-drop designed layout binding data fields to page positions |
+| **Data Schema** | Versioned schema defining what data a template expects |
+| **Client App** | Third-party application with API key access |
 
-## Learning Laravel
+### Data Flow
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+1. Client app sends print request with `template` + `data` (or raw `document_base64`)
+2. Print Hub validates data against the template's bound schema
+3. PDF is generated via the Continuous Form Engine (FPDF)
+4. Job is stored and assigned to an online print agent (routing priority: explicit agent → profile → branch → global)
+5. Print agent polls `/api/print-hub/queue`, downloads the PDF, sends to printer
+6. Agent reports status back; webhook is fired if configured
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+## Tech Stack
 
-## Laravel Sponsors
+| Layer | Technology |
+|-------|-----------|
+| Backend | Laravel 12, PHP 8.2 |
+| Database | SQLite (configurable to MySQL/PostgreSQL) |
+| PDF Engine | FPDF (`setasign/fpdf`) |
+| Frontend | Blade + Tailwind CSS 4 + Vite 7 |
+| Real-time | Laravel Reverb / WebSockets |
+| Expression Engine | Symfony ExpressionLanguage (computed columns) |
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+## Getting Started
 
-### Premium Partners
+### Prerequisites
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+- PHP 8.2+ with `sqlite`, `gd`, `mbstring` extensions
+- Composer
+- Node.js 18+
 
-## Contributing
+### Setup
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+```bash
+composer setup
+```
 
-## Code of Conduct
+Or manually:
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+```bash
+cp .env.example .env
+composer install
+php artisan key:generate
+php artisan migrate --force
+npm install && npm run build
+```
 
-## Security Vulnerabilities
+### Development
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+```bash
+composer dev
+```
+
+Starts concurrently: `php artisan serve` + `php artisan queue:listen` + `php artisan pail` + `npm run dev`.
+
+### Running Tests
+
+```bash
+composer test
+```
+
+## API Reference
+
+### Print Agent API (`/api/print-hub`)
+
+Authenticated via `Bearer` token or `X-Agent-Key` header.
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/profiles` | List print profiles for this agent |
+| GET | `/queue` | Pull pending jobs |
+| POST | `/jobs` | Report job status |
+| POST | `/status` | Update agent printer list |
+| GET | `/cors-origins` | Get allowed CORS origins |
+
+### Client App API (`/api/v1`)
+
+Authenticated via `X-API-Key` header.
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/test` | Connection test |
+| GET | `/agents/online` | List online agents |
+| GET | `/queues` | List print queues |
+| GET | `/templates` | List all templates |
+| GET | `/templates/{name}` | Get template details |
+| GET | `/templates/{name}/schema` | Get template data requirements |
+| POST | `/schema` | Register/update data schema |
+| GET | `/schemas` | List schemas |
+| GET | `/schema/{name}/versions` | Schema version history |
+| POST | `/print` | Submit print job |
+| POST | `/print/batch` | Submit batch of print jobs |
+| POST | `/preview` | Generate preview PDF |
+| GET | `/jobs/{job_id}` | Check job status |
+
+## Template Designer
+
+The admin panel includes a drag-and-drop WYSIWYG template designer for creating continuous-form layouts:
+
+- **Elements**: Fields, labels, lines, images, tables
+- **Tables**: Multi-page auto-pagination with header repetition
+- **Styling**: Named styles, column formatting, borders
+- **Background**: Pre-printed stationery overlay (upload background image, set opacity)
+- **Schema binding**: Templates bind to versioned data schemas for validation
+
+## Data Schemas
+
+Schemas are versioned and support:
+
+- Field definitions (type, format, required validation)
+- Table definitions (columns, computed expressions, minimum rows)
+- Sample data for preview/testing
+- Auto-changelog generation on schema updates
+
+Supported field types/formats:
+- `number` — `currency` (Rp formatting), `integer`, `terbilang` (Indonesian spelled-out numbers)
+- `date` — custom format strings (dd/MM/yyyy, etc.)
+- `boolean`
+- `string`
+
+## Deployment
+
+### Docker
+
+```bash
+docker compose up -d
+```
+
+The image uses SQLite by default. For production, mount a volume for `database/database.sqlite` and configure `QUEUE_CONNECTION=database` and `APP_ENV=production`.
+
+### Environment Variables
+
+| Variable | Description |
+|----------|-------------|
+| `APP_URL` | Public URL of the hub |
+| `DB_CONNECTION` | `sqlite`, `mysql`, or `pgsql` |
+| `QUEUE_CONNECTION` | `database` recommended |
+| `BROADCAST_CONNECTION` | `reverb` for real-time |
+| `SESSION_DRIVER` | `database` |
 
 ## License
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+MIT

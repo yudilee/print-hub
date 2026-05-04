@@ -2,6 +2,8 @@
 @section('title', 'Branches')
 
 @section('content')
+<x-breadcrumb :items="[['label' => 'Dashboard', 'url' => route('admin.dashboard')], ['label' => 'Branches']]" />
+
 <div class="page-header">
     <h1>Branches</h1>
     <p>Manage branch locations and their printing configurations.</p>
@@ -132,7 +134,9 @@
                 </td>
             </tr>
             @empty
-            <tr><td colspan="9" style="color: var(--text-muted);">No branches found.</td></tr>
+            <tr><td colspan="9">
+                <x-empty-state icon="🏢" title="No branches found" description="Create a branch to organize your agents and queues by location." />
+            </td></tr>
             @endforelse
         </tbody>
     </table>

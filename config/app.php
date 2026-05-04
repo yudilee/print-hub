@@ -123,4 +123,16 @@ return [
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Agent Online Threshold
+    |--------------------------------------------------------------------------
+    |
+    | This value determines how many minutes can pass since an agent's last
+    | heartbeat before it is considered offline. Agents with longer sync
+    | intervals may need a higher threshold.
+    |
+    */
+    'agent_online_threshold' => env('AGENT_ONLINE_THRESHOLD', 2),
+
 ];

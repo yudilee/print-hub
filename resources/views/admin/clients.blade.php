@@ -5,6 +5,8 @@
 @section('content')
 <div style="max-width: 900px;">
 
+<x-breadcrumb :items="[['label' => 'Dashboard', 'url' => route('admin.dashboard')], ['label' => 'Client Apps']]" />
+
     {{-- Header --}}
     <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:2rem;">
         <div>
@@ -58,9 +60,7 @@
 
     {{-- Registered Apps Table --}}
     @if($clients->isEmpty())
-        <div style="text-align:center; padding:4rem; background:var(--surface); border:1px solid var(--border); border-radius:12px; color:var(--text-muted);">
-            No client apps registered yet. Register your first app above.
-        </div>
+        <x-empty-state icon="🔌" title="No client apps registered yet" description="Register your first API client app above to get started with the Print Hub API." actionText="+ Register App" :actionUrl="'#'" />
     @else
         <div style="background:var(--surface); border:1px solid var(--border); border-radius:12px; overflow:hidden;">
             <table style="width:100%; border-collapse:collapse;">
@@ -78,13 +78,9 @@
                     <tr style="border-bottom:1px solid var(--border);">
                         <td style="padding:1rem; font-weight:500;">{{ $client->name }}</td>
                         <td style="padding:1rem;">
-                            <div style="display:flex; align-items:center; gap:0.5rem;">
-                                <code style="background:var(--bg); padding:4px 8px; border-radius:6px; font-size:0.75rem; color:var(--primary); border:1px solid var(--border); max-width:260px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
-                                    {{ $client->api_key }}
-                                </code>
-                                <button onclick="navigator.clipboard.writeText('{{ $client->api_key }}'); this.textContent='✓'; setTimeout(()=>this.textContent='📋',1500)"
-                                        style="background:none; border:none; cursor:pointer; font-size:0.9rem;" title="Copy key">📋</button>
-                            </div>
+                            <code style="background:var(--bg); padding:4px 8px; border-radius:6px; font-size:0.75rem; color:var(--text-muted); border:1px solid var(--border);">
+                                sha256:••••••••
+                            </code>
                         </td>
                         <td style="padding:1rem;">
                             @if($client->is_active)
@@ -97,11 +93,18 @@
                             {{ $client->last_used_at ? $client->last_used_at->diffForHumans() : 'Never' }}
                         </td>
                         <td style="padding:1rem;">
-                            <form method="POST" action="{{ route('admin.clients.destroy', $client) }}"
-                                  onsubmit="return confirm('Revoke API key for {{ $client->name }}?')">
-                                @csrf @method('DELETE')
-                                <button type="submit" class="btn btn-danger btn-sm">Revoke</button>
-                            </form>
+                            <div style="display: flex; gap: 6px;">
+                                <form method="POST" action="{{ route('admin.clients.regenerate-key', $client) }}"
+                                      onsubmit="return confirm('Regenerate API key for {{ $client->name }}? The old key will stop working immediately.')">
+                                    @csrf
+                                    <button type="submit" class="btn btn-secondary btn-sm">Regen Key</button>
+                                </form>
+                                <form method="POST" action="{{ route('admin.clients.destroy', $client) }}"
+                                      onsubmit="return confirm('Revoke API key for {{ $client->name }}?')">
+                                    @csrf @method('DELETE')
+                                    <button type="submit" class="btn btn-danger btn-sm">Revoke</button>
+                                </form>
+                            </div>
                         </td>
                     </tr>
                     @endforeach

@@ -1,10 +1,12 @@
 @extends('admin.layout')
-@section('title', 'Profiles')
+@section('title', 'Print Queues')
 
 @section('content')
+<x-breadcrumb :items="[['label' => 'Dashboard', 'url' => route('admin.dashboard')], ['label' => 'Queues']]" />
+
 <div class="page-header">
-    <h1>Virtual Queues</h1>
-    <p>Define virtual printer queues (profiles) and assign them to physical hubs and printers.</p>
+    <h1>Print Queues</h1>
+    <p>Define print profiles with paper size, margins, and advanced printer options — then assign them to physical agents.</p>
 </div>
 
 {{-- Create Profile --}}
@@ -81,27 +83,32 @@
             </div>
         </div>
         
-        <div class="form-row" style="background: rgba(255,255,255,0.03); padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
-            <div style="width: 100%; margin-bottom: 0.5rem; font-size: 0.8rem; font-weight: bold; color: var(--primary);">Document Margins (mm)</div>
-            <div class="form-group">
-                <label>Top</label>
-                <input type="number" name="margin_top" step="0.01" value="0">
+        <div class="expandable" style="background: rgba(255,255,255,0.03); padding: 1rem; border-radius: 8px; margin-bottom: 1rem; border: 1px solid var(--border);">
+            <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; font-size: 0.8rem; font-weight: bold; color: var(--primary);">
+                <span>📐 Document Margins (mm)</span>
+                <span class="expandable-arrow" style="color: var(--text-muted);">▸</span>
             </div>
-            <div class="form-group">
-                <label>Bottom</label>
-                <input type="number" name="margin_bottom" step="0.01" value="0">
+        </div>
+        <div class="expandable-content" style="padding: 0 1rem 1rem;">
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Top</label>
+                    <input type="number" name="margin_top" step="0.01" value="0">
+                </div>
+                <div class="form-group">
+                    <label>Bottom</label>
+                    <input type="number" name="margin_bottom" step="0.01" value="0">
+                </div>
+                <div class="form-group">
+                    <label>Left</label>
+                    <input type="number" name="margin_left" step="0.01" value="0">
+                </div>
+                <div class="form-group">
+                    <label>Right</label>
+                    <input type="number" name="margin_right" step="0.01" value="0">
+                </div>
             </div>
-            <div class="form-group">
-                <label>Left</label>
-                <input type="number" name="margin_left" step="0.01" value="0">
-            </div>
-            <div class="form-group">
-                <label>Right</label>
-                <input type="number" name="margin_right" step="0.01" value="0">
-            </div>
-            <div style="width: 100%; margin-top: 0.5rem;">
-                <button type="button" class="btn btn-secondary btn-sm" onclick="applyDotMatrixDefaults()">Suggest Dot-Matrix Margins (4.23mm)</button>
-            </div>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="applyDotMatrixDefaults()">Suggest Dot-Matrix Margins (4.23mm)</button>
         </div>
 
         <div class="form-row">
@@ -144,6 +151,72 @@
                 </div>
                 <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 5px;">Leave blank to use the hub's OS default printer.</p>
             </div>
+        </div>
+
+        {{-- Advanced Printer Options --}}
+        <div class="expandable" style="background: rgba(59,130,246,0.05); padding: 1rem; border-radius: 8px; margin-bottom: 1rem; border: 1px solid rgba(59,130,246,0.2);">
+            <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; font-size: 0.8rem; font-weight: bold; color: var(--primary);">
+                <span>⚙️ Advanced Printer Options</span>
+                <span class="expandable-arrow" style="color: var(--text-muted);">▸</span>
+            </div>
+        </div>
+        <div class="expandable-content" style="padding: 0 1rem 1rem;">
+        <div class="form-row">
+            <div class="form-group">
+                <label for="tray_source">Tray / Paper Source <span class="help-tip">?<span class="help-tip-popover">Which paper tray to use. 'Auto' lets the printer decide.</span></span></label>
+                <select name="tray_source" id="tray_source">
+                    <option value="">Auto (Default)</option>
+                    <option value="auto">Auto Select</option>
+                    <option value="tray1">Tray 1</option>
+                    <option value="tray2">Tray 2</option>
+                    <option value="tray3">Tray 3</option>
+                    <option value="manual">Manual Feed</option>
+                    <option value="envelope">Envelope Feeder</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="color_mode">Color Mode</label>
+                <select name="color_mode" id="color_mode">
+                    <option value="color">Color</option>
+                    <option value="monochrome">Monochrome (B&W)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="print_quality">Print Quality</label>
+                <select name="print_quality" id="print_quality">
+                    <option value="normal">Normal (600 DPI)</option>
+                    <option value="draft">Draft (300 DPI)</option>
+                    <option value="high">High (1200 DPI)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="media_type">Media Type</label>
+                <select name="media_type" id="media_type">
+                    <option value="">Plain Paper</option>
+                    <option value="plain">Plain Paper</option>
+                    <option value="glossy">Glossy / Photo</option>
+                    <option value="envelope">Envelope</option>
+                    <option value="label">Label / Sticker</option>
+                    <option value="continuous_feed">Continuous Feed</option>
+                </select>
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label for="scaling_percentage">Scaling (%)</label>
+                <input type="number" name="scaling_percentage" id="scaling_percentage" value="100" min="1" max="400" step="1">
+            </div>
+            <div class="form-group" style="display: flex; align-items: flex-end; padding-bottom: 0.5rem; gap: 1rem;">
+                <label class="checkbox-container" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                    <input type="checkbox" name="collate" value="1" checked style="width: 18px; height: 18px;">
+                    Collate Copies
+                </label>
+                <label class="checkbox-container" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                    <input type="checkbox" name="reverse_order" value="1" style="width: 18px; height: 18px;">
+                    Reverse Page Order
+                </label>
+            </div>
+        </div>
         </div>
 
         <button type="submit" class="btn btn-primary">+ Create Queue</button>
@@ -267,7 +340,9 @@ function applyDotMatrixDefaults() {
                 </td>
             </tr>
             @empty
-            <tr><td colspan="9" style="color: var(--text-muted);">No profiles created yet.</td></tr>
+            <tr><td colspan="9">
+                <x-empty-state icon="📄" title="No profiles created yet" description="Create your first print queue above to define paper sizes and printer options." actionText="+ Create Queue" :actionUrl="'#'" />
+            </td></tr>
             @endforelse
         </tbody>
     </table>

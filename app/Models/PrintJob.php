@@ -6,6 +6,13 @@ use App\Traits\BranchScopeable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * PrintJob represents a single print request in the system.
+ *
+ * Jobs flow through states: pending → processing → success/failed.
+ * They are created by client apps (via API) or admin test prints,
+ * stored as PDF files, and dispatched to print agents for physical printing.
+ */
 class PrintJob extends Model
 {
     use BranchScopeable;

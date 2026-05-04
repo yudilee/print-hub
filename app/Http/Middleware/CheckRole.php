@@ -8,11 +8,6 @@ use Symfony\Component\HttpFoundation\Response;
 
 class CheckRole
 {
-    protected array $roleHierarchy = [
-        'admin' => ['admin', 'user'],
-        'user' => ['user'],
-    ];
-
     public function handle(Request $request, Closure $next, string ...$roles): Response
     {
         $user = $request->user();
@@ -21,30 +16,22 @@ class CheckRole
             return redirect()->route('login')->with('error', 'Please login to access this page.');
         }
 
-        $userRole = $user->role ?? 'user';
+        $userRole = $user->role;
 
         // Flatten roles in case they were passed as a single comma-separated string
         $expandedRoles = [];
         foreach ($roles as $role) {
-            $parts = explode(',', $role);
-            foreach ($parts as $part) {
+            foreach (explode(',', $role) as $part) {
                 $expandedRoles[] = trim($part);
             }
         }
 
         foreach ($expandedRoles as $allowedRole) {
-            if ($this->userHasRole($userRole, $allowedRole)) {
+            if ($userRole === $allowedRole) {
                 return $next($request);
             }
         }
 
         abort(403, 'You do not have permission to access this page.');
-    }
-
-    protected function userHasRole(string $userRole, string $requiredRole): bool
-    {
-        if ($userRole === $requiredRole) return true;
-        $allowedRoles = $this->roleHierarchy[$userRole] ?? ['user'];
-        return in_array($requiredRole, $allowedRoles);
     }
 }

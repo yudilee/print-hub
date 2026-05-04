@@ -14,27 +14,14 @@ class UpdateSessionActivity
         if (Auth::check()) {
             $sessionId = session()->getId();
             $userId = Auth::id();
-            
-            $sessionExists = UserSession::where('session_id', $sessionId)
+
+            UserSession::where('session_id', $sessionId)
                 ->where('user_id', $userId)
-                ->exists();
-            
-            if (!$sessionExists) {
-                Auth::logout();
-                $request->session()->invalidate();
-                $request->session()->regenerateToken();
-                
-                return redirect()->route('login')
-                    ->with('warning', 'Your session was terminated from another device.');
-            }
-            
+                ->update(['last_active_at' => now()]);
+
             $cacheKey = 'session_activity_' . $sessionId;
-            
+
             if (!cache()->has($cacheKey)) {
-                UserSession::where('session_id', $sessionId)
-                    ->where('user_id', $userId)
-                    ->update(['last_active_at' => now()]);
-                    
                 cache()->put($cacheKey, true, 60);
             }
         }

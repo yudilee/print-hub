@@ -3,15 +3,39 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 
+/**
+ * ClientApp represents a registered third-party application authorized to use the Print Hub API.
+ *
+ * Each client app is issued a unique API key (X-API-Key header) that is hashed before storage.
+ * The raw key is shown only once at creation time. Allowed origins restrict CORS for agent-side
+ * access control.
+ */
 class ClientApp extends Model
 {
     protected $fillable = ['name', 'api_key', 'is_active', 'last_used_at', 'allowed_origins'];
+
+    protected $hidden = ['api_key'];
 
     protected $casts = [
         'is_active'       => 'boolean',
         'last_used_at'    => 'datetime',
         'allowed_origins' => 'array',
     ];
+
+    /**
+     * Hash a raw API key for storage.
+     */
+    public static function hashKey(string $rawKey): string
+    {
+        return hash('sha256', $rawKey);
+    }
+
+    /**
+     * Look up a ClientApp by its raw API key.
+     */
+    public static function findByKey(string $rawKey): ?self
+    {
+        return static::where('api_key', static::hashKey($rawKey))->first();
+    }
 }

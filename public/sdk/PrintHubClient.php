@@ -1,8 +1,12 @@
 <?php
 
 use GuzzleHttp\Client;
+use GuzzleHttp\Exception\ConnectException;
+use GuzzleHttp\Exception\TransferException;
 use GuzzleHttp\Promise\PromiseInterface;
 use GuzzleHttp\Exception\RequestException;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 
 class PrintHubException extends RuntimeException {}
 class PrintHubConnectionException extends PrintHubException {}
@@ -18,26 +22,42 @@ class PrintHubValidationException extends PrintHubException {
  * PrintHubClient — PHP SDK for Print Hub v2 (Multi-Branch Edition)
  *
  * Supports branch-aware printing, template discovery, schema validation,
- * preview, batch printing, and job polling.
+ * preview, batch printing, job polling, and advanced printer controls.
  *
- * @version 2.0
+ * @version 2.1
  */
 class PrintHubClient
 {
     private Client $http;
     private string $cacheDir;
     private ?string $defaultBranchCode = null;
+    private LoggerInterface $logger;
+    private int $cacheTtl;
+    private int $maxRetries;
+    private int $retryDelayMs;
 
     /**
      * Create a new PrintHubClient instance.
      *
-     * @param string $baseUrl   The Print Hub server URL (e.g. https://print-hub.example.com)
-     * @param string $apiKey    Your client app API key (from Print Hub > Client Apps)
-     * @param int    $timeout   Request timeout in seconds
-     * @param string $cacheDir  Directory for caching schema data
+     * @param string           $baseUrl      The Print Hub server URL (e.g. https://print-hub.example.com)
+     * @param string           $apiKey       Your client app API key (from Print Hub > Client Apps)
+     * @param int              $timeout      Request timeout in seconds
+     * @param string           $cacheDir     Directory for caching schema data
+     * @param int              $cacheTtl     Schema cache TTL in seconds (default 600)
+     * @param int              $maxRetries   Max request retries on transient failures (default 2)
+     * @param int              $retryDelayMs Initial retry delay in ms, doubled each attempt (default 200)
+     * @param LoggerInterface  $logger       PSR-3 logger for debugging (default NullLogger)
      */
-    public function __construct(string $baseUrl, string $apiKey, int $timeout = 15, string $cacheDir = '/tmp')
-    {
+    public function __construct(
+        string $baseUrl,
+        string $apiKey,
+        int $timeout = 15,
+        string $cacheDir = '/tmp',
+        int $cacheTtl = 600,
+        int $maxRetries = 2,
+        int $retryDelayMs = 200,
+        ?LoggerInterface $logger = null
+    ) {
         $this->http = new Client([
             'base_uri' => rtrim($baseUrl, '/') . '/',
             'timeout'  => $timeout,
@@ -48,6 +68,10 @@ class PrintHubClient
             ]
         ]);
         $this->cacheDir = rtrim($cacheDir, '/');
+        $this->cacheTtl = $cacheTtl;
+        $this->maxRetries = $maxRetries;
+        $this->retryDelayMs = $retryDelayMs;
+        $this->logger = $logger ?? new NullLogger();
     }
 
     // =========================================================================
@@ -74,6 +98,26 @@ class PrintHubClient
     public function getBranchCode(): ?string
     {
         return $this->defaultBranchCode;
+    }
+
+    /**
+     * Clear all cached schemas, or a specific template's schema.
+     */
+    public function clearCache(?string $templateName = null): void
+    {
+        if ($templateName) {
+            $file = $this->cacheFile($templateName);
+            if (file_exists($file)) {
+                unlink($file);
+                $this->logger->debug("PrintHubClient: Cache cleared for template '{$templateName}'");
+            }
+        } else {
+            $files = glob($this->cacheDir . '/printhub_schema_*.json');
+            foreach ($files as $file) {
+                unlink($file);
+            }
+            $this->logger->debug('PrintHubClient: All schema cache cleared');
+        }
     }
 
     // =========================================================================
@@ -107,10 +151,19 @@ class PrintHubClient
 
     /**
      * List all available queues (print profiles).
+     *
+     * @param string|null $branchCode  Filter queues by branch
+     * @param bool        $detailed     Return full queue configuration (margins, tray, color, etc.)
      */
-    public function getQueues(): array
+    public function getQueues(?string $branchCode = null, bool $detailed = false): array
     {
-        return $this->get('api/v1/queues')['queues'] ?? [];
+        $params = [];
+        $bc = $branchCode ?? $this->defaultBranchCode;
+        if ($bc) $params['branch_code'] = $bc;
+        if ($detailed) $params['detailed'] = '1';
+
+        $query = $params ? '?' . http_build_query($params) : '';
+        return $this->get("api/v1/queues{$query}")['queues'] ?? [];
     }
 
     /**
@@ -137,13 +190,37 @@ class PrintHubClient
      */
     public function getTemplateSchema(string $name, bool $useCache = true): array
     {
-        $cacheFile = $this->cacheDir . '/printhub_schema_' . md5($name) . '.json';
-        if ($useCache && file_exists($cacheFile) && filemtime($cacheFile) > (time() - 600)) {
-            return json_decode(file_get_contents($cacheFile), true);
+        $cacheFile = $this->cacheFile($name);
+        if ($useCache && file_exists($cacheFile) && filemtime($cacheFile) > (time() - $this->cacheTtl)) {
+            $this->logger->debug("PrintHubClient: Schema cache HIT for template '{$name}'");
+            $data = json_decode(file_get_contents($cacheFile), true);
+            if (is_array($data)) return $data;
         }
+
+        $this->logger->debug("PrintHubClient: Schema cache MISS for template '{$name}', fetching from server");
         $schema = $this->get("api/v1/templates/{$name}/schema");
-        file_put_contents($cacheFile, json_encode($schema));
+
+        // Atomic write: write to temp file then rename
+        $tmpFile = $cacheFile . '.' . uniqid('tmp', true);
+        if (@file_put_contents($tmpFile, json_encode($schema, JSON_UNESCAPED_SLASHES)) !== false) {
+            @rename($tmpFile, $cacheFile);
+        }
+
         return $schema;
+    }
+
+    private function cacheFile(string $name): string
+    {
+        $key = hash('sha256', $this->getBaseUrl() . '::' . $name);
+        return $this->cacheDir . '/printhub_schema_' . $key . '.json';
+    }
+
+    private function getBaseUrl(): string
+    {
+        // Extract base URL from Guzzle config for cache scoping
+        $config = $this->http->getConfig();
+        $baseUri = $config['base_uri'] ?? '';
+        return rtrim((string) $baseUri, '/');
     }
 
     // =========================================================================
@@ -447,18 +524,61 @@ class PrintHubClient
 
     private function request(string $method, string $path, array $options = []): array
     {
-        try {
-            $response = $this->http->request($method, $path, $options);
-            return json_decode($response->getBody()->getContents(), true) ?? [];
-        } catch (RequestException $e) {
-            $res = $e->getResponse();
-            if ($res) {
-                $decoded = json_decode($res->getBody()->getContents(), true);
-                $message = $decoded['error'] ?? $decoded['message'] ?? "HTTP " . $res->getStatusCode();
-                throw new PrintHubException("PrintHubClient error: {$message} [{$res->getStatusCode()}]");
+        $attempts = 0;
+        $lastException = null;
+
+        while ($attempts <= $this->maxRetries) {
+            try {
+                $response = $this->http->request($method, $path, $options);
+                $body = $response->getBody()->getContents();
+                $data = json_decode($body, true);
+
+                if (json_last_error() !== JSON_ERROR_NONE) {
+                    throw new PrintHubException("PrintHubClient: Invalid JSON response: " . json_last_error_msg());
+                }
+
+                $this->logger->debug("PrintHubClient: {$method} {$path} → {$response->getStatusCode()}");
+                return $data ?? [];
+            } catch (ConnectException $e) {
+                $lastException = $e;
+                $this->logger->warning("PrintHubClient: Connection failed (attempt " . ($attempts + 1) . "): " . $e->getMessage());
+                $attempts++;
+                if ($attempts > $this->maxRetries) {
+                    throw new PrintHubConnectionException("PrintHubClient connection error after {$attempts} attempts: " . $e->getMessage(), 0, $e);
+                }
+                usleep($this->retryDelayMs * 1000 * pow(2, $attempts - 1));
+            } catch (RequestException $e) {
+                $res = $e->getResponse();
+                $statusCode = $res ? $res->getStatusCode() : 0;
+                $this->logger->error("PrintHubClient: HTTP {$statusCode} on {$method} {$path}");
+
+                // Retry on server errors (500+) and rate limits (429)
+                if ($statusCode >= 500 || $statusCode === 429) {
+                    $attempts++;
+                    if ($attempts > $this->maxRetries) {
+                        break;
+                    }
+                    usleep($this->retryDelayMs * 1000 * pow(2, $attempts - 1));
+                    continue;
+                }
+
+                if ($res) {
+                    $decoded = json_decode($res->getBody()->getContents(), true);
+                    $message = $decoded['error'] ?? $decoded['message'] ?? "HTTP {$statusCode}";
+                    throw new PrintHubException("PrintHubClient error: {$message} [{$statusCode}]", $statusCode, $e);
+                }
+                throw new PrintHubConnectionException("PrintHubClient connection error: " . $e->getMessage(), 0, $e);
             }
-            throw new PrintHubConnectionException("PrintHubClient connection error: " . $e->getMessage());
         }
+
+        // If we got here, all retries were exhausted on a server error
+        $res = $lastException instanceof RequestException ? $lastException->getResponse() : null;
+        if ($res) {
+            $decoded = json_decode($res->getBody()->getContents(), true);
+            $message = $decoded['error'] ?? "HTTP " . $res->getStatusCode();
+            throw new PrintHubException("PrintHubClient error after {$attempts} attempts: {$message} [{$res->getStatusCode()}]");
+        }
+        throw new PrintHubConnectionException("PrintHubClient connection error after {$attempts} attempts");
     }
 
     private function resolveValue(string $key, array $data)

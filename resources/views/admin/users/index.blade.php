@@ -2,6 +2,8 @@
 @section('title', 'User Management')
 
 @section('content')
+<x-breadcrumb :items="[['label' => 'Dashboard', 'url' => route('admin.dashboard')], ['label' => 'Users']]" />
+
 <div class="page-header" style="display:flex; justify-content:space-between; align-items:center;">
     <div>
         <h1>Users & Access</h1>
@@ -88,7 +90,9 @@
                 </td>
             </tr>
             @empty
-            <tr><td colspan="7" style="text-align:center; color:var(--text-muted);">No users found.</td></tr>
+            <tr><td colspan="7">
+                <x-empty-state icon="👤" title="No users found" description="Add users to grant them access to the Print Hub admin panel." actionText="+ Add User" :actionUrl="'#'" />
+            </td></tr>
             @endforelse
         </tbody>
     </table>
