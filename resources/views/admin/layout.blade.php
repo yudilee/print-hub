@@ -349,6 +349,7 @@
         .help-tip:hover .help-tip-popover { display: block; }
     </style>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @yield('head')
 </head>
 <body>
     <button class="hamburger" onclick="toggleSidebar()" aria-label="Toggle menu" title="Menu">☰</button>
