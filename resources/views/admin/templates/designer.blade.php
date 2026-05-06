@@ -507,6 +507,52 @@
     const availableSchemas = @json($schemas ?? []);
     const templateId = "{{ $template->id ?? '' }}";
 
+    // ── Global Error Handler for HUD ──────────────────────────
+    window.onerror = function(msg, url, line, col, error) {
+        const hud = document.getElementById('debug-hud');
+        if (hud) {
+            hud.style.borderColor = 'red';
+            hud.style.color = '#ff4444';
+            hud.innerHTML = `<div style="font-weight:bold">FATAL JS ERROR:</div><div style="font-size:9px">${msg}</div><div style="font-size:8px">at line ${line}:${col}</div>`;
+        }
+        return false;
+    };
+    
+    // Start HUD Update immediately
+    setInterval(() => {
+        const hud = document.getElementById('debug-hud');
+        if (!hud) return;
+        const c = document.getElementById('canvas');
+        const cw = document.getElementById('canvas-wrapper');
+        const ws = document.getElementById('designer-workspace');
+        
+        // If HUD shows an error already, don't overwrite it unless we have fresh data
+        if (hud.style.color === 'rgb(255, 68, 68)' && !c) return;
+
+        let html = '<div style="color:#fbbf24; font-weight:bold; margin-bottom:4px;">DESIGNER DIAGNOSTICS</div>';
+        if (c) {
+            const rect = c.getBoundingClientRect();
+            const style = getComputedStyle(c);
+            html += `<div>CANVAS: ${rect.width.toFixed(0)}x${rect.height.toFixed(0)}</div>`;
+            html += `<div>VIS: ${style.visibility} | DISP: ${style.display}</div>`;
+            html += `<div>BANDS: ${c.querySelectorAll('.section-band').length} | ELS: ${c.querySelectorAll('.design-element').length}</div>`;
+        } else html += '<div style="color:red">CANVAS NOT FOUND</div>';
+        
+        if (cw) {
+            const rect = cw.getBoundingClientRect();
+            html += `<div>WRAPPER: ${rect.width.toFixed(0)}x${rect.height.toFixed(0)}</div>`;
+        }
+        
+        if (ws) {
+            const rect = ws.getBoundingClientRect();
+            html += `<div>WORKSPACE: ${rect.width.toFixed(0)}x${rect.height.toFixed(0)}</div>`;
+        }
+        
+        html += `<div style="margin-top:4px;">ZOOM: ${(zoomLevel*100).toFixed(0)}% | SCALE: ${BASE_SCALE}</div>`;
+        hud.innerHTML = html;
+        hud.style.color = '#00ff00'; hud.style.borderColor = '#00ff00';
+    }, 500);
+
     // ── Conditional Formatting ────────────────────────────────
     const CONDITIONAL_OPERATORS = [
         { value: 'equals', label: '=' },
@@ -1140,36 +1186,7 @@
             });
         }, 100);
 
-        // Persistent HUD Update
-        setInterval(() => {
-            const hud = document.getElementById('debug-hud');
-            if (!hud) return;
-            const c = document.getElementById('canvas');
-            const cw = document.getElementById('canvas-wrapper');
-            const ws = document.getElementById('designer-workspace');
-            
-            let html = '<div style="color:#fbbf24; font-weight:bold; margin-bottom:4px;">DESIGNER DIAGNOSTICS</div>';
-            if (c) {
-                const rect = c.getBoundingClientRect();
-                const style = getComputedStyle(c);
-                html += `<div>CANVAS: ${rect.width.toFixed(0)}x${rect.height.toFixed(0)}</div>`;
-                html += `<div>VIS: ${style.visibility} | DISP: ${style.display}</div>`;
-                html += `<div>BANDS: ${c.querySelectorAll('.section-band').length} | ELS: ${c.querySelectorAll('.design-element').length}</div>`;
-            } else html += '<div style="color:red">CANVAS NOT FOUND</div>';
-            
-            if (cw) {
-                const rect = cw.getBoundingClientRect();
-                html += `<div>WRAPPER: ${rect.width.toFixed(0)}x${rect.height.toFixed(0)}</div>`;
-            }
-            
-            if (ws) {
-                const rect = ws.getBoundingClientRect();
-                html += `<div>WORKSPACE: ${rect.width.toFixed(0)}x${rect.height.toFixed(0)}</div>`;
-            }
-            
-            html += `<div style="margin-top:4px;">ZOOM: ${(zoomLevel*100).toFixed(0)}% | SCALE: ${BASE_SCALE}</div>`;
-            hud.innerHTML = html;
-        }, 500);
+        // HUD interval moved to top
 
         loadSelectedSchema();
         fetchAndPopulateFonts();
@@ -1431,6 +1448,7 @@
         const totalSectionH = getTotalSectionsHeight();
         const canvasH = Math.max(h, totalSectionH + 10);
         const c = document.getElementById('canvas');
+        if (!c) { console.error('[Designer] updateCanvasSize: canvas not found'); return; }
         const computedW = (w * BASE_SCALE) + 'px';
         const computedH = (canvasH * BASE_SCALE) + 'px';
         console.log('[Designer] updateCanvasSize', { w, h, totalSectionH, canvasH, computedW, computedH, canvasExists: !!c });
