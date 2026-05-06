@@ -62,7 +62,18 @@
             flex-direction: column;
             z-index: 900;
             transition: transform 0.25s ease;
+            overflow-y: auto;
         }
+
+        /* Global Scrollbar Styling */
+        * {
+            scrollbar-width: thin;
+            scrollbar-color: var(--border) transparent;
+        }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
         .main { margin-left: 240px; flex: 1; padding: 2rem; }
 
         .sidebar-brand {
@@ -379,6 +390,9 @@
                 </a>
                 <a href="{{ route('admin.templates') }}" class="nav-link {{ request()->routeIs('admin.templates*') ? 'active' : '' }}">
                     <x-icon name="template" size="18"/> Print Templates
+                </a>
+                <a href="{{ route('admin.fonts') }}" class="nav-link {{ request()->routeIs('admin.fonts*') ? 'active' : '' }}">
+                    <x-icon name="font" size="18"/> Fonts
                 </a>
 
                 <div class="nav-section">Documents</div>

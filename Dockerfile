@@ -43,8 +43,8 @@ RUN sed -ri -e 's!/var/www/!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf
 RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
 RUN chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
 
-# Install PHP dependencies (without scripts to avoid discovery errors during build)
-RUN composer install --no-dev --no-scripts --no-autoloader --no-interaction --ignore-platform-reqs
+# Install PHP dependencies
+RUN composer install --no-scripts --no-autoloader --no-interaction --ignore-platform-reqs
 
 # Generate optimized autoloader
 RUN composer dump-autoload --optimize --no-scripts

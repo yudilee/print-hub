@@ -94,12 +94,12 @@
                 </td>
                 <td>
                     <div style="display: flex; gap: 6px; flex-wrap: wrap;">
-                        <a href="{{ route('fonts.download', $font) }}" class="btn btn-secondary btn-sm"
+                        <a href="{{ route('admin.fonts.download', $font) }}" class="btn btn-secondary btn-sm"
                            style="text-decoration: none;" title="Download font file">⬇</a>
                         <button class="btn btn-secondary btn-sm" onclick="openEditModal({{ json_encode($font) }})"
                                 title="Edit font metadata">✎</button>
-                        <form action="{{ route('fonts.destroy', $font) }}" method="POST"
-                              onsubmit="return confirm('Delete font '{{ $font->name }}'? The file will be retained on disk.')"
+                        <form action="{{ route('admin.fonts.destroy', $font) }}" method="POST"
+                              onsubmit="return confirm('Delete font \'{{ $font->name }}\'? The file will be retained on disk.')"
                               style="display: inline;">
                             @csrf @method('DELETE')
                             <button class="btn btn-danger btn-sm" title="Soft-delete font">🗑</button>

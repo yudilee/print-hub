@@ -135,14 +135,17 @@
             <div style="width: 100%; margin-bottom: 0.5rem; font-size: 0.8rem; font-weight: bold; color: var(--warning);">Physical Assignment (Required)</div>
             <div class="form-group" style="flex: 2;">
                 <label for="print_agent_id">Connected Agent <span style="color: var(--danger);">*</span></label>
-                <select name="print_agent_id" id="print_agent_id" required onchange="updatePrinterDropdown(this.value)">
+                <select name="print_agent_id" id="print_agent_id" required onchange="updatePrinterDropdown(this.value); updateAdvancedOptions(this.value)">
                     <option value="">-- Select Agent --</option>
                     @foreach($agents as $agent)
-                        <option value="{{ $agent->id }}" data-printers='{{ json_encode($agent->printers ?? []) }}'>
+                        <option value="{{ $agent->id }}"
+                            data-printers='{{ json_encode($agent->printers ?? []) }}'
+                            data-capabilities='{{ json_encode($agent->capabilities ?? []) }}'>
                             {{ $agent->name }} {{ $agent->isOnline() ? '●' : '○' }}
                         </option>
                     @endforeach
                 </select>
+                <div id="agent-capability-summary" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px; min-height: 18px;"></div>
             </div>
             <div class="form-group" style="flex: 3;">
                 <label for="default_printer">Target Printer Name <span style="color: var(--danger);">*</span></label>
@@ -230,6 +233,12 @@ const agentPrinters = {
     @endforeach
 };
 
+const agentCapabilities = {
+    @foreach($agents as $agent)
+    "{{ $agent->id }}": {!! json_encode($agent->capabilities ?? []) !!},
+    @endforeach
+};
+
 function updatePrinterDropdown(agentId) {
     const container = document.getElementById('printer_input_container');
     const printers = agentPrinters[agentId];
@@ -250,6 +259,118 @@ function updatePrinterDropdown(agentId) {
     }
     html += `</select>`;
     container.innerHTML = html;
+}
+
+function updateAdvancedOptions(agentId) {
+    const caps = agentCapabilities[agentId];
+    const summaryEl = document.getElementById('agent-capability-summary');
+
+    if (!caps || !caps.printers || Object.keys(caps.printers).length === 0) {
+        summaryEl.innerHTML = '';
+        // Reset dropdowns to show all options
+        resetSelectOptions('tray_source', [
+            { value: '', label: 'Auto (Default)' },
+            { value: 'auto', label: 'Auto Select' },
+            { value: 'tray1', label: 'Tray 1' },
+            { value: 'tray2', label: 'Tray 2' },
+            { value: 'tray3', label: 'Tray 3' },
+            { value: 'manual', label: 'Manual Feed' },
+            { value: 'envelope', label: 'Envelope Feeder' },
+        ]);
+        resetSelectOptions('color_mode', [
+            { value: 'color', label: 'Color' },
+            { value: 'monochrome', label: 'Monochrome (B&W)' },
+        ]);
+        resetSelectOptions('print_quality', [
+            { value: 'normal', label: 'Normal (600 DPI)' },
+            { value: 'draft', label: 'Draft (300 DPI)' },
+            { value: 'high', label: 'High (1200 DPI)' },
+        ]);
+        resetSelectOptions('media_type', [
+            { value: '', label: 'Plain Paper' },
+            { value: 'plain', label: 'Plain Paper' },
+            { value: 'glossy', label: 'Glossy / Photo' },
+            { value: 'envelope', label: 'Envelope' },
+            { value: 'label', label: 'Label / Sticker' },
+            { value: 'continuous_feed', label: 'Continuous Feed' },
+        ]);
+        return;
+    }
+
+    // Collect all supported values across all printers in this agent
+    const allTrays = new Set();
+    const allColorModes = new Set();
+    const allResolutions = new Set();
+    const allMediaTypes = new Set();
+    let anyDuplex = false;
+    let printerCount = 0;
+
+    Object.values(caps.printers).forEach(p => {
+        printerCount++;
+        (p.trays || []).forEach(t => allTrays.add(t));
+        (p.color_modes || []).forEach(c => allColorModes.add(c));
+        (p.resolutions || []).forEach(r => allResolutions.add(r));
+        (p.media_types || []).forEach(m => allMediaTypes.add(m));
+        if (p.duplex) anyDuplex = true;
+    });
+
+    // Show summary
+    let summary = `<span style="color: var(--success);">✓ ${printerCount} printer(s) with capabilities reported</span>`;
+    if (anyDuplex) summary += ` · <span title="Duplex supported">🔁 Duplex</span>`;
+    if (allColorModes.has('color') && allColorModes.has('monochrome')) summary += ` · 🎨 Color + B&W`;
+    else if (allColorModes.has('monochrome')) summary += ` · ⚫ B&W only`;
+    else if (allColorModes.has('color')) summary += ` · 🎨 Color only`;
+    if (allTrays.size > 0) summary += ` · 📦 ${allTrays.size} tray(s)`;
+    summaryEl.innerHTML = summary;
+
+    // Filter tray_source
+    const trayOptions = [
+        { value: '', label: 'Auto (Default)' },
+        { value: 'auto', label: 'Auto Select' },
+    ];
+    ['tray1', 'tray2', 'tray3', 'manual', 'envelope'].forEach(t => {
+        if (allTrays.has(t)) {
+            const labels = { tray1: 'Tray 1', tray2: 'Tray 2', tray3: 'Tray 3', manual: 'Manual Feed', envelope: 'Envelope Feeder' };
+            trayOptions.push({ value: t, label: labels[t] || t });
+        }
+    });
+    resetSelectOptions('tray_source', trayOptions);
+
+    // Filter color_mode
+    const colorOptions = [];
+    if (allColorModes.has('color')) colorOptions.push({ value: 'color', label: 'Color' });
+    if (allColorModes.has('monochrome')) colorOptions.push({ value: 'monochrome', label: 'Monochrome (B&W)' });
+    if (colorOptions.length > 0) resetSelectOptions('color_mode', colorOptions);
+
+    // Filter print_quality based on resolutions
+    const qualityOptions = [];
+    if (allResolutions.has('300')) qualityOptions.push({ value: 'draft', label: 'Draft (300 DPI)' });
+    if (allResolutions.has('600') || allResolutions.size === 0) qualityOptions.push({ value: 'normal', label: 'Normal (600 DPI)' });
+    if (allResolutions.has('1200')) qualityOptions.push({ value: 'high', label: 'High (1200 DPI)' });
+    if (qualityOptions.length > 0) resetSelectOptions('print_quality', qualityOptions);
+
+    // Filter media_type
+    const mediaOptions = [
+        { value: '', label: 'Plain Paper' },
+    ];
+    ['plain', 'glossy', 'envelope', 'label', 'continuous_feed'].forEach(m => {
+        if (allMediaTypes.has(m)) {
+            const labels = { plain: 'Plain Paper', glossy: 'Glossy / Photo', envelope: 'Envelope', label: 'Label / Sticker', continuous_feed: 'Continuous Feed' };
+            mediaOptions.push({ value: m, label: labels[m] || m });
+        }
+    });
+    resetSelectOptions('media_type', mediaOptions);
+}
+
+function resetSelectOptions(selectId, options) {
+    const select = document.getElementById(selectId);
+    if (!select) return;
+    const currentVal = select.value;
+    select.innerHTML = options.map(o => `<option value="${o.value}">${o.label}</option>`).join('');
+    // Re-select if the current value is still available
+    if (options.some(o => o.value === currentVal)) {
+        select.value = currentVal;
+    }
 }
 
 function toggleCustomSize(val) {

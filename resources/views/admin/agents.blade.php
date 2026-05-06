@@ -61,6 +61,7 @@
                 <th>Location</th>
                 <th>Status</th>
                 <th>Printers</th>
+                <th>Capabilities</th>
                 <th>Last Seen</th>
                 <th>Key Age</th>
                 <th>Jobs</th>
@@ -105,6 +106,36 @@
                         <span style="font-style: italic;">—</span>
                     @endif
                 </td>
+                <td style="font-size: 0.75rem; max-width: 240px;">
+                    @if($agent->capabilities && count($agent->capabilities) > 0)
+                        <div style="display: flex; flex-direction: column; gap: 2px;">
+                            @if(isset($agent->capabilities['version']))
+                                <code style="font-size: 0.65rem;">v{{ $agent->capabilities['version'] }}</code>
+                            @endif
+                            @if(isset($agent->capabilities['printers']) && is_array($agent->capabilities['printers']))
+                                @foreach($agent->capabilities['printers'] as $printerName => $printerCaps)
+                                    <div style="font-size: 0.65rem; color: var(--text-muted); line-height: 1.4; border-bottom: 1px solid var(--border); padding: 2px 0;">
+                                        <strong style="color: var(--text);">{{ $printerName }}</strong>
+                                        @if(!empty($printerCaps['paper_sizes']))
+                                            <br>📄 {{ implode(', ', $printerCaps['paper_sizes']) }}
+                                        @endif
+                                        @if(!empty($printerCaps['color_modes']))
+                                            · 🎨 {{ implode('/', $printerCaps['color_modes']) }}
+                                        @endif
+                                        @if(!empty($printerCaps['duplex']))
+                                            · 🔁 Duplex
+                                        @endif
+                                        @if(!empty($printerCaps['trays']))
+                                            <br>📦 Trays: {{ implode(', ', $printerCaps['trays']) }}
+                                        @endif
+                                    </div>
+                                @endforeach
+                            @endif
+                        </div>
+                    @else
+                        <span style="font-style: italic; color: var(--text-muted); font-size: 0.75rem;">Not reported</span>
+                    @endif
+                </td>
                 <td style="font-size: 0.8rem; color: var(--text-muted);">
                     {{ $agent->last_seen_at ? $agent->last_seen_at->diffForHumans() : 'Never' }}
                     @if($agent->ip_address)
@@ -135,7 +166,7 @@
                 </td>
             </tr>
             @empty
-            <tr><td colspan="9">
+            <tr><td colspan="10">
                 <x-empty-state icon="🖥️" title="No agents registered yet" description="Register your first print agent above to get started." actionText="+ Add Agent" :actionUrl="'#'" />
             </td></tr>
             @endforelse

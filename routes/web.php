@@ -113,9 +113,14 @@ Route::middleware(['auth', 'session.activity'])->group(function () {
     Route::get('/templates/{template}/versions/{v1}/diff/{v2}', [TemplateController::class, 'diffVersions'])->name('templates.versions.diff');
 
     // Custom Fonts Management
-    Route::resource('fonts', FontController::class)->except(['show', 'edit']);
-    Route::get('/fonts/{font}/download', [FontController::class, 'download'])->name('fonts.download');
-    Route::get('/fonts/{font}/preview', [FontController::class, 'preview'])->name('fonts.preview');
+    Route::resource('fonts', FontController::class)->names([
+        'index'   => 'admin.fonts',
+        'store'   => 'admin.fonts.store',
+        'update'  => 'admin.fonts.update',
+        'destroy' => 'admin.fonts.destroy',
+    ])->except(['show', 'edit']);
+    Route::get('/fonts/{font}/download', [FontController::class, 'download'])->name('admin.fonts.download');
+    Route::get('/fonts/{font}/preview', [FontController::class, 'preview'])->name('admin.fonts.preview');
 
     // Job History
     Route::get('/jobs', [JobController::class, 'index'])->name('admin.jobs');

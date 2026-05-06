@@ -9,10 +9,15 @@
 
 @section('content')
 <style>
-    :root {
+    [data-theme="dark"] {
         --primary: #3b82f6; --primary-hover: #2563eb; --bg: #0f172a; --surface: #1e293b;
         --surface-hover: #334155; --border: #334155; --text: #f1f5f9; --text-muted: #94a3b8;
         --danger: #ef4444; --success: #22c55e;
+    }
+    [data-theme="light"] {
+        --primary: #3b82f6; --primary-hover: #2563eb; --bg: #f8fafc; --surface: #ffffff;
+        --surface-hover: #f1f5f9; --border: #e2e8f0; --text: #0f172a; --text-muted: #64748b;
+        --danger: #dc2626; --success: #16a34a;
     }
     .designer-container { display: flex; flex-direction: column; height: calc(100vh - 100px); margin: -2rem; }
     .designer-top-bar {
@@ -101,7 +106,7 @@
     .design-element:hover { border-color: rgba(59,130,246,0.5); background: rgba(59,130,246,0.05); }
     .design-element.active { outline: 2px solid var(--primary); outline-offset: 2px; background: rgba(59,130,246,0.1); z-index: 100; border-color: transparent !important; }
     
-    .handle { position: absolute; width: 10px; height: 10px; background: white; border: 1px solid var(--primary); z-index: 999; pointer-events: auto; box-shadow: 0 0 4px rgba(0,0,0,0.3); }
+    .handle { position: absolute; width: 10px; height: 10px; background: white; border: 1px solid var(--primary); z-index: 999; pointer-events: auto; box-shadow: 0 0 4px rgba(0,0,0,0.2); }
     .res-nw { top: -5px; left: -5px; cursor: nw-resize; }
     .res-n { top: -5px; left: calc(50% - 5px); cursor: n-resize; }
     .res-ne { top: -5px; right: -5px; cursor: ne-resize; }
@@ -170,9 +175,9 @@
     .bind-unresolved { background:#f59e0b; color:white; }
     
     /* ── Field Preview Tooltip ────────────────────────── */
-    .fe-preview-tip { position:fixed; z-index:9998; background:#1e293b; border:1px solid #475569; border-radius:8px; padding:8px 12px; font-size:11px; color:#f1f5f9; max-width:300px; box-shadow:0 8px 24px rgba(0,0,0,0.4); pointer-events:none; }
-    .fe-preview-tip .tip-label { color:#94a3b8; font-size:9px; margin-bottom:2px; }
-    .fe-preview-tip .tip-value { color:#fbbf24; font-family:monospace; font-size:12px; word-break:break-all; }
+    .fe-preview-tip { position:fixed; z-index:9998; background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:8px 12px; font-size:11px; color:var(--text); max-width:300px; box-shadow:0 8px 24px rgba(0,0,0,0.2); pointer-events:none; }
+    .fe-preview-tip .tip-label { color:var(--text-muted); font-size:9px; margin-bottom:2px; }
+    .fe-preview-tip .tip-value { color:var(--primary); font-family:monospace; font-size:12px; word-break:break-all; }
     
     /* ── Schema Outdated Banner ───────────────────────── */
     .schema-outdated-banner { background:rgba(251,191,36,0.15); border:1px solid #fbbf24; border-radius:6px; padding:8px 12px; margin:8px; font-size:11px; color:#fbbf24; display:flex; align-items:center; gap:8px; }
@@ -675,7 +680,7 @@
             </div>
         </div>
         <!-- Preview Canvas Container -->
-        <div id="previewCanvasContainer" style="flex:1; overflow:auto; background:#1a1a2e; display:flex; justify-content:center; padding:20px;">
+        <div id="previewCanvasContainer" style="flex:1; overflow:auto; background:rgba(0,0,0,0.05); display:flex; justify-content:center; padding:20px;">
             <div style="position:relative; display:inline-block;">
                 <canvas id="previewCanvas" style="box-shadow:0 4px 30px rgba(0,0,0,0.5); background:white;"></canvas>
                 <div id="previewLoading" style="display:none; position:absolute; inset:0; background:rgba(255,255,255,0.8); display:flex; align-items:center; justify-content:center; border-radius:4px;">
@@ -797,32 +802,17 @@ $templateSchemasData = $template->relationLoaded('schemas') ? $template->schemas
     const BASE_SCALE = 4;
 
     // ── Runtime Parameters ──────────────────────────────────
-    let templateParams = [];
-    try {
-        const raw = '{{ json_encode($template->parameters ?? []) }}';
-        // Decode HTML entities that Blade/Laravel may have encoded
-        const decoded = raw.replace(/"/g, '"').replace(/&#039;/g, "'").replace(/&/g, '&');
-        templateParams = JSON.parse(decoded);
-        if (!Array.isArray(templateParams)) templateParams = [];
-    } catch (e) {
-        templateParams = [];
-    }
+    let templateParams = Array.isArray(@json($template->parameters)) ? @json($template->parameters) : [];
 
     // ── Sorting, Grouping & Filtering (SGF) ──────────────────
     let dataOptions = { sortFields: [], groupFields: [], filterExpression: '' };
-    try {
-        const raw = '{{ json_encode($template->data_options ?? []) }}';
-        const decoded = raw.replace(/"/g, '"').replace(/&#039;/g, "'").replace(/&/g, '&');
-        const parsed = JSON.parse(decoded);
-        if (parsed && typeof parsed === 'object') {
-            dataOptions = {
-                sortFields: Array.isArray(parsed.sortFields) ? parsed.sortFields : [],
-                groupFields: Array.isArray(parsed.groupFields) ? parsed.groupFields : [],
-                filterExpression: parsed.filterExpression || '',
-            };
-        }
-    } catch (e) {
-        dataOptions = { sortFields: [], groupFields: [], filterExpression: '' };
+    const parsedDataOptions = @json($template->data_options);
+    if (parsedDataOptions && typeof parsedDataOptions === 'object') {
+        dataOptions = {
+            sortFields: Array.isArray(parsedDataOptions.sortFields) ? parsedDataOptions.sortFields : [],
+            groupFields: Array.isArray(parsedDataOptions.groupFields) ? parsedDataOptions.groupFields : [],
+            filterExpression: parsedDataOptions.filterExpression || '',
+        };
     }
     document.addEventListener('DOMContentLoaded', () => {
         renderParameters();
@@ -1137,6 +1127,7 @@ $templateSchemasData = $template->relationLoaded('schemas') ? $template->schemas
         sections[key].height = Math.max(2, Math.min(200, newHeight));
         updateCanvasSize();
         renderElements();
+        drawMinimap();
         updateSectionsList();
         showSectionInspector(key);
     }
@@ -1261,18 +1252,30 @@ $templateSchemasData = $template->relationLoaded('schemas') ? $template->schemas
     // ── Minimap ───────────────────────────────────────────────
     function drawMinimap() {
         const mc = document.getElementById('minimap-canvas');
+        if (!mc) return;
         const ctx = mc.getContext('2d');
-        const W = mc.width, H = mc.height;
         const pw = parseFloat(document.getElementById('paper-w').value) || 215.9;
         const ph = parseFloat(document.getElementById('paper-h').value) || 139.7;
+        
+        // Dynamic aspect ratio scaling (max 120px)
+        const maxDim = 120;
+        if (pw >= ph) {
+            mc.width = maxDim;
+            mc.height = (ph / pw) * maxDim;
+        } else {
+            mc.height = maxDim;
+            mc.width = (pw / ph) * maxDim;
+        }
+        
+        const W = mc.width, H = mc.height;
         ctx.clearRect(0, 0, W, H);
         ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, H);
-        const sx = W / pw, sy = H / ph;
+        const scale = W / pw;
         const allEls = flattenSections();
         allEls.forEach(el => {
             if (el.hidden) return;
             ctx.fillStyle = el.type === 'label' ? '#64748b' : el.type === 'table' ? '#3b82f6' : el.type === 'line' ? '#ef4444' : el.type === 'running_total' ? '#818cf8' : '#0ea5e9';
-            ctx.fillRect(el.x * sx, el.y * sy, (el.width || 1) * sx + 1, (el.height || 1) * sy + 1);
+            ctx.fillRect(el.x * scale, el.y * scale, (el.width || 1) * scale + 0.5, (el.height || 1) * scale + 0.5);
         });
     }
 

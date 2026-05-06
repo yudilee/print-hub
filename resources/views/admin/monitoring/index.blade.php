@@ -135,8 +135,19 @@
                                 <span class="badge badge-danger"><span class="dot dot-red"></span>Offline</span>
                             @endif
                         </td>
-                        <td style="font-size: 0.75rem; color: var(--text-muted);">
-                            {{ $agent->capabilities['version'] ?? 'unknown' }}
+                        <td style="font-size: 0.75rem;">
+                            @if($agent->capabilities)
+                                <div>
+                                    <code>v{{ $agent->capabilities['version'] ?? '?' }}</code>
+                                    @if(!empty($agent->capabilities['printers']))
+                                        <br><span style="color: var(--text-muted); font-size: 0.7rem;">
+                                        {{ count($agent->capabilities['printers']) }} printer(s) with caps
+                                        </span>
+                                    @endif
+                                </div>
+                            @else
+                                <span style="color: var(--text-muted); font-style: italic; font-size: 0.7rem;">No data</span>
+                            @endif
                         </td>
                         <td style="font-size: 0.8rem;">
                             {{ $agent->last_seen_at ? $agent->last_seen_at->diffForHumans() : 'Never' }}
@@ -239,6 +250,60 @@
     </div>
 </div>
 @endif
+
+{{-- Capabilities Summary --}}
+@php
+    $allCapPrinterCount = 0;
+    $duplexCount = 0;
+    $colorCount = 0;
+    $allPaperSizes = [];
+    foreach($agents as $agent) {
+        if (!$agent->capabilities || empty($agent->capabilities['printers'])) continue;
+        foreach($agent->capabilities['printers'] as $printerName => $printerCaps) {
+            $allCapPrinterCount++;
+            if (!empty($printerCaps['duplex'])) $duplexCount++;
+            if (!empty($printerCaps['color_modes']) && in_array('color', $printerCaps['color_modes'])) $colorCount++;
+            if (!empty($printerCaps['paper_sizes'])) {
+                foreach($printerCaps['paper_sizes'] as $ps) {
+                    $allPaperSizes[$ps] = ($allPaperSizes[$ps] ?? 0) + 1;
+                }
+            }
+        }
+    }
+    arsort($allPaperSizes);
+@endphp
+@if($allCapPrinterCount > 0)
+<div class="card" style="margin-top: 1.5rem;">
+    <div class="card-header">
+        <h2>🔧 Capabilities Overview</h2>
+    </div>
+    <div style="display: flex; gap: 1rem; flex-wrap: wrap; padding: 0.5rem 0;">
+        <div style="background: var(--bg); padding: 0.75rem 1rem; border-radius: 8px; border: 1px solid var(--border); min-width: 120px; text-align: center;">
+            <div style="font-size: 1.2rem; font-weight: 700; color: var(--primary);">{{ $allCapPrinterCount }}</div>
+            <div style="font-size: 0.75rem; color: var(--text-muted);">Printers w/ Capabilities</div>
+        </div>
+        <div style="background: var(--bg); padding: 0.75rem 1rem; border-radius: 8px; border: 1px solid var(--border); min-width: 120px; text-align: center;">
+            <div style="font-size: 1.2rem; font-weight: 700; color: var(--success);">{{ $duplexCount }}</div>
+            <div style="font-size: 0.75rem; color: var(--text-muted);">Support Duplex</div>
+        </div>
+        <div style="background: var(--bg); padding: 0.75rem 1rem; border-radius: 8px; border: 1px solid var(--border); min-width: 120px; text-align: center;">
+            <div style="font-size: 1.2rem; font-weight: 700; color: var(--warning);">{{ $colorCount }}</div>
+            <div style="font-size: 0.75rem; color: var(--text-muted);">Support Color</div>
+        </div>
+        @if(count($allPaperSizes) > 0)
+        <div style="background: var(--bg); padding: 0.75rem 1rem; border-radius: 8px; border: 1px solid var(--border); min-width: 200px; flex: 1;">
+            <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.3rem;">Paper Size Distribution</div>
+            <div style="display: flex; flex-wrap: wrap; gap: 0.3rem;">
+                @foreach($allPaperSizes as $size => $count)
+                    <code style="font-size: 0.7rem; padding: 1px 6px; background: var(--surface); border-radius: 3px;">{{ $size }} ({{ $count }})</code>
+                @endforeach
+            </div>
+        </div>
+        @endif
+    </div>
+</div>
+@endif
+
 @endsection
 
 @section('scripts')
