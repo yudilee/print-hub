@@ -66,11 +66,13 @@ Route::prefix('v1')->middleware(['throttle:60,1', 'auth.api-key'])->group(functi
     Route::get('/templates',            [ClientAppController::class, 'listTemplates']);
     Route::get('/templates/{name}',     [ClientAppController::class, 'getTemplate']);
     Route::get('/templates/{name}/schema', [ClientAppController::class, 'getTemplateSchema']);
+    Route::post('/templates/{name}/validate', [ClientAppController::class, 'validateTemplateData']);
 
     // Data schema registration & discovery
     Route::post('/schema',                    [ClientAppController::class, 'registerSchema']);
     Route::get('/schemas',                    [ClientAppController::class, 'listSchemas']);
     Route::get('/schema/{name}/versions',     [ClientAppController::class, 'schemaVersions']);
+    Route::get('/schemas/{name}/diff',        [ClientAppController::class, 'schemaVersionDiff']);
 
     // Print endpoints
     Route::post('/print',        [ClientAppController::class, 'unifiedPrint']);
@@ -84,6 +86,14 @@ Route::prefix('v1')->middleware(['throttle:60,1', 'auth.api-key'])->group(functi
 
     // Health
     Route::get('/health', [ClientAppController::class, 'health']);
+
+    // Connector Registry  (Phase 2.1)
+    Route::get('/connectors',             [ClientAppController::class, 'listConnectors']);
+    Route::post('/connectors',            [ClientAppController::class, 'registerConnector']);
+    Route::put('/connectors/{id}',        [ClientAppController::class, 'updateConnector']);
+    Route::delete('/connectors/{id}',     [ClientAppController::class, 'deleteConnector']);
+    Route::post('/connectors/{id}/test',  [ClientAppController::class, 'testConnector']);
+    Route::post('/connectors/{id}/fetch-preview', [ClientAppController::class, 'fetchPreview']);
     // Document Management (Feature 2)
     Route::post('/documents/upload',       [DocumentController::class, 'upload']);
     Route::get('/documents',               [DocumentController::class, 'list']);

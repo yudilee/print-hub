@@ -97,6 +97,26 @@ class FormulaService
         }, 'Returns the length of text',
         'LENGTH(text)', 'LENGTH("hello")');
 
+        $this->registerFunction('LEN', function (...$args) {
+            return strlen($args[0] ?? '');
+        }, 'Returns the length of text (alias for LENGTH)',
+        'LEN(text)', 'LEN("hello")');
+
+        $this->registerFunction('LEFT', function (...$args) {
+            return substr($args[0] ?? '', 0, $args[1] ?? 1);
+        }, 'Returns the first N characters of text',
+        'LEFT(text, count)', 'LEFT("hello", 2)');
+
+        $this->registerFunction('RIGHT', function (...$args) {
+            return substr($args[0] ?? '', -($args[1] ?? 1));
+        }, 'Returns the last N characters of text',
+        'RIGHT(text, count)', 'RIGHT("hello", 2)');
+
+        $this->registerFunction('MID', function (...$args) {
+            return substr($args[0] ?? '', ($args[1] ?? 0) - 1, $args[2] ?? null);
+        }, 'Extracts a substring from text starting at position',
+        'MID(text, start, count)', 'MID("hello", 2, 3)');
+
         $this->registerFunction('CONCAT', function (...$args) {
             return implode('', $args);
         }, 'Concatenates multiple strings together',
@@ -170,6 +190,24 @@ class FormulaService
             return (float) ($args[0] ?? 0);
         }, 'Converts a value to a number',
         'TONUMBER(value)', 'TONUMBER("42.5")');
+
+        $this->registerFunction('VAL', function (...$args) {
+            return (float) ($args[0] ?? 0);
+        }, 'Converts a string to a number (alias for TONUMBER)',
+        'VAL(text)', 'VAL("42.5")');
+
+        $this->registerFunction('STR', function (...$args) {
+            return (string) ($args[0] ?? '');
+        }, 'Converts a number to string (alias for TOSTRING)',
+        'STR(number)', 'STR(42)');
+
+        $this->registerFunction('CURRENCY', function (...$args) {
+            $value = $args[0] ?? 0;
+            $decimals = $args[1] ?? 2;
+            $symbol = $args[2] ?? 'Rp';
+            return $symbol . ' ' . number_format((float) $value, $decimals, ',', '.');
+        }, 'Formats a number as currency with symbol',
+        'CURRENCY(value, decimals, symbol)', 'CURRENCY(12345.67, 2, "Rp")');
 
         $this->registerFunction('TODATE', function (...$args) {
             return date('Y-m-d', strtotime($args[0] ?? 'now'));
@@ -271,10 +309,10 @@ class FormulaService
     private function getCategory(string $name): string
     {
         $mathNames = ['SUM', 'AVG', 'MIN', 'MAX', 'ROUND', 'ABS', 'CEIL', 'FLOOR', 'MOD'];
-        $stringNames = ['UPPER', 'LOWER', 'TRIM', 'SUBSTRING', 'REPLACE', 'LENGTH', 'CONCAT', 'CONTAINS'];
+        $stringNames = ['UPPER', 'LOWER', 'TRIM', 'SUBSTRING', 'REPLACE', 'LENGTH', 'LEN', 'LEFT', 'RIGHT', 'MID', 'CONCAT', 'CONTAINS'];
         $dateNames = ['NOW', 'TODAY', 'DATE', 'DATEADD', 'DATEDIFF', 'YEAR', 'MONTH', 'DAY'];
         $logicalNames = ['IF'];
-        $conversionNames = ['TOSTRING', 'TONUMBER', 'TODATE', 'FORMAT'];
+        $conversionNames = ['TOSTRING', 'TONUMBER', 'TODATE', 'FORMAT', 'VAL', 'STR', 'CURRENCY'];
 
         if (in_array($name, $mathNames)) return 'Math';
         if (in_array($name, $stringNames)) return 'String';

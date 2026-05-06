@@ -568,6 +568,141 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+  # =====================================================================
+  # Connector Registry
+  # =====================================================================
+  /connectors:
+    get:
+      summary: List all connectors
+      description: Returns all connectors registered for the authenticated client app.
+      operationId: listConnectors
+      tags: [Connector Registry]
+      security:
+        - ApiKeyAuth: []
+      responses:
+        "200":
+          description: Connector list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConnectorListResponse"
+    post:
+      summary: Register a new connector
+      description: Create a new data-source connector definition.
+      operationId: registerConnector
+      tags: [Connector Registry]
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterConnectorRequest"
+      responses:
+        "201":
+          description: Connector created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConnectorDetailResponse"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  /connectors/{id}:
+    put:
+      summary: Update a connector
+      description: Update an existing connector's configuration.
+      operationId: updateConnector
+      tags: [Connector Registry]
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Connector UUID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateConnectorRequest"
+      responses:
+        "200":
+          description: Connector updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConnectorDetailResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+    delete:
+      summary: Delete a connector
+      description: Remove a connector definition.
+      operationId: deleteConnector
+      tags: [Connector Registry]
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Connector UUID
+      responses:
+        "200":
+          description: Connector deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      message:
+                        type: string
+                        example: "Connector deleted successfully."
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /connectors/{id}/test:
+    post:
+      summary: Test a connector connection
+      description: Sends a HEAD request to the connector's configured URL to verify connectivity.
+      operationId: testConnector
+      tags: [Connector Registry]
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Connector UUID
+      responses:
+        "200":
+          description: Connection test result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConnectorTestResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
 components:
   securitySchemes:
     ApiKeyAuth:
@@ -1131,3 +1266,140 @@ components:
               type: integer
             total:
               type: integer
+
+    # --- Connector Registry ---
+    Connector:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        name:
+          type: string
+          example: "SDP Finance ERP"
+        type:
+          type: string
+          enum: [api, webhook, odoo, custom]
+          example: "api"
+        config:
+          type: object
+          description: Connection configuration (endpoint URL, auth type, headers, etc.)
+          example:
+            endpoint_url: "https://erp.example.com/api/v1"
+            auth_type: "basic"
+            headers:
+              Accept: "application/json"
+        icon:
+          type: string
+          nullable: true
+          example: "🔌"
+        is_active:
+          type: boolean
+          default: true
+        last_test_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    ConnectorListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            connectors:
+              type: array
+              items:
+                $ref: "#/components/schemas/Connector"
+
+    ConnectorDetailResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            connector:
+              $ref: "#/components/schemas/Connector"
+
+    RegisterConnectorRequest:
+      type: object
+      required:
+        - name
+        - type
+        - config
+      properties:
+        name:
+          type: string
+          maxLength: 255
+          example: "SDP Finance ERP"
+        type:
+          type: string
+          enum: [api, webhook, odoo, custom]
+          example: "api"
+        config:
+          type: object
+          description: Connection configuration
+          example:
+            endpoint_url: "https://erp.example.com/api/v1"
+            auth_type: "basic"
+        icon:
+          type: string
+          nullable: true
+          example: "🔌"
+
+    UpdateConnectorRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 255
+          example: "SDP Finance ERP (Updated)"
+        type:
+          type: string
+          enum: [api, webhook, odoo, custom]
+          example: "api"
+        config:
+          type: object
+          description: Connection configuration
+        icon:
+          type: string
+          nullable: true
+        is_active:
+          type: boolean
+
+    ConnectorTestResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            connector_id:
+              type: string
+              format: uuid
+            success:
+              type: boolean
+              description: Whether the test connection succeeded
+            message:
+              type: string
+              example: "Connected successfully (HTTP 200)."
+            latency_ms:
+              type: integer
+              nullable: true
+              description: Response time in milliseconds
+            last_test_at:
+              type: string
+              format: date-time
+              nullable: true

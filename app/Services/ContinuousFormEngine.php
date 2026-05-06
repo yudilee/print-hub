@@ -16,6 +16,9 @@ class ContinuousFormEngine
     private array $runningTotals = [];
     private array $runningTotalCounts = [];
 
+    /** @var array Tracks rendered field values for suppress_if_duplicate */
+    private array $renderedFieldValues = [];
+
     /** @var array|null Current conditional style from highlighting rules */
     protected ?array $currentConditionalStyle = null;
 
@@ -30,10 +33,20 @@ class ContinuousFormEngine
     /**
      * Generate PDF binary from template and data.
      */
-    public function generate(PrintTemplate $template, array $data, array $options = [])
+    public function generate(PrintTemplate $template, array $data, array $options = [], array $parameters = [])
     {
         $this->template = $template;
         $this->data = $data;
+
+        // Merge runtime parameters into data so they are accessible
+        // as {param_name} in expressions and field lookups.
+        if (!empty($parameters)) {
+            foreach ($parameters as $key => $value) {
+                if (!array_key_exists($key, $this->data)) {
+                    $this->data[$key] = $value;
+                }
+            }
+        }
         $this->schema = $template->dataSchema;
         $this->fontService = app(FontService::class);
         $this->initRunningTotals();
@@ -65,6 +78,9 @@ class ContinuousFormEngine
         $removeImages = !empty($options['remove_images']);
         // ─────────────────────────────────────────────────────────
 
+        // ── Resolve data options (sorting, grouping, filtering) ───
+        $dataOptions = $this->getDataOptions();
+
         if ($this->sections !== null) {
             // Section-based rendering
             $tableElement = $this->findTableInSections();
@@ -77,6 +93,9 @@ class ContinuousFormEngine
                 // Static single page with sections
                 $this->renderSectionedPage();
             } else {
+                // Apply Sorting & Filtering (grouping is applied inside renderMultipageWithSections)
+                $rows = $this->applySorting($rows, $dataOptions['sortFields'] ?? null);
+                $rows = $this->applyFilter($rows, $dataOptions['filterExpression'] ?? null);
                 // Multipage with sections
                 $this->renderMultipageWithSections($tableElement, $rows);
             }
@@ -92,6 +111,9 @@ class ContinuousFormEngine
             if (empty($rows) || !$tableElement) {
                 $this->renderPage();
             } else {
+                // Apply Sorting & Filtering
+                $rows = $this->applySorting($rows, $dataOptions['sortFields'] ?? null);
+                $rows = $this->applyFilter($rows, $dataOptions['filterExpression'] ?? null);
                 $this->renderMultipageTable($tableElement, $rows);
             }
         }
@@ -207,6 +229,16 @@ class ContinuousFormEngine
         // Evaluate computed columns
         $rows = $this->evaluateComputedRows($tableEl, $rows);
 
+        // ── Apply grouping ──────────────────────────────────────
+        $dataOptions = $this->getDataOptions();
+        $groupFields = $dataOptions['groupFields'] ?? null;
+        $hasGrouping = !empty($groupFields);
+        if ($hasGrouping) {
+            // Auto-sort by group fields so rows are contiguous per group
+            $rows = $this->applySorting($rows, $groupFields);
+        }
+        // ─────────────────────────────────────────────────────────
+
         // Calculate total section header height (pageHeader + reportHeader)
         $sectionHeaderHeight = 0;
         foreach (self::SECTION_ORDER as $key) {
@@ -249,7 +281,72 @@ class ContinuousFormEngine
         $rowIndex = 0;
         $totalRows = count($rows);
 
+        // Track previous group values for group header detection
+        $previousGroupValues = $hasGrouping ? array_fill_keys(
+            array_map(fn($gf) => $gf['field'] ?? '', $groupFields),
+            null
+        ) : [];
+
         while ($rowIndex < $totalRows) {
+            // ── Group header detection ──────────────────────────
+            if ($hasGrouping) {
+                $groupChanged = false;
+                $currentGroupValues = [];
+
+                foreach ($groupFields as $gf) {
+                    $field = $gf['field'] ?? '';
+                    $value = $this->resolveValue($field, $rows[$rowIndex]);
+                    $currentGroupValues[$field] = $value;
+
+                    if ($previousGroupValues[$field] !== $value) {
+                        $groupChanged = true;
+                        // When one field changes, the rest are implicitly new too
+                        break;
+                    }
+                }
+
+                if ($groupChanged && $rowIndex > 0) {
+                    // Reset running totals at group boundary
+                    $this->resetRunningTotalsOnPage();
+
+                    // Calculate total width of all columns for the group header cell
+                    $totalWidth = array_sum(array_map(fn($c) => $c['width'] ?? 0, $columns));
+
+                    // Check if group header fits on current page
+                    $groupHeaderHeight = $rowHeight;
+                    if ($currentY + $groupHeaderHeight > $availableH) {
+                        $this->renderReportFooterOnPage($currentY);
+                        $this->startNewSectionedPage($sectionHeaderHeight);
+                        $currentY = $startY;
+                        $this->renderTableHeader($x, $currentY, $columns, $headerHeight, $fontSize, $tableEl);
+                        $currentY += $headerHeight;
+                    }
+
+                    // Render group header row (bold, full-width, with group field name: value)
+                    $firstField = $groupFields[0]['field'] ?? '';
+                    $firstValue = $currentGroupValues[$firstField] ?? '';
+                    $groupLabel = ucwords(str_replace('_', ' ', $firstField)) . ': ' . (string)$firstValue;
+
+                    // Use bold font for group header
+                    $fontFamily = $tableEl['fontFamily'] ?? 'Arial';
+                    $resolvedFamily = $this->fontService->loadFontForPdf($this->pdf, $fontFamily, 'B');
+                    $this->pdf->SetFont($resolvedFamily, 'B', $fontSize);
+
+                    // Light background for group header
+                    $this->pdf->SetFillColor(230, 240, 255);
+                    $this->pdf->SetXY($x, $currentY);
+                    $this->pdf->Cell($totalWidth, $groupHeaderHeight, '  ' . $groupLabel, 1, 0, 'L', true);
+                    $currentY += $groupHeaderHeight;
+
+                    // Re-render column headers after group header for clarity
+                    $this->renderTableHeader($x, $currentY, $columns, $headerHeight, $fontSize, $tableEl);
+                    $currentY += $headerHeight;
+                }
+
+                $previousGroupValues = $currentGroupValues;
+            }
+            // ─────────────────────────────────────────────────────
+
             // Check if we need a page break
             if ($currentY + $rowHeight > $availableH) {
                 // Render report footer on current page before break
@@ -268,8 +365,9 @@ class ContinuousFormEngine
             $this->renderTableRow($x, $currentY, $columns, $rows[$rowIndex], $rowHeight, $fontSize);
             $currentY += $rowHeight;
 
-            // Accumulate running totals
-            $this->accumulateRunningTotals($rows[$rowIndex]);
+            // Accumulate running totals with group field info
+            $groupField = $hasGrouping ? ($groupFields[0]['field'] ?? null) : null;
+            $this->accumulateRunningTotals($rows[$rowIndex], $groupField);
             $rowIndex++;
         }
 
@@ -496,10 +594,28 @@ class ContinuousFormEngine
 
     protected function renderField($el)
     {
+        // Check print_when expression — skip if expression evaluates to false
+        if (!empty($el['print_when'])) {
+            $printResult = $this->evaluateExpression($el['print_when'], $this->data);
+            if (empty($printResult) || $printResult === '0' || $printResult === 0 || $printResult === false || $printResult === 'false') {
+                return;
+            }
+        }
+
         $this->applyRotation($el);
         $el = $this->applyStyle($el);
         $value = $this->resolveValue($el['key'], $this->data);
         if ($value === null) { $this->resetRotation($el); return; }
+
+        // Check suppress_if_duplicate — skip if same value was already rendered for this field key
+        if (!empty($el['suppress_if_duplicate'])) {
+            $dupKey = $el['key'] . '|' . (string) $value;
+            if (isset($this->renderedFieldValues[$dupKey])) {
+                $this->resetRotation($el);
+                return;
+            }
+            $this->renderedFieldValues[$dupKey] = true;
+        }
 
         // Apply formatting (manual override or schema)
         $value = $this->formatValue($el, $value);
@@ -517,6 +633,14 @@ class ContinuousFormEngine
 
     protected function renderLabel($el)
     {
+        // Check print_when expression — skip if expression evaluates to false
+        if (!empty($el['print_when'])) {
+            $printResult = $this->evaluateExpression($el['print_when'], $this->data);
+            if (empty($printResult) || $printResult === '0' || $printResult === 0 || $printResult === false || $printResult === 'false') {
+                return;
+            }
+        }
+
         $this->applyRotation($el);
         $el = $this->applyStyle($el);
         $text = $el['text'] ?? '';
@@ -761,11 +885,42 @@ class ContinuousFormEngine
         $x = $el['x'] ?? 0;
         $y = $el['y'] ?? 0;
         $width = $el['width'] ?? 0;
+        $height = $el['height'] ?? 0;
         $fontSize = $el['font_size'] ?? 10;
         $align = $el['align'] ?? 'L';
         $bold = !empty($el['bold']) ? 'B' : '';
-        $border = !empty($el['border']) ? 1 : 0;
         $fill = false;
+
+        // ── Border Style ──────────────────────────────────────
+        // 'border' can be: bool (legacy), 'none', 'solid', 'dashed', 'dotted'
+        $borderStyle = $el['border'] ?? null;
+        if ($borderStyle === true || $borderStyle === 1 || $borderStyle === 'true') {
+            $borderStyle = 'solid';
+        } elseif ($borderStyle === false || $borderStyle === 0 || $borderStyle === 'false' || $borderStyle === 'none' || $borderStyle === null) {
+            $borderStyle = 'none';
+        }
+        $border = ($borderStyle !== 'none') ? 1 : 0;
+
+        // ── Padding ───────────────────────────────────────────
+        $padding = $el['padding'] ?? null;
+        $padTop = 0;
+        $padRight = 0;
+        $padBottom = 0;
+        $padLeft = 0;
+        if (is_array($padding)) {
+            $padTop    = (float)($padding['top'] ?? 0);
+            $padRight  = (float)($padding['right'] ?? 0);
+            $padBottom = (float)($padding['bottom'] ?? 0);
+            $padLeft   = (float)($padding['left'] ?? 0);
+        }
+
+        // ── Opacity ───────────────────────────────────────────
+        $opacity = $el['opacity'] ?? null;
+        $hasOpacity = ($opacity !== null && $opacity >= 0 && $opacity < 100);
+        if ($hasOpacity) {
+            $alpha = max(0, min(1, (float)$opacity / 100));
+            $this->pdf->SetAlpha($alpha);
+        }
 
         // Apply conditional formatting style if available
         $condStyle = $this->currentConditionalStyle;
@@ -796,16 +951,38 @@ class ContinuousFormEngine
             }
         }
 
+        // ── Draw custom border (dashed/dotted) ────────────────
+        // FPDF native borders only support solid; draw dashed/dotted manually
+        if ($borderStyle === 'dashed' || $borderStyle === 'dotted') {
+            $this->drawCustomBorder($x, $y, $width, $height, $borderStyle);
+            $border = 0; // Don't use FPDF's border since we drew our own
+        }
+
+        // ── Hyperlink ─────────────────────────────────────────
+        $link = $this->resolveLink($el);
+
         // Resolve custom font if specified; fallback to Arial
         $fontFamily = $el['fontFamily'] ?? 'Arial';
         $resolvedFamily = $this->fontService->loadFontForPdf($this->pdf, $fontFamily, $bold);
         $this->pdf->SetFont($resolvedFamily, $bold, $fontSize);
-        $this->pdf->SetXY($x, $y);
+
+        // Apply padding offsets to position
+        $cellX = $x + $padLeft;
+        $cellY = $y + $padTop;
+        $cellWidth = $width - $padLeft - $padRight;
+        $this->pdf->SetXY($cellX, $cellY);
         
-        if ($width > 0) {
-            $this->pdf->MultiCell($width, $fontSize * 0.5, $value, $border, $align, $fill);
+        if ($cellWidth > 0) {
+            // MultiCell doesn't accept link param natively; use Link() after rendering
+            $this->pdf->MultiCell($cellWidth, $fontSize * 0.5, $value, $border, $align, $fill);
+            if ($link) {
+                // Estimate rendered height: roughly number of lines * line height
+                $lineCount = max(1, ceil($this->pdf->GetStringWidth($value) / max($cellWidth, 1)));
+                $renderedH = $lineCount * ($fontSize * 0.5);
+                $this->pdf->Link($cellX, $cellY, $cellWidth, $renderedH, $link);
+            }
         } else {
-            $this->pdf->Cell(0, $fontSize * 0.5, $value, $border, 0, $align, $fill);
+            $this->pdf->Cell(0, $fontSize * 0.5, $value, $border, 0, $align, $fill, $link);
         }
 
         // Reset text color to default (black) after rendering
@@ -815,6 +992,11 @@ class ContinuousFormEngine
         // Reset fill color to default (black) after rendering
         if ($condStyle && !empty($condStyle['backgroundColor'])) {
             $this->pdf->SetFillColor(0, 0, 0);
+        }
+
+        // Reset opacity
+        if ($hasOpacity) {
+            $this->pdf->SetAlpha(1);
         }
     }
 
@@ -998,6 +1180,19 @@ class ContinuousFormEngine
 
     protected function evaluateExpression(string $expression, array $rowData)
     {
+        // ── Resolve {param_name} references from the full data set ──
+        // Parameters injected at the template level may not be in $rowData,
+        // so we look them up from $this->data as a fallback.
+        $expression = preg_replace_callback('/\{([a-zA-Z_][a-zA-Z0-9_.]*)\}/', function ($m) {
+            $key = $m[1];
+            $val = $this->resolveValue($key, $this->data);
+            if (is_numeric($val)) {
+                return (string) $val;
+            }
+            // Non-numeric values are replaced with a quoted string or empty
+            return $val !== null ? ('"' . addslashes((string) $val) . '"') : '""';
+        }, $expression);
+
         // Try the FormulaService first (supports custom functions like SUM, AVG, etc.)
         try {
             /** @var \App\Services\FormulaService $formulaService */
@@ -1227,6 +1422,170 @@ class ContinuousFormEngine
                 $this->pdf->Rotate(0);
             }
         }
+    }
+
+    // ── Sorting, Grouping & Filtering (SGF) ─────────────────────
+
+    /**
+     * Get data options (sorting, grouping, filtering) from template.
+     */
+    protected function getDataOptions(): array
+    {
+        return $this->template->data_options ?? [];
+    }
+
+    /**
+     * Apply multi-level sorting to rows based on sort field configuration.
+     *
+     * Each sort field: ['field' => 'column_name', 'direction' => 'asc'|'desc']
+     */
+    protected function applySorting(array $rows, ?array $sortFields): array
+    {
+        if (empty($sortFields)) {
+            return $rows;
+        }
+
+        usort($rows, function ($a, $b) use ($sortFields) {
+            foreach ($sortFields as $sf) {
+                $field = $sf['field'] ?? '';
+                $direction = strtolower($sf['direction'] ?? $sf['sortDirection'] ?? 'asc');
+
+                $valA = $this->resolveValue($field, $a);
+                $valB = $this->resolveValue($field, $b);
+
+                // Handle nulls: sort nulls to end regardless of direction
+                if ($valA === null && $valB === null) continue;
+                if ($valA === null) return 1;
+                if ($valB === null) return -1;
+
+                // Compare: numeric vs string comparison
+                $cmp = is_numeric($valA) && is_numeric($valB)
+                    ? ($valA <=> $valB)
+                    : strcasecmp((string) $valA, (string) $valB);
+
+                if ($cmp !== 0) {
+                    return ($direction === 'desc') ? -$cmp : $cmp;
+                }
+            }
+            return 0;
+        });
+
+        return $rows;
+    }
+
+    /**
+     * Apply filter expression to rows, returning only matching rows.
+     *
+     * The expression is evaluated per-row using the same engine as computed columns.
+     * Returns empty array when no rows match.
+     */
+    protected function applyFilter(array $rows, ?string $expression): array
+    {
+        if (empty($expression)) {
+            return $rows;
+        }
+
+        return array_values(array_filter($rows, function ($row) use ($expression) {
+            $result = $this->evaluateExpression($expression, $row);
+            // Consider "truthy" values as passing the filter
+            return !empty($result) && $result !== '0' && $result !== 0 && $result !== false && $result !== 'false';
+        }));
+    }
+
+    // ── Advanced Element Properties ──────────────────────────────
+
+    /**
+     * Draw a custom border (dashed or dotted) around a rectangular area.
+     *
+     * FPDF's Cell border only supports solid lines. This method draws
+     * dashed or dotted borders using individual line segments.
+     */
+    protected function drawCustomBorder(float $x, float $y, float $w, float $h, string $style): void
+    {
+        if ($w <= 0 || $h <= 0) return;
+
+        $isDashed = ($style === 'dashed');
+        $segLen = $isDashed ? 1.5 : 0.5;
+        $gapLen = $isDashed ? 1.0 : 0.8;
+
+        $this->pdf->SetDrawColor(0, 0, 0);
+        $this->pdf->SetLineWidth(0.2);
+
+        // Top edge: (x, y) → (x+w, y)
+        $total = $w;
+        $pos = 0;
+        while ($pos < $total) {
+            $end = min($pos + $segLen, $total);
+            $this->pdf->Line($x + $pos, $y, $x + $end, $y);
+            $pos += $segLen + $gapLen;
+        }
+
+        // Right edge: (x+w, y) → (x+w, y+h)
+        $total = $h;
+        $pos = 0;
+        while ($pos < $total) {
+            $end = min($pos + $segLen, $total);
+            $this->pdf->Line($x + $w, $y + $pos, $x + $w, $y + $end);
+            $pos += $segLen + $gapLen;
+        }
+
+        // Bottom edge: (x, y+h) → (x+w, y+h)
+        $total = $w;
+        $pos = 0;
+        while ($pos < $total) {
+            $end = min($pos + $segLen, $total);
+            $this->pdf->Line($x + $total - $pos, $y + $h, $x + $total - $end, $y + $h);
+            $pos += $segLen + $gapLen;
+        }
+
+        // Left edge: (x, y) → (x, y+h)
+        $total = $h;
+        $pos = 0;
+        while ($pos < $total) {
+            $end = min($pos + $segLen, $total);
+            $this->pdf->Line($x, $y + $total - $pos, $x, $y + $total - $end);
+            $pos += $segLen + $gapLen;
+        }
+
+        $this->pdf->SetDrawColor(0, 0, 0);
+        $this->pdf->SetLineWidth(0.2);
+    }
+
+    // ── Hyperlinks & Drill-Down ──────────────────────────────────
+
+    /**
+     * Resolve a hyperlink from element properties.
+     *
+     * Supports:
+     * - 'url' type: direct URL or with @{{field}} placeholders
+     * - 'email' type: constructs mailto: link
+     * - 'none' or empty: returns null (no link)
+     *
+     * Placeholders like @{{field_name}} are resolved against current data row.
+     */
+    protected function resolveLink(array $el): ?string
+    {
+        $linkType = $el['linkType'] ?? 'none';
+        if ($linkType === 'none' || empty($linkType)) {
+            return null;
+        }
+
+        $linkUrl = $el['linkUrl'] ?? '';
+
+        // Resolve @{{field}} placeholders in the URL
+        $resolved = preg_replace_callback('/@\{\{(\w+(?:\.\w+)*)\}\}/', function ($m) {
+            return $this->resolveValue($m[1], $this->data) ?? $m[0];
+        }, $linkUrl);
+
+        if (empty($resolved)) {
+            return null;
+        }
+
+        return match ($linkType) {
+            'email' => 'mailto:' . $resolved,
+            'url'   => $resolved,
+            default => null,
+        };
     }
 
     // ── Eco Mode / Sustainability ─────────────────────────────

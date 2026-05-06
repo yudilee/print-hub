@@ -3426,7 +3426,7 @@ $templateSchemasData = $template->relationLoaded('schemas') ? $template->schemas
                 <div class="prop-item"><div class="prop-key">Bar Width</div><div class="prop-val"><input type="number" step="0.1" min="0" value="${el.barWidth||0}" oninput="updateElProps('barWidth',parseFloat(this.value))" title="0 = auto"></div></div>
             </div></div>`;
             html += `<div class="props-section"><div class="props-label">Appearance</div><div class="prop-table">
-                <div class="prop-item"><div class="prop-key">FontFamily</div><div class="prop-val"><select onchange="updateElProps('fontFamily',this.value)"><option value="Arial">Arial (Default)</option></select></div></div>
+                <div class="prop-item"><div class="prop-key">FontFamily</div><div class="prop-val"><select onchange="updateElProps('fontFamily',this.value)"><option value="Arial">Arial (Default)</option>${availableFonts.map(f => '<option value="' + f.font_family + '" ' + (el.fontFamily === f.font_family ? 'selected' : '') + '>' + f.name + '</option>').join('')}</select></div></div>
             </div></div>`;
         } else if (el.type === 'qrcode') {
             html += `<div class="props-section"><div class="props-label">QR Code</div><div class="prop-table">
@@ -3540,7 +3540,7 @@ $templateSchemasData = $template->relationLoaded('schemas') ? $template->schemas
             </div>`;
             html += `
             <div class="props-section"><div class="props-label">Appearance</div><div class="prop-table">
-                <div class="prop-item"><div class="prop-key">FontFamily</div><div class="prop-val"><select id="propFontFamily" onchange="updateElProps('fontFamily',this.value)"><option value="Arial">Arial (Default)</option></select></div></div>
+                <div class="prop-item"><div class="prop-key">FontFamily</div><div class="prop-val"><select id="propFontFamily" onchange="updateElProps('fontFamily',this.value)"><option value="Arial">Arial (Default)</option>${availableFonts.map(f => '<option value="' + f.font_family + '" ' + (el.fontFamily === f.font_family ? 'selected' : '') + '>' + f.name + '</option>').join('')}</select></div></div>
                 <div class="prop-item"><div class="prop-key">FontSize</div><div class="prop-val"><input type="number" value="${el.fontSize||10}" oninput="updateElProps('fontSize',parseInt(this.value))"></div></div>
             </div></div>`;
             html += `<div class="props-section"><div class="props-label">Formatting</div><div class="prop-table">
@@ -3567,7 +3567,7 @@ $templateSchemasData = $template->relationLoaded('schemas') ? $template->schemas
                 <div class="prop-item"><div class="prop-key">Link</div><div class="prop-val"><select onchange="updateElProps('styleIdx',this.value==='none'?undefined:parseInt(this.value))" style="color:var(--primary)"><option value="none">Manual</option>${globalStyles.map((s,i)=>`<option value="${i}" ${el.styleIdx===i?'selected':''}>${s.name}</option>`).join('')}</select></div></div>
             </div></div>
             <div class="props-section"><div class="props-label">Appearance</div><div class="prop-table">
-                <div class="prop-item"><div class="prop-key">FontFamily</div><div class="prop-val"><select id="propFontFamily" onchange="updateElProps('fontFamily',this.value)"><option value="Arial">Arial (Default)</option></select></div></div>
+                <div class="prop-item"><div class="prop-key">FontFamily</div><div class="prop-val"><select id="propFontFamily" onchange="updateElProps('fontFamily',this.value)"><option value="Arial">Arial (Default)</option>${availableFonts.map(f => '<option value="' + f.font_family + '" ' + (el.fontFamily === f.font_family ? 'selected' : '') + '>' + f.name + '</option>').join('')}</select></div></div>
                 <div class="prop-item"><div class="prop-key">FontSize</div><div class="prop-val"><input type="number" value="${el.font_size}" oninput="updateElProps('font_size',parseInt(this.value))" ${el.styleIdx!==undefined?'disabled':''}></div></div>
                 <div class="prop-item"><div class="prop-key">Align</div><div class="prop-val"><select onchange="updateElProps('align',this.value)"><option value="L" ${el.align==='L'?'selected':''}>Left</option><option value="C" ${el.align==='C'?'selected':''}>Center</option><option value="R" ${el.align==='R'?'selected':''}>Right</option></select></div></div>
                 <div class="prop-item"><div class="prop-key">Bold</div><div class="prop-val" style="padding-left:10px;"><input type="checkbox" ${el.bold?'checked':''} onchange="updateElProps('bold',this.checked)" ${el.styleIdx!==undefined?'disabled':''}></div></div>

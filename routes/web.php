@@ -97,6 +97,14 @@ Route::middleware(['auth', 'session.activity'])->group(function () {
     Route::get('/templates/{template}/job-history', [TemplateController::class, 'jobHistory'])->name('admin.templates.job-history');
     Route::post('/templates/{template}/sample-data', [TemplateController::class, 'saveSampleData'])->name('admin.templates.sample-data.save');
     Route::get('/templates/{template}/sample-data', [TemplateController::class, 'getSampleData'])->name('admin.templates.sample-data.get');
+    Route::put('/templates/{template}/schemas', [TemplateController::class, 'saveSchemas'])->name('admin.templates.schemas.save');
+
+    // Test Scenarios (Phase 4.2)
+    Route::get('/templates/{template}/scenarios', [TemplateController::class, 'listScenarios'])->name('admin.templates.scenarios.list');
+    Route::post('/templates/{template}/scenarios', [TemplateController::class, 'storeScenario'])->name('admin.templates.scenarios.store');
+    Route::put('/templates/{template}/scenarios/{scenario}', [TemplateController::class, 'updateScenario'])->name('admin.templates.scenarios.update');
+    Route::delete('/templates/{template}/scenarios/{scenario}', [TemplateController::class, 'deleteScenario'])->name('admin.templates.scenarios.delete');
+    Route::post('/templates/{template}/scenarios/{scenario}/set-default', [TemplateController::class, 'setDefaultScenario'])->name('admin.templates.scenarios.set-default');
 
     // Template Version History
     Route::get('/templates/{template}/versions', [TemplateController::class, 'versions'])->name('templates.versions');

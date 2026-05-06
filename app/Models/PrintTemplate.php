@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
@@ -19,6 +20,8 @@ class PrintTemplate extends Model
         'styles',
         'background_config',
         'sample_data',
+        'parameters',
+        'data_options',
         'elements'
     ];
 
@@ -27,6 +30,8 @@ class PrintTemplate extends Model
         'styles'            => 'array',
         'background_config' => 'array',
         'sample_data'       => 'array',
+        'parameters'        => 'array',
+        'data_options'      => 'array',
     ];
 
     // ── Relationships ────────────────────────────────────────
@@ -34,6 +39,22 @@ class PrintTemplate extends Model
     public function dataSchema(): BelongsTo
     {
         return $this->belongsTo(DataSchema::class);
+    }
+
+    /**
+     * Many-to-many: additional schemas attached via pivot table.
+     * The pivot stores an optional "alias" (e.g. "CRM", "Accounting").
+     */
+    public function schemas(): BelongsToMany
+    {
+        return $this->belongsToMany(DataSchema::class, 'print_template_data_schema')
+            ->withPivot('alias')
+            ->withTimestamps();
+    }
+
+    public function scenarios(): HasMany
+    {
+        return $this->hasMany(TestScenario::class);
     }
 
     public function versions(): HasMany
@@ -100,6 +121,65 @@ class PrintTemplate extends Model
      * Get a flat array of all elements, supporting both legacy flat format
      * and the new sections-based format ({ sections: {...}, elements: [...] }).
      */
+    // ── Runtime Parameters ────────────────────────────────────
+
+    /**
+     * Get the template's parameter definitions.
+     *
+     * Each parameter has:
+     *  - name        (string)  – unique key
+     *  - label       (string)  – human-readable prompt
+     *  - type        (string)  – text | number | date | boolean | select
+     *  - default     (mixed)   – optional default value
+     *  - options     (array)   – required when type=select
+     *  - required    (bool)    – whether the user must fill it
+     *
+     * @return array<int, array>
+     */
+    public function getParameters(): array
+    {
+        return $this->parameters ?? [];
+    }
+
+    /**
+     * Merge user-supplied parameter values into the data array.
+     * Missing optional parameters use their declared default.
+     * Required parameters that are missing or empty are skipped
+     * (the caller may decide how to respond).
+     *
+     * @param  array  $userParams  Key-value pairs supplied by the caller.
+     * @param  array  $data        The current data payload.
+     * @return array                Updated data with resolved parameter values.
+     */
+    public function resolveParameters(array $userParams, array $data): array
+    {
+        $params = $this->getParameters();
+
+        foreach ($params as $param) {
+            $key = $param['name'] ?? null;
+            if ($key === null) {
+                continue;
+            }
+
+            // Use supplied value, fall back to default
+            $value = array_key_exists($key, $userParams)
+                ? $userParams[$key]
+                : ($param['default'] ?? null);
+
+            // Cast booleans properly
+            if (($param['type'] ?? 'text') === 'boolean') {
+                $value = filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? false;
+            }
+
+            // Store in data so the engine can use {param_name} references
+            $data[$key] = $value;
+        }
+
+        return $data;
+    }
+
+    // ── Helpers ────────────────────────────────────────────────
+
     protected function getFlatElements(): array
     {
         $elements = $this->elements ?? [];
@@ -215,6 +295,74 @@ class PrintTemplate extends Model
         }
 
         return $result;
+    }
+
+    /**
+     * Get ALL schemas attached to this template, including both the legacy
+     * single schema (data_schema_id) and any additional pivot schemas.
+     * Returns a collection keyed by a unique context key.
+     */
+    public function getAllSchemas(): \Illuminate\Support\Collection
+    {
+        $schemas = collect();
+
+        // Legacy single schema
+        if ($this->dataSchema) {
+            $schemas->push([
+                'schema'          => $this->dataSchema,
+                'alias'           => null,
+                'is_primary'      => true,
+                'source'          => 'legacy',
+                'client_app_name' => $this->dataSchema->clientApp?->name,
+            ]);
+        }
+
+        // Additional pivot schemas (skip if same id as primary to avoid dupes)
+        $primaryId = $this->data_schema_id;
+        foreach ($this->schemas as $schema) {
+            if ($schema->id === $primaryId) continue;
+            $schemas->push([
+                'schema'          => $schema,
+                'alias'           => $schema->pivot->alias,
+                'is_primary'      => false,
+                'source'          => 'pivot',
+                'client_app_name' => $schema->clientApp?->name,
+            ]);
+        }
+
+        return $schemas;
+    }
+
+    /**
+     * Get ALL unique field keys across all attached schemas.
+     * When multiple schemas are present, keys are prefixed with
+     * the alias (or client_app_name) to avoid collisions, e.g.
+     * "crm.customer.name" or "accounting.invoice.total".
+     */
+    public function getAllFieldKeys(): array
+    {
+        $allSchemas = $this->getAllSchemas();
+        $result     = [];
+
+        foreach ($allSchemas as $entry) {
+            $schema  = $entry['schema'];
+            $prefix  = $entry['alias'] ?? $entry['client_app_name'] ?? null;
+            $fields  = $schema->getFieldKeys();
+
+            $singleSchema = $allSchemas->count() === 1;
+
+            foreach ($fields as $key) {
+                if ($singleSchema || !$prefix) {
+                    $result[] = $key;
+                } else {
+                    // Prefix with lowercase alias to avoid collisions
+                    $prefixKey = strtolower($prefix) . '.' . $key;
+                    $result[]  = $prefixKey;
+                }
+            }
+        }
+
+        return array_unique($result);
     }
 
     /**

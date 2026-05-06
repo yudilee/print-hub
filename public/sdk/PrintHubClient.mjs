@@ -92,6 +92,51 @@ export class PrintHubClient {
   }
 
   // -----------------------------------------------------------------------
+  // Connector Registry
+  // -----------------------------------------------------------------------
+
+  /**
+   * Register a new data-source connector.
+   * @param {string} name  - Human-readable name (e.g. "SDP Finance ERP")
+   * @param {string} type  - One of: api, webhook, odoo, custom
+   * @param {Object} config - Configuration: endpoint URL, auth type, headers, etc.
+   * @param {string|null} [icon] - Optional emoji or icon URL
+   */
+  async registerConnector(name, type, config, icon = null) {
+    return this._post('/api/v1/connectors', { name, type, config, icon });
+  }
+
+  /** List all connectors registered for this client app. */
+  async listConnectors() {
+    return this._get('/api/v1/connectors');
+  }
+
+  /**
+   * Update an existing connector.
+   * @param {string} id    - Connector UUID
+   * @param {Object} data  - Fields to update (name, type, config, icon, is_active)
+   */
+  async updateConnector(id, data) {
+    return this._put(`/api/v1/connectors/${encodeURIComponent(id)}`, data);
+  }
+
+  /**
+   * Test a connector by sending a HEAD request to its configured URL.
+   * @param {string} id  - Connector UUID
+   */
+  async testConnector(id) {
+    return this._post(`/api/v1/connectors/${encodeURIComponent(id)}/test`, {});
+  }
+
+  /**
+   * Delete a connector.
+   * @param {string} id  - Connector UUID
+   */
+  async deleteConnector(id) {
+    return this._delete(`/api/v1/connectors/${encodeURIComponent(id)}`);
+  }
+
+  // -----------------------------------------------------------------------
   // Connection & Health
   // -----------------------------------------------------------------------
 
@@ -183,12 +228,14 @@ export class PrintHubClient {
    * @param {string} [opts.referenceId] - Your reference ID
    * @param {string} [opts.branchCode]  - Target branch
    * @param {Object} [opts.options]     - Print options
+   * @param {Object} [opts.parameters] - Runtime parameter values keyed by name
    */
-  async printWithTemplate({ template, data, referenceId = '', branchCode, options } = {}) {
+  async printWithTemplate({ template, data, referenceId = '', branchCode, options, parameters } = {}) {
     const body = { template, data };
     if (referenceId) body.reference_id = referenceId;
     if (branchCode || this._defaultBranchCode) body.branch_code = branchCode || this._defaultBranchCode;
     if (options) body.options = options;
+    if (parameters) body.parameters = parameters;
     return this._post('/api/v1/print', body);
   }
 
@@ -231,12 +278,14 @@ export class PrintHubClient {
    * @param {Object} [options]
    * @returns {Promise<Buffer>} Raw PDF binary
    */
-  async preview(template, data, options = {}) {
+  async preview(template, data, options = {}, parameters = {}) {
     const url = `${this._baseUrl}/api/v1/preview`;
+    const body = { template, data, options };
+    if (parameters && Object.keys(parameters).length) body.parameters = parameters;
     const resp = await fetch(url, {
       method: 'POST',
       headers: this._headers(),
-      body: JSON.stringify({ template, data, options }),
+      body: JSON.stringify(body),
       signal: this._signal(),
     });
     if (!resp.ok) {
@@ -373,6 +422,10 @@ export class PrintHubClient {
     return this._request('POST', path, {}, body);
   }
 
+  async _put(path, body) {
+    return this._request('PUT', path, {}, body);
+  }
+
   async _delete(path) {
     return this._request('DELETE', path);
   }
@@ -385,5 +438,68 @@ export class PrintHubClient {
       throw new PrintHubValidationError(message, errors);
     }
     throw new PrintHubError(message);
+  }
+}
+
+  // ---------------------------------------------------------------------------
+  // Preview Request Handlers (static)
+  // ---------------------------------------------------------------------------
+
+  /** @type {Map<string, Function>} */
+  static previewHandlers = new Map();
+
+  /**
+   * Register a handler for a named live-preview schema.
+   *
+   * When Print Hub sends a preview request for this schema (via the
+   * /print-hub-preview webhook endpoint), the registered async function
+   * will be called with the incoming payload and must return an object
+   * with a `data` property containing the live preview data.
+   *
+   * @param {string}   schemaName  Logical name (e.g. connector name)
+   * @param {Function} handler     Async function that receives (payload) and returns { data }
+   */
+  static handlePreviewRequest(schemaName, handler) {
+    if (typeof handler !== 'function') {
+      throw new PrintHubError('handlePreviewRequest: handler must be a function');
+    }
+    PrintHubClient.previewHandlers.set(schemaName, handler);
+  }
+
+  /**
+   * Handle an incoming preview request from Print Hub.
+   *
+   * Call this from your Express.js route handler for POST /print-hub-preview.
+   *
+   * Usage:
+   *   app.post('/print-hub-preview', async (req, res) => {
+   *     await PrintHubClient.handleIncomingPreviewRequest(req, res);
+   *   });
+   *
+   * @param {import('express').Request}  req
+   * @param {import('express').Response} res
+   */
+  static async handleIncomingPreviewRequest(req, res) {
+    const payload = req.body || {};
+    const schemaName = payload?.connector?.name || 'default';
+    const handler = PrintHubClient.previewHandlers.get(schemaName);
+
+    if (!handler) {
+      return res.status(500).json({
+        error: `No preview handler registered for schema "${schemaName}". Call PrintHubClient.handlePreviewRequest() first.`,
+      });
+    }
+
+    try {
+      const result = await handler(payload);
+      return res.json({
+        data:        result.data || [],
+        received_at: new Date().toISOString(),
+      });
+    } catch (err) {
+      return res.status(500).json({
+        error: `Preview handler error: ${err.message}`,
+      });
+    }
   }
 }

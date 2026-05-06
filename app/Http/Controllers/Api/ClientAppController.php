@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Responses\ApiResponse;
 use App\Models\Branch;
 use App\Models\ClientApp;
+use App\Models\Connector;
 use App\Models\DataSchema;
 use App\Models\PrintAgent;
 use App\Models\PrintJob;
@@ -14,6 +15,7 @@ use App\Models\PrintTemplate;
 use App\Services\AgentSelectionService;
 use App\Services\ContinuousFormEngine;
 use App\Services\PrintJobOrchestrator;
+use App\Services\WebhookService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -192,7 +194,7 @@ class ClientAppController extends Controller
     public function listTemplates(Request $request)
     {
         $perPage   = min((int) $request->query('per_page', 25), 100);
-        $paginator = PrintTemplate::orderBy('name')->paginate($perPage);
+        $paginator = PrintTemplate::with(['dataSchema', 'schemas.clientApp'])->orderBy('name')->paginate($perPage);
 
         $paginator->through(function ($t) {
             $elements = $t->elements ?? [];
@@ -213,6 +215,30 @@ class ClientAppController extends Controller
                 'errorCorrection' => $el['errorCorrection'] ?? 'M',
             ])->values();
 
+            // Build schemas array from both legacy and pivot sources
+            $schemas = collect();
+            if ($t->dataSchema) {
+                $schemas->push([
+                    'id'              => $t->dataSchema->id,
+                    'name'            => $t->dataSchema->schema_name,
+                    'version'         => $t->dataSchema->version,
+                    'alias'           => null,
+                    'is_primary'      => true,
+                    'client_app_name' => $t->dataSchema->clientApp?->name,
+                ]);
+            }
+            foreach ($t->schemas as $schema) {
+                if ($schema->id === $t->data_schema_id) continue;
+                $schemas->push([
+                    'id'              => $schema->id,
+                    'name'            => $schema->schema_name,
+                    'version'         => $schema->version,
+                    'alias'           => $schema->pivot->alias,
+                    'is_primary'      => false,
+                    'client_app_name' => $schema->clientApp?->name,
+                ]);
+            }
+
             return [
                 'name'            => $t->name,
                 'paper_width_mm'  => $t->paper_width_mm,
@@ -225,6 +251,7 @@ class ClientAppController extends Controller
                     'name'    => $t->dataSchema->schema_name,
                     'version' => $t->dataSchema->version,
                 ] : null,
+                'schemas'         => $schemas->values()->all(),
             ];
         });
 
@@ -247,7 +274,9 @@ class ClientAppController extends Controller
 
     public function getTemplate(Request $request, string $name)
     {
-        $template = PrintTemplate::where('name', $name)->first();
+        $template = PrintTemplate::where('name', $name)
+            ->with(['dataSchema', 'schemas.clientApp'])
+            ->first();
         if (! $template) {
             return ApiResponse::notFound('TEMPLATE_NOT_FOUND', "Template '{$name}' not found.");
         }
@@ -293,6 +322,30 @@ class ClientAppController extends Controller
             'size'            => $el['size'] ?? 25,
         ])->values();
 
+        // Build schemas array from both legacy and pivot sources
+        $schemas = collect();
+        if ($template->dataSchema) {
+            $schemas->push([
+                'id'              => $template->dataSchema->id,
+                'name'            => $template->dataSchema->schema_name,
+                'version'         => $template->dataSchema->version,
+                'alias'           => null,
+                'is_primary'      => true,
+                'client_app_name' => $template->dataSchema->clientApp?->name,
+            ]);
+        }
+        foreach ($template->schemas as $schema) {
+            if ($schema->id === $template->data_schema_id) continue;
+            $schemas->push([
+                'id'              => $schema->id,
+                'name'            => $schema->schema_name,
+                'version'         => $schema->version,
+                'alias'           => $schema->pivot->alias,
+                'is_primary'      => false,
+                'client_app_name' => $schema->clientApp?->name,
+            ]);
+        }
+
         return ApiResponse::success([
             'name'            => $template->name,
             'paper_width_mm'  => $template->paper_width_mm,
@@ -305,6 +358,7 @@ class ClientAppController extends Controller
                 'name'    => $template->dataSchema->schema_name,
                 'version' => $template->dataSchema->version,
             ] : null,
+            'schemas'         => $schemas->values()->all(),
         ]);
     }
 
@@ -449,6 +503,90 @@ class ClientAppController extends Controller
     }
 
     // -------------------------------------------------------------------------
+    // GET /api/v1/schemas/{name}/diff
+    // -------------------------------------------------------------------------
+
+    public function schemaVersionDiff(Request $request, string $name)
+    {
+        $app = $this->app($request);
+
+        $schema = DataSchema::where('schema_name', $name)
+            ->where('client_app_id', $app->id)
+            ->latest('version')
+            ->first();
+
+        if (!$schema) {
+            return response()->json(['success' => false, 'error' => 'Schema not found'], 404);
+        }
+
+        $fromVersion = $request->input('from_version', $schema->version - 1);
+        $toVersion = $request->input('to_version', $schema->version);
+
+        $fromSchema = DataSchema::where('schema_name', $name)
+            ->where('client_app_id', $app->id)
+            ->where('version', $fromVersion)
+            ->first();
+
+        $toSchema = DataSchema::where('schema_name', $name)
+            ->where('client_app_id', $app->id)
+            ->where('version', $toVersion)
+            ->first();
+
+        if (!$fromSchema || !$toSchema) {
+            return response()->json(['success' => false, 'error' => 'Requested schema versions not found'], 404);
+        }
+
+        $oldKeys = $fromSchema->getFieldKeys();
+        $newKeys = $toSchema->getFieldKeys();
+
+        $added = array_diff($newKeys, $oldKeys);
+        $removed = array_diff($oldKeys, $newKeys);
+        $common = array_intersect($oldKeys, $newKeys);
+
+        // Detect type changes
+        $changed = [];
+        $oldStructure = $fromSchema->getTableStructure();
+        $newStructure = $toSchema->getTableStructure();
+
+        foreach ($common as $key) {
+            // Parse key to find its type in both versions
+            $parts = explode('.', $key);
+            if (count($parts) === 2) {
+                $table = $parts[0];
+                $col = $parts[1];
+                $oldType = $oldStructure[$table][$col]['type'] ?? null;
+                $newType = $newStructure[$table][$col]['type'] ?? null;
+                if ($oldType && $newType && $oldType !== $newType) {
+                    $changed[] = [
+                        'field' => $key,
+                        'old_type' => $oldType,
+                        'new_type' => $newType,
+                    ];
+                }
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'schema_name' => $name,
+            'from_version' => (int) $fromVersion,
+            'to_version' => (int) $toVersion,
+            'diff' => [
+                'added' => array_values($added),
+                'removed' => array_values($removed),
+                'changed' => $changed,
+            ],
+            'summary' => [
+                'added_count' => count($added),
+                'removed_count' => count($removed),
+                'changed_count' => count($changed),
+                'total_before' => count($oldKeys),
+                'total_after' => count($newKeys),
+            ],
+        ]);
+    }
+
+    // -------------------------------------------------------------------------
     // POST /api/v1/print  (unified endpoint)
     // -------------------------------------------------------------------------
 
@@ -458,6 +596,7 @@ class ClientAppController extends Controller
         $data = $request->validate([
             'template'         => 'nullable|string',
             'data'             => 'nullable|array',
+            'parameters'       => 'nullable|array',
             'document_base64'  => 'nullable|string',
             'type'             => 'nullable|string',
             'agent_id'         => 'nullable|integer|exists:print_agents,id',
@@ -537,6 +676,18 @@ class ClientAppController extends Controller
             $printer = PrintJobOrchestrator::resolvePrinter($data['printer'] ?? null, $profile);
         }
 
+        // 4b. Resolve runtime parameters if a template is specified
+        $printData = $data['data'] ?? [];
+        if (! empty($data['template'])) {
+            $templateModel = PrintTemplate::where('name', $data['template'])->first();
+            if ($templateModel && $templateModel->exists) {
+                $printData = $templateModel->resolveParameters(
+                    $data['parameters'] ?? [],
+                    $printData
+                );
+            }
+        }
+
         // 5. Generate document
         $orchestrator        = new PrintJobOrchestrator();
         $validationWarnings  = [];
@@ -545,7 +696,7 @@ class ClientAppController extends Controller
             try {
                 $result = $orchestrator->generateFromTemplate(
                     $data['template'],
-                    $data['data'] ?? [],
+                    $printData,
                     $options,
                     $data['skip_validation'] ?? false
                 );
@@ -691,9 +842,10 @@ class ClientAppController extends Controller
     public function previewPrint(Request $request)
     {
         $data = $request->validate([
-            'template' => 'required|string',
-            'data'     => 'nullable|array',
-            'options'  => 'nullable|array',
+            'template'   => 'required|string',
+            'data'       => 'nullable|array',
+            'parameters' => 'nullable|array',
+            'options'    => 'nullable|array',
         ]);
 
         $template = PrintTemplate::where('name', $data['template'])->first();
@@ -701,8 +853,13 @@ class ClientAppController extends Controller
             return ApiResponse::notFound('TEMPLATE_NOT_FOUND', 'Template not found.');
         }
 
+        $printData = $template->resolveParameters(
+            $data['parameters'] ?? [],
+            $data['data'] ?? []
+        );
+
         $engine    = new ContinuousFormEngine();
-        $pdfBinary = $engine->generate($template, $data['data'] ?? [], $data['options'] ?? []);
+        $pdfBinary = $engine->generate($template, $printData, $data['options'] ?? []);
 
         return response($pdfBinary, 200, [
             'Content-Type'        => 'application/pdf',
@@ -809,6 +966,223 @@ class ClientAppController extends Controller
     }
 
     // -------------------------------------------------------------------------
+    // Connector Registry  (Phase 2.1)
+    // -------------------------------------------------------------------------
+
+    /**
+     * GET /api/v1/connectors — list connectors for the authenticated client app.
+     */
+    public function listConnectors(Request $request)
+    {
+        $app = $this->app($request);
+
+        $connectors = Connector::where('client_app_id', $app->id)
+            ->orderBy('name')
+            ->get()
+            ->map(fn(Connector $c) => [
+                'id'           => $c->id,
+                'name'         => $c->name,
+                'type'         => $c->type,
+                'config'       => $c->config,
+                'icon'         => $c->icon,
+                'is_active'    => $c->is_active,
+                'last_test_at' => $c->last_test_at?->toIso8601String(),
+                'created_at'   => $c->created_at?->toIso8601String(),
+                'updated_at'   => $c->updated_at?->toIso8601String(),
+            ]);
+
+        return ApiResponse::success(['connectors' => $connectors]);
+    }
+
+    /**
+     * POST /api/v1/connectors — register a new connector.
+     */
+    public function registerConnector(Request $request)
+    {
+        $app = $this->app($request);
+
+        $data = $request->validate([
+            'name'   => 'required|string|max:255',
+            'type'   => 'required|string|in:api,webhook,odoo,custom',
+            'config' => 'required|array',
+            'icon'   => 'nullable|string|max:255',
+        ]);
+
+        $connector = Connector::create([
+            'client_app_id' => $app->id,
+            'name'          => $data['name'],
+            'type'          => $data['type'],
+            'config'        => $data['config'],
+            'icon'          => $data['icon'] ?? null,
+        ]);
+
+        return ApiResponse::success([
+            'connector' => [
+                'id'           => $connector->id,
+                'name'         => $connector->name,
+                'type'         => $connector->type,
+                'config'       => $connector->config,
+                'icon'         => $connector->icon,
+                'is_active'    => $connector->is_active,
+                'last_test_at' => $connector->last_test_at?->toIso8601String(),
+                'created_at'   => $connector->created_at?->toIso8601String(),
+                'updated_at'   => $connector->updated_at?->toIso8601String(),
+            ],
+        ], 201);
+    }
+
+    /**
+     * PUT /api/v1/connectors/{id} — update a connector.
+     */
+    public function updateConnector(Request $request, string $id)
+    {
+        $app = $this->app($request);
+
+        $connector = Connector::where('id', $id)->where('client_app_id', $app->id)->first();
+        if (! $connector) {
+            return ApiResponse::notFound('CONNECTOR_NOT_FOUND', 'Connector not found.');
+        }
+
+        $data = $request->validate([
+            'name'   => 'sometimes|required|string|max:255',
+            'type'   => 'sometimes|required|string|in:api,webhook,odoo,custom',
+            'config' => 'sometimes|required|array',
+            'icon'   => 'nullable|string|max:255',
+            'is_active' => 'sometimes|boolean',
+        ]);
+
+        $connector->update($data);
+
+        return ApiResponse::success([
+            'connector' => [
+                'id'           => $connector->id,
+                'name'         => $connector->name,
+                'type'         => $connector->type,
+                'config'       => $connector->config,
+                'icon'         => $connector->icon,
+                'is_active'    => $connector->is_active,
+                'last_test_at' => $connector->last_test_at?->toIso8601String(),
+                'created_at'   => $connector->created_at?->toIso8601String(),
+                'updated_at'   => $connector->updated_at?->toIso8601String(),
+            ],
+        ]);
+    }
+
+    /**
+     * DELETE /api/v1/connectors/{id} — delete a connector.
+     */
+    public function deleteConnector(Request $request, string $id)
+    {
+        $app = $this->app($request);
+
+        $connector = Connector::where('id', $id)->where('client_app_id', $app->id)->first();
+        if (! $connector) {
+            return ApiResponse::notFound('CONNECTOR_NOT_FOUND', 'Connector not found.');
+        }
+
+        $connector->delete();
+
+        return ApiResponse::success([
+            'message' => 'Connector deleted successfully.',
+        ]);
+    }
+
+    /**
+     * POST /api/v1/connectors/{id}/test — test a connector connection.
+     */
+    public function testConnector(Request $request, string $id)
+    {
+        $app = $this->app($request);
+
+        $connector = Connector::where('id', $id)->where('client_app_id', $app->id)->first();
+        if (! $connector) {
+            return ApiResponse::notFound('CONNECTOR_NOT_FOUND', 'Connector not found.');
+        }
+
+        $result = $connector->testConnection();
+
+        return ApiResponse::success([
+            'connector_id' => $connector->id,
+            'success'      => $result['success'],
+            'message'      => $result['message'],
+            'latency_ms'   => $result['latency_ms'],
+            'last_test_at' => $connector->fresh()->last_test_at?->toIso8601String(),
+        ]);
+    }
+
+    /**
+     * POST /api/v1/connectors/{id}/fetch-preview — fetch live preview data
+     * from a client app through its configured connector.
+     */
+    public function fetchPreview(Request $request, string $id)
+    {
+        $app = $this->app($request);
+        $connector = Connector::where('client_app_id', $app->id)->findOrFail($id);
+
+        // Only webhook and api connectors support live preview fetching.
+        if (! in_array($connector->type, ['webhook', 'api'], true)) {
+            return ApiResponse::error('UNSUPPORTED_CONNECTOR_TYPE', 'Preview fetching is only supported for webhook and api connectors.', 422);
+        }
+
+        $payload = [
+            'event'     => 'print_hub.preview_request',
+            'connector' => [
+                'id'   => $connector->id,
+                'name' => $connector->name,
+                'type' => $connector->type,
+            ],
+            'client_app' => [
+                'id'   => $app->id,
+                'name' => $app->name,
+            ],
+            'timestamp' => now()->toIso8601String(),
+        ];
+
+        try {
+            if ($connector->type === 'webhook') {
+                // Webhook: send POST to the client app via WebhookService.
+                $webhookService = app(WebhookService::class);
+                $result = $webhookService->sendToConnector($connector, $payload);
+                $data = $result['data'] ?? [];
+                $receivedAt = $result['received_at'] ?? null;
+            } else {
+                // API connector: make a direct HTTP GET to the connector's base URL + /preview.
+                $url = rtrim($connector->config['base_url'] ?? '', '/') . '/preview';
+                $response = Http::timeout(15)
+                    ->withHeaders([
+                        'Authorization' => 'Bearer ' . ($connector->config['api_key'] ?? ''),
+                        'Content-Type'  => 'application/json',
+                        'Accept'        => 'application/json',
+                    ])
+                    ->get($url);
+
+                if ($response->failed()) {
+                    return ApiResponse::error(
+                        'FETCH_FAILED',
+                        'Failed to fetch preview data: HTTP ' . $response->status(),
+                        $response->status()
+                    );
+                }
+
+                $data = $response->json('data', []);
+                $receivedAt = now()->toIso8601String();
+            }
+        } catch (\Exception $e) {
+            return ApiResponse::error(
+                'FETCH_ERROR',
+                'Error fetching preview data: ' . $e->getMessage(),
+                500
+            );
+        }
+
+        return ApiResponse::success([
+            'connector_id' => $connector->id,
+            'data'         => $data,
+            'received_at'  => $receivedAt,
+        ]);
+    }
+
+    // -------------------------------------------------------------------------
     // Private helpers
     // -------------------------------------------------------------------------
 
@@ -835,5 +1209,81 @@ class ClientAppController extends Controller
         }
 
         return [null, null, null];
+    }
+
+    // -------------------------------------------------------------------------
+    // POST /api/v1/templates/{name}/validate
+    // -------------------------------------------------------------------------
+
+    public function validateTemplateData(Request $request, string $name)
+    {
+        $app = $this->app($request);
+
+        $template = PrintTemplate::where('name', $name)
+            ->where('client_app_id', $app->id)
+            ->first();
+
+        if (!$template) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Template not found',
+            ], 404);
+        }
+
+        $data = $request->input('data', []);
+        $errors = [];
+        $warnings = [];
+
+        // Check required schema fields
+        $schema = $template->dataSchema;
+        if ($schema) {
+            $fieldKeys = $schema->getFieldKeys();
+            $providedKeys = array_keys($data);
+
+            // Find missing required fields
+            foreach ($fieldKeys as $key) {
+                if (!in_array($key, $providedKeys) && !str_contains($key, '.')) {
+                    $warnings[] = "Missing recommended field: {$key}";
+                }
+            }
+
+            // Validate field types if schema has type info
+            $structure = $schema->getTableStructure();
+            foreach ($structure as $table => $columns) {
+                foreach ($columns as $column) {
+                    $fieldKey = $table . '.' . $column['name'];
+                    if (isset($data[$fieldKey])) {
+                        $typeCheck = DataSchema::applyFormat($data[$fieldKey], $column['type'] ?? 'string', null);
+                        if ($typeCheck === null && $data[$fieldKey] !== null) {
+                            $errors[] = "Field '{$fieldKey}' has invalid type (expected {$column['type']})";
+                        }
+                    }
+                }
+            }
+        }
+
+        // Check for unknown fields
+        $elements = $template->elements ?? [];
+        $usedKeys = [];
+        array_walk_recursive($elements, function($v, $k) use (&$usedKeys) {
+            if ($k === 'key' || $k === 'field_key') $usedKeys[] = $v;
+        });
+
+        foreach ($data as $key => $value) {
+            if (!in_array($key, $usedKeys) && !str_starts_with($key, '_')) {
+                $warnings[] = "Field '{$key}' is provided but not used in the template";
+            }
+        }
+
+        return response()->json([
+            'success' => empty($errors),
+            'valid' => empty($errors),
+            'errors' => $errors,
+            'warnings' => $warnings,
+            'field_count' => count($data),
+            'template_fields' => $usedKeys,
+            'matched_fields' => array_intersect($usedKeys, array_keys($data)),
+            'missing_fields' => array_diff($usedKeys, array_keys($data)),
+        ]);
     }
 }

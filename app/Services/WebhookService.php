@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\ClientApp;
+use App\Models\Connector;
 use App\Models\WebhookDelivery;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -187,5 +188,42 @@ class WebhookService
         }
 
         return $count;
+    }
+
+    /**
+     * Send a payload to a connector's webhook endpoint and return the response data.
+     *
+     * Used by fetchPreview() to request live preview data from client apps.
+     *
+     * @param Connector $connector
+     * @param array     $payload
+     * @param int       $timeout  Request timeout in seconds
+     * @return array  { data, received_at }
+     *
+     * @throws \Exception
+     */
+    public function sendToConnector(Connector $connector, array $payload, int $timeout = 15): array
+    {
+        $url = rtrim($connector->config['webhook_url'] ?? '', '/') . '/print-hub-preview';
+
+        $response = Http::timeout($timeout)
+            ->withHeaders([
+                'Content-Type'  => 'application/json',
+                'Accept'        => 'application/json',
+            ])
+            ->post($url, $payload);
+
+        if ($response->failed()) {
+            throw new \Exception(
+                'Webhook connector returned HTTP ' . $response->status() . ': ' . $response->body()
+            );
+        }
+
+        $body = $response->json();
+
+        return [
+            'data'        => $body['data'] ?? [],
+            'received_at' => $body['received_at'] ?? now()->toIso8601String(),
+        ];
     }
 }

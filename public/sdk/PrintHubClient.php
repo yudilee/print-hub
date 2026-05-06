@@ -294,6 +294,7 @@ class PrintHubClient
      * @param string      $queue        Queue/profile name override (optional)
      * @param string|null $branchCode   Branch code override (or uses default)
      * @param array       $options      Additional options (skip_validation, copies, etc.)
+     * @param array       $parameters   Runtime parameter values keyed by parameter name
      *
      * @return array  { status, job_id, agent, printer, template, queue }
      * @throws PrintHubValidationException  if schema validation fails
@@ -304,7 +305,8 @@ class PrintHubClient
         string $referenceId = '',
         string $queue = '',
         ?string $branchCode = null,
-        array  $options = []
+        array  $options = [],
+        array  $parameters = []
     ): array {
         $validation = $this->validateData($template, $data);
         if (!empty($validation) && empty($options['skip_validation'])) {
@@ -320,6 +322,10 @@ class PrintHubClient
             'queue'        => $queue ?: null,
             'branch_code'  => $bc,
         ], $options);
+
+        if (!empty($parameters)) {
+            $payload['parameters'] = $parameters;
+        }
 
         return $this->post('api/v1/print', $payload);
     }
@@ -425,18 +431,23 @@ class PrintHubClient
     /**
      * Generate a PDF preview without queuing a print job.
      *
-     * @param string $template  Template name
-     * @param array  $data      Template data
-     * @param array  $options   Options (paper_size, orientation, etc.)
+     * @param string $template   Template name
+     * @param array  $data       Template data
+     * @param array  $options    Options (paper_size, orientation, etc.)
+     * @param array  $parameters Runtime parameter values keyed by parameter name
      * @return string  Raw PDF binary content
      */
-    public function preview(string $template, array $data, array $options = []): string
+    public function preview(string $template, array $data, array $options = [], array $parameters = []): string
     {
         $payload = [
             'template' => $template,
             'data'     => $data,
             'options'  => $options,
         ];
+
+        if (!empty($parameters)) {
+            $payload['parameters'] = $parameters;
+        }
 
         try {
             $response = $this->http->post('api/v1/preview', ['json' => $payload]);
@@ -495,6 +506,132 @@ class PrintHubClient
     }
 
     // =========================================================================
+    // Connector Registry
+    // =========================================================================
+
+    /**
+     * Register a new data-source connector.
+     *
+     * @param string      $name   Human-readable name (e.g. "SDP Finance ERP")
+     * @param string      $type   One of: api, webhook, odoo, custom
+     * @param array       $config Configuration: endpoint URL, auth type, headers, etc.
+     * @param string|null $icon   Optional emoji or icon URL
+     * @return array
+     */
+    public function registerConnector(string $name, string $type, array $config, ?string $icon = null): array
+    {
+        return $this->post('api/v1/connectors', [
+            'name'   => $name,
+            'type'   => $type,
+            'config' => $config,
+            'icon'   => $icon,
+        ]);
+    }
+
+    /**
+     * List all connectors registered for this client app.
+     *
+     * @return array  ['connectors' => [...]]
+     */
+    public function listConnectors(): array
+    {
+        return $this->get('api/v1/connectors');
+    }
+
+    /**
+     * Update an existing connector.
+     *
+     * @param string $id     Connector UUID
+     * @param array  $data   Fields to update (name, type, config, icon, is_active)
+     * @return array
+     */
+    public function updateConnector(string $id, array $data): array
+    {
+        return $this->put("api/v1/connectors/{$id}", $data);
+    }
+
+    /**
+     * Test a connector by sending a HEAD request to its configured URL.
+     *
+     * @param string $id  Connector UUID
+     * @return array  { connector_id, success, message, latency_ms, last_test_at }
+     */
+    public function testConnector(string $id): array
+    {
+        return $this->post("api/v1/connectors/{$id}/test", []);
+    }
+
+    /**
+     * Delete a connector.
+     *
+     * @param string $id  Connector UUID
+     * @return array  { message }
+     */
+    public function deleteConnector(string $id): array
+    {
+        return $this->delete("api/v1/connectors/{$id}");
+    }
+
+    // =========================================================================
+    // Preview Request Handlers (static — for client app integration)
+    // =========================================================================
+
+    /**
+     * Register a callable that will be invoked when Print Hub requests
+     * live preview data via the webhook endpoint (/print-hub-preview).
+     *
+     * Usage in your client app's /print-hub-preview route handler:
+     *
+     *   PrintHubClient::handlePreviewRequest(function (array $payload): array {
+     *       // Extract schema name or other context from the payload
+     *       $schemaName = $payload['connector']['name'] ?? 'default';
+     *       $data = fetchYourLiveData($schemaName); // your business logic
+     *       return ['data' => $data];
+     *   });
+     *
+     * @param callable $handler  fn(array $payload): array
+     */
+    public static function handlePreviewRequest(callable $handler): void
+    {
+        $GLOBALS['_print_hub_preview_handler'] = $handler;
+    }
+
+    /**
+     * Handle an incoming preview request from Print Hub.
+     * Call this from your /print-hub-preview endpoint.
+     *
+     * Reads the JSON payload from php://input, invokes the registered handler,
+     * and sends a JSON response back.
+     */
+    public static function handleIncomingPreviewRequest(): void
+    {
+        $payload = json_decode(file_get_contents('php://input'), true) ?? [];
+        $handler = $GLOBALS['_print_hub_preview_handler'] ?? null;
+
+        if (! $handler) {
+            http_response_code(500);
+            echo json_encode([
+                'error' => 'No preview handler registered. Call PrintHubClient::handlePreviewRequest() first.',
+            ]);
+            exit;
+        }
+
+        try {
+            $result = call_user_func($handler, $payload);
+            echo json_encode([
+                'data'        => $result['data'] ?? [],
+                'received_at' => date('c'),
+            ]);
+        } catch (\Throwable $e) {
+            http_response_code(500);
+            echo json_encode([
+                'error' => 'Preview handler error: ' . $e->getMessage(),
+            ]);
+        }
+        exit;
+    }
+
+    // =========================================================================
     // Connection Test
     // =========================================================================
 
@@ -520,6 +657,16 @@ class PrintHubClient
     private function post(string $path, array $body): array
     {
         return $this->request('POST', $path, ['json' => $body]);
+    }
+
+    private function put(string $path, array $body): array
+    {
+        return $this->request('PUT', $path, ['json' => $body]);
+    }
+
+    private function delete(string $path): array
+    {
+        return $this->request('DELETE', $path);
     }
 
     private function request(string $method, string $path, array $options = []): array

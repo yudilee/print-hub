@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\PrintTemplate;
 use App\Models\PrintJob;
+use App\Models\TestScenario;
 use App\Models\TemplateVersion;
 use App\Services\ContinuousFormEngine;
 use Illuminate\Http\Request;
@@ -36,6 +37,8 @@ class TemplateController extends Controller
             'styles'                => 'nullable|array',
             'background_config'     => 'nullable|array',
             'background_image_path' => 'nullable|string',
+            'parameters'            => 'nullable|array',
+            'data_options'          => 'nullable|array',
         ]);
 
         if (!empty($data['data_schema_id']) && empty($data['data_schema_version'])) {
@@ -51,7 +54,7 @@ class TemplateController extends Controller
     public function edit(PrintTemplate $template)
     {
         $schemas = \App\Models\DataSchema::where('is_latest', true)->orderBy('schema_name')->get();
-        $template->load('dataSchema');
+        $template->load(['dataSchema', 'schemas.clientApp']);
         return view('admin.templates.designer', compact('template', 'schemas'));
     }
 
@@ -67,6 +70,8 @@ class TemplateController extends Controller
             'styles'                => 'nullable|array',
             'background_config'     => 'nullable|array',
             'background_image_path' => 'nullable|string',
+            'parameters'            => 'nullable|array',
+            'data_options'          => 'nullable|array',
         ]);
 
         if (!empty($data['data_schema_id']) && empty($data['data_schema_version'])) {
@@ -135,9 +140,42 @@ class TemplateController extends Controller
             'sample_data'           => 'nullable|array',
         ]);
 
-        $templateModel = new PrintTemplate($data);
+        // ── Scenario Data Resolution ──────────────────────────
+        // Check if a scenario_id was provided and use that scenario's data
+        $sampleData = $data['sample_data'] ?? [];
+        $scenarioId = $request->input('scenario_id');
+        if ($scenarioId && $template && $template->exists) {
+            $scenario = $template->scenarios()->find($scenarioId);
+            if ($scenario) {
+                $sampleData = $scenario->data;
+            }
+        }
+
+        // ── Runtime Parameter Dialog ─────────────────────────
+        // If the template has parameters and they haven't been submitted yet,
+        // return a parameter input dialog instead of generating the PDF.
+        if ($template && $template->exists && count($template->getParameters()) > 0) {
+            $paramsSubmitted = $request->boolean('params_submitted', false);
+            if (!$paramsSubmitted) {
+                // Return the parameter form as a rendered HTML view snippet
+                $parameters = $template->getParameters();
+                $html = view('admin.templates._parameter_dialog', compact('parameters'))->render();
+                return response()->json([
+                    'status'     => 'params_required',
+                    'html'       => $html,
+                    'parameters' => $parameters,
+                ]);
+            }
+
+            // Merge user-supplied parameter values into sample_data
+            $userParams = $request->input('params', []);
+            $resolvedData = $template->resolveParameters($userParams, $sampleData);
+            $sampleData = $resolvedData;
+        }
+
+        $templateModel = $template && $template->exists ? $template : new PrintTemplate($data);
         $engine = new ContinuousFormEngine();
-        $pdfBinary = $engine->generate($templateModel, $data['sample_data'] ?? []);
+        $pdfBinary = $engine->generate($templateModel, $sampleData);
 
         // Estimate page count using PDF header/metadata
         // Count pages by searching for /Type /Page in PDF content
@@ -264,6 +302,123 @@ class TemplateController extends Controller
         }
 
         return view('admin.templates.diff', compact('template', 'v1', 'v2', 'diff'));
+    }
+
+    /**
+     * Save the attached schemas (many-to-many pivot) for a template.
+     * Expects JSON body: { schemas: [{ id, alias }, ...] }
+     */
+    public function saveSchemas(Request $request, PrintTemplate $template)
+    {
+        $data = $request->validate([
+            'schemas'          => 'nullable|array',
+            'schemas.*.id'     => 'required|exists:data_schemas,id',
+            'schemas.*.alias'  => 'nullable|string|max:100',
+        ]);
+
+        $syncData = [];
+        foreach ($data['schemas'] ?? [] as $entry) {
+            $syncData[$entry['id']] = [
+                'alias' => $entry['alias'] ?? null,
+            ];
+        }
+
+        $template->schemas()->sync($syncData);
+
+        return response()->json(['status' => 'ok']);
+    }
+
+    // ── Test Scenarios ──────────────────────────────────────
+
+    /**
+     * List all test scenarios for a template.
+     */
+    public function listScenarios(PrintTemplate $template)
+    {
+        $scenarios = $template->scenarios()->orderBy('is_default', 'desc')->orderBy('name')->get();
+        return response()->json($scenarios);
+    }
+
+    /**
+     * Create a new test scenario.
+     */
+    public function storeScenario(Request $request, PrintTemplate $template)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'description' => 'nullable|string|max:1000',
+            'data' => 'required|json',
+        ]);
+
+        $scenario = $template->scenarios()->create([
+            'name' => $validated['name'],
+            'description' => $validated['description'] ?? null,
+            'data' => json_decode($validated['data'], true),
+            'is_default' => $template->scenarios()->count() === 0,
+        ]);
+
+        return response()->json($scenario, 201);
+    }
+
+    /**
+     * Update an existing test scenario.
+     */
+    public function updateScenario(Request $request, PrintTemplate $template, TestScenario $scenario)
+    {
+        if ($scenario->print_template_id !== $template->id) {
+            abort(404);
+        }
+
+        $validated = $request->validate([
+            'name' => 'sometimes|string|max:255',
+            'description' => 'nullable|string|max:1000',
+            'data' => 'sometimes|json',
+        ]);
+
+        if (isset($validated['data'])) {
+            $validated['data'] = json_decode($validated['data'], true);
+        }
+
+        $scenario->update($validated);
+        return response()->json($scenario);
+    }
+
+    /**
+     * Delete a test scenario.
+     */
+    public function deleteScenario(PrintTemplate $template, TestScenario $scenario)
+    {
+        if ($scenario->print_template_id !== $template->id) {
+            abort(404);
+        }
+
+        $wasDefault = $scenario->is_default;
+        $scenario->delete();
+
+        // If deleted was default, assign a new default
+        if ($wasDefault) {
+            $newDefault = $template->scenarios()->first();
+            if ($newDefault) {
+                $newDefault->update(['is_default' => true]);
+            }
+        }
+
+        return response()->json(['success' => true]);
+    }
+
+    /**
+     * Set a scenario as the default for its template.
+     */
+    public function setDefaultScenario(Request $request, PrintTemplate $template, TestScenario $scenario)
+    {
+        if ($scenario->print_template_id !== $template->id) {
+            abort(404);
+        }
+
+        $template->scenarios()->update(['is_default' => false]);
+        $scenario->update(['is_default' => true]);
+
+        return response()->json(['success' => true, 'scenario' => $scenario]);
     }
 
     /**
