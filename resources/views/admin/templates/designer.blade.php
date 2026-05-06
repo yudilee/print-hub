@@ -143,6 +143,51 @@
     #minimap { position:absolute; bottom:10px; right:10px; background:var(--surface); border:1px solid var(--border); border-radius:6px; overflow:hidden; cursor:pointer; box-shadow:0 2px 12px rgba(0,0,0,0.3); }
     #minimap-canvas { display:block; }
 
+    /* ── Field Explorer Styles ───────────────────────── */
+    .fe-search { width:100%; padding:6px 8px; background:var(--bg); border:1px solid var(--border); border-radius:6px; color:var(--text); font-size:11px; outline:none; box-sizing:border-box; }
+    .fe-search:focus { border-color:var(--primary); }
+    .fe-group { margin-bottom:6px; }
+    .fe-group-header { display:flex; align-items:center; gap:4px; padding:4px 6px; font-size:10px; font-weight:600; color:var(--text-muted); cursor:pointer; border-radius:4px; user-select:none; }
+    .fe-group-header:hover { background:var(--surface-hover); }
+    .fe-group-header .arrow { transition:transform 0.15s; font-size:8px; }
+    .fe-group-header .arrow.collapsed { transform:rotate(-90deg); }
+    .fe-item { display:flex; align-items:center; gap:4px; padding:3px 6px 3px 18px; border-radius:4px; cursor:pointer; font-size:11px; color:var(--text); transition:background 0.1s; }
+    .fe-item:hover { background:var(--surface-hover); }
+    .fe-item.dragging { opacity:0.5; }
+    .fe-item .fe-type { font-size:8px; padding:0 4px; border-radius:3px; font-weight:600; text-transform:uppercase; opacity:0.7; }
+    .fe-item .fe-status { width:14px; height:14px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:8px; flex-shrink:0; }
+    .fe-status-used { background:rgba(34,197,94,0.2); color:#22c55e; }
+    .fe-status-unused { background:rgba(148,163,184,0.2); color:#94a3b8; }
+    .fe-status-missing { background:rgba(239,68,68,0.2); color:#ef4444; }
+    .fe-drag-ghost { position:fixed; pointer-events:none; z-index:9999; background:var(--primary); color:white; padding:4px 10px; border-radius:6px; font-size:12px; font-weight:600; box-shadow:0 4px 12px rgba(0,0,0,0.3); opacity:0.9; transform:translate(-50%,-50%); }
+    .canvas-drop-highlight { outline:3px dashed var(--primary) !important; outline-offset:-3px !important; transition:outline 0.15s; }
+    
+    /* ── Binding Status on Canvas Elements ────────────── */
+    .design-element .bind-indicator { position:absolute; top:-6px; right:-6px; width:14px; height:14px; border-radius:50%; z-index:10; display:flex; align-items:center; justify-content:center; font-size:7px; font-weight:bold; border:2px solid var(--surface); box-shadow:0 1px 4px rgba(0,0,0,0.3); }
+    .bind-bound { background:#22c55e; color:white; }
+    .bind-unbound { background:#6b7280; color:white; }
+    .bind-resolved { background:#3b82f6; color:white; }
+    .bind-unresolved { background:#f59e0b; color:white; }
+    
+    /* ── Field Preview Tooltip ────────────────────────── */
+    .fe-preview-tip { position:fixed; z-index:9998; background:#1e293b; border:1px solid #475569; border-radius:8px; padding:8px 12px; font-size:11px; color:#f1f5f9; max-width:300px; box-shadow:0 8px 24px rgba(0,0,0,0.4); pointer-events:none; }
+    .fe-preview-tip .tip-label { color:#94a3b8; font-size:9px; margin-bottom:2px; }
+    .fe-preview-tip .tip-value { color:#fbbf24; font-family:monospace; font-size:12px; word-break:break-all; }
+    
+    /* ── Schema Outdated Banner ───────────────────────── */
+    .schema-outdated-banner { background:rgba(251,191,36,0.15); border:1px solid #fbbf24; border-radius:6px; padding:8px 12px; margin:8px; font-size:11px; color:#fbbf24; display:flex; align-items:center; gap:8px; }
+    .schema-outdated-banner .btn-update { background:#fbbf24; color:#0f172a; border:none; padding:3px 10px; border-radius:4px; font-size:10px; font-weight:600; cursor:pointer; }
+    .schema-outdated-banner .btn-update:hover { background:#f59e0b; }
+    .schema-diff-list { max-height:150px; overflow-y:auto; margin-top:6px; font-size:10px; }
+    .schema-diff-added { color:#22c55e; }
+    .schema-diff-removed { color:#ef4444; }
+    
+    /* ── Schema Info Bar ──────────────────────────────── */
+    .schema-info-bar { display:flex; align-items:center; gap:8px; padding:6px 10px; background:rgba(59,130,246,0.08); border-radius:6px; margin:8px 0; font-size:10px; color:var(--text-muted); }
+    .schema-info-bar .schema-name { font-weight:600; color:var(--text); }
+    .schema-info-bar .schema-version { background:rgba(59,130,246,0.15); padding:1px 6px; border-radius:4px; color:var(--primary); }
+    .schema-info-bar .schema-count { margin-left:auto; }
+
     /* Layer row controls */
     .layer-row { display:flex; align-items:center; padding:6px 8px; border-bottom:1px solid var(--border); cursor:pointer; transition:background 0.15s; }
     .layer-row:hover { background:var(--surface-hover); }
@@ -174,6 +219,90 @@
     .field-type-tag.date { background:rgba(168,85,247,0.2); color:#c084fc; }
     .field-type-tag.currency { background:rgba(34,197,94,0.2); color:#4ade80; }
     .field-type-tag.boolean { background:rgba(251,191,36,0.2); color:#fbbf24; }
+
+    /* ── Connector Section ── */
+    .connector-section { padding: 8px; border-bottom: 1px solid var(--border); }
+    .connector-section select { width: 100%; padding: 4px 6px; font-size: 12px; border: 1px solid var(--border); border-radius: 4px; background: var(--bg); color: var(--text); }
+    .connector-section select:focus { border-color: var(--accent); outline: none; }
+    .connector-status { font-size: 10px; margin-top: 4px; }
+    .connector-status.connected { color: #22c55e; }
+    .connector-status.disconnected { color: #ef4444; }
+    .connector-status.checking { color: #f59e0b; }
+    #fetch-live-btn { cursor: pointer; }
+    #fetch-live-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    #fetch-live-btn.loading { position: relative; }
+    #fetch-live-btn.loading::after { content: ''; position: absolute; inset: 0; background: rgba(255,255,255,0.3); border-radius: 4px; }
+
+    /* ── Test Scenarios ── */
+    .scenarios-section { padding: 8px; border-bottom: 1px solid var(--border); }
+    .scenario-item { transition: background 0.15s; }
+    .scenario-item:hover { background: var(--bg-hover, rgba(0,0,0,0.05)); }
+    #new-scenario-name:focus { border-color: var(--accent); outline: none; }
+
+    /* ── Conditional Formatting Editor ── */
+    .cf-editor { margin-top: 8px; }
+    .cf-rule { background: var(--bg2); border: 1px solid var(--border); border-radius: 6px; padding: 8px; margin-bottom: 8px; }
+    .cf-rule-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+    .cf-rule-title { font-size: 11px; font-weight: 600; color: var(--text); }
+    .cf-rule-remove { padding: 2px 6px; border: none; background: transparent; cursor: pointer; color: #ef4444; font-size: 14px; }
+    .cf-condition-row { display: flex; gap: 4px; align-items: center; margin-bottom: 6px; flex-wrap: wrap; }
+    .cf-condition-row select, .cf-condition-row input { padding: 3px 6px; font-size: 11px; border: 1px solid var(--border); border-radius: 4px; background: var(--bg); color: var(--text); }
+    .cf-field-picker { min-width: 100px; }
+    .cf-operator { min-width: 80px; }
+    .cf-value-input { min-width: 80px; flex: 1; }
+    .cf-style-preview { display: flex; gap: 8px; align-items: center; margin-top: 6px; flex-wrap: wrap; }
+    .cf-style-preview label { font-size: 10px; color: var(--text-muted); }
+    .cf-style-preview input[type="color"] { width: 28px; height: 28px; padding: 0; border: 1px solid var(--border); border-radius: 4px; cursor: pointer; }
+    .cf-style-preview input[type="checkbox"] { margin: 0; }
+    .cf-preview-box { padding: 6px 12px; border-radius: 4px; font-size: 12px; margin-top: 6px; text-align: center; min-height: 28px; display: flex; align-items: center; justify-content: center; }
+    .cf-add-rule { padding: 4px 10px; font-size: 11px; background: var(--bg2); border: 1px dashed var(--border); border-radius: 4px; cursor: pointer; color: var(--text-muted); width: 100%; }
+    .cf-add-rule:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+    /* ── Visual Formula Editor (fe-*) ───────────────────── */
+    .fe-container { margin-top: 8px; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+    .fe-tabs { display: flex; background: var(--bg); border-bottom: 1px solid var(--border); }
+    .fe-tab { flex: 1; padding: 7px 6px; text-align: center; font-size: 10px; font-weight: 600; color: var(--text-muted); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.15s; user-select: none; }
+    .fe-tab:hover { color: var(--text); background: rgba(255,255,255,0.03); }
+    .fe-tab.active { color: var(--primary); border-bottom-color: var(--primary); background: rgba(59,130,246,0.08); }
+    .fe-tab .fe-tab-icon { font-size: 11px; margin-right: 3px; }
+    .fe-panel { display: none; padding: 10px; }
+    .fe-panel.active { display: block; }
+    .fe-editor-toolbar { display: flex; gap: 4px; margin-bottom: 6px; flex-wrap: wrap; align-items: center; }
+    .fe-editor-toolbar button { padding: 3px 8px; font-size: 10px; background: var(--surface-hover); border: 1px solid var(--border); border-radius: 4px; color: var(--text); cursor: pointer; transition: all 0.15s; }
+    .fe-editor-toolbar button:hover { background: var(--border); border-color: var(--primary); color: var(--primary); }
+    .fe-editor-toolbar .fe-btn-primary { background: rgba(59,130,246,0.15); border-color: var(--primary); color: var(--primary); }
+    .fe-editor-toolbar .fe-btn-primary:hover { background: var(--primary); color: #fff; }
+    .fe-editor-area { position: relative; }
+    .fe-editor-textarea { width: 100%; min-height: 56px; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; color: var(--text); font-family: monospace; font-size: 12px; padding: 8px; resize: vertical; outline: none; line-height: 1.5; box-sizing: border-box; }
+    .fe-editor-textarea:focus { border-color: var(--primary); }
+    .fe-validation { font-size: 10px; margin-top: 4px; min-height: 16px; display: flex; align-items: center; gap: 6px; }
+    .fe-validation.valid { color: #22c55e; }
+    .fe-validation.error { color: #ef4444; }
+    .fe-validation.pending { color: var(--text-muted); }
+    .fe-field-dropdown { width: 100%; padding: 4px 6px; font-size: 11px; border: 1px solid var(--border); border-radius: 4px; background: var(--bg); color: var(--text); outline: none; margin-bottom: 6px; box-sizing: border-box; }
+    .fe-field-dropdown:focus { border-color: var(--primary); }
+    .fe-functions-list { max-height: 180px; overflow-y: auto; }
+    .fe-functions-list .fe-fn-group { margin-bottom: 6px; }
+    .fe-functions-list .fe-fn-group-title { font-size: 10px; font-weight: 600; color: var(--text-muted); padding: 2px 4px; margin-bottom: 2px; display: flex; align-items: center; gap: 3px; }
+    .fe-functions-list .fe-fn-item { display: flex; align-items: baseline; gap: 6px; padding: 3px 6px; border-radius: 4px; cursor: pointer; transition: background 0.1s; }
+    .fe-functions-list .fe-fn-item:hover { background: var(--surface-hover); }
+    .fe-functions-list .fe-fn-name { font-size: 11px; font-family: monospace; color: var(--primary); font-weight: 500; }
+    .fe-functions-list .fe-fn-params { font-size: 9px; color: var(--text-muted); }
+    .fe-functions-list .fe-fn-desc { font-size: 9px; color: var(--text-muted); opacity: 0.8; }
+
+    /* ── Running Total Builder (rt-*) ───────────────────── */
+    .rt-container { margin-top: 8px; }
+    .rt-row { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+    .rt-row label { font-size: 10px; color: var(--text-muted); min-width: 60px; flex-shrink: 0; }
+    .rt-row select, .rt-row input { flex: 1; padding: 4px 6px; font-size: 11px; border: 1px solid var(--border); border-radius: 4px; background: var(--bg); color: var(--text); outline: none; }
+    .rt-row select:focus, .rt-row input:focus { border-color: var(--primary); }
+    .rt-field-group { border: 1px solid var(--border); border-radius: 6px; padding: 8px; margin-bottom: 8px; background: rgba(0,0,0,0.05); }
+    .rt-field-group-title { font-size: 10px; font-weight: 600; color: var(--text-muted); margin-bottom: 4px; display: flex; align-items: center; gap: 4px; }
+    .rt-toggle-row { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+    .rt-toggle-row input[type="checkbox"] { margin: 0; }
+    .rt-toggle-row label { font-size: 10px; color: var(--text); cursor: pointer; }
+    .rt-toggle-row .rt-toggle-hint { font-size: 9px; color: var(--text-muted); margin-left: auto; }
+    .rt-preview { background: var(--bg); border: 1px solid var(--border); border-radius: 4px; padding: 6px 8px; font-family: monospace; font-size: 11px; color: var(--text-muted); word-break: break-all; margin-top: 6px; min-height: 20px; }
 </style>
 
 <div class="designer-container">
@@ -278,6 +407,7 @@
                 <div class="tab-item active" onclick="switchTab('props')">Properties</div>
                 <div class="tab-item" onclick="switchTab('sections')">Sections</div>
                 <div class="tab-item" onclick="switchTab('layers')">Layers</div>
+                <div class="tab-item" onclick="switchTab('explorer')">Explorer</div>
                 <div class="tab-item" onclick="switchTab('data')">Data</div>
             </div>
             
@@ -340,6 +470,37 @@
                 <div id="layers-list"></div>
             </div>
 
+            <!-- ── Field Explorer Tab ──────────────────────────── -->
+            <div id="tab-explorer" class="tab-panel">
+                <div class="props-header" style="display:flex; justify-content:space-between; align-items:center;">
+                    <span>Field Explorer</span>
+                    <div style="display:flex; gap:4px;">
+                        <button onclick="refreshFieldExplorer()" class="action-btn" style="padding:2px 6px; font-size:10px;" title="Refresh">↻</button>
+                    </div>
+                </div>
+                <div id="schema-outdated-banner-explorer" class="schema-outdated-banner" style="display:none; margin:8px;">
+                    ⚠️ <span id="schema-outdated-msg-explorer"></span>
+                </div>
+                <div style="padding:8px; border-bottom:1px solid var(--border);">
+                    <select id="explorer-schema-select" class="fe-search" onchange="loadFieldExplorer()">
+                        <option value="">-- Select Schema --</option>
+                        @foreach($schemas ?? [] as $s)
+                            <option value="{{ $s->id }}" {{ ($template->data_schema_id ?? '') == $s->id ? 'selected' : '' }}>
+                                {{ $s->label ?: $s->schema_name }} (v{{ $s->version }}){{ $s->clientApp ? ' · '.$s->clientApp->name : '' }}
+                            </option>
+                        @endforeach
+                    </select>
+                    <div id="schema-info-bar" class="schema-info-bar" style="display:none;"></div>
+                    <div id="multi-schema-indicator" style="display:none; margin-top:4px; font-size:10px; color:var(--text-muted);"></div>
+                    <input type="text" id="fe-search-input" class="fe-search" placeholder="🔍 Search fields..." oninput="filterFieldExplorer(this.value)" style="margin-top:6px;">
+                </div>
+                <div id="fe-container" style="flex:1; overflow-y:auto; padding:8px; font-size:11px;">
+                    <div style="text-align:center; color:var(--text-muted); padding:2rem 1rem; font-size:0.8rem;">
+                        Select a schema to browse fields
+                    </div>
+                </div>
+            </div>
+
             <div id="tab-data" class="tab-panel">
                 <div class="props-header">Global Styles</div>
                 <div id="styles-list" style="padding:1rem; border-bottom:1px solid var(--border);">
@@ -347,20 +508,98 @@
                     <div id="styles-container" style="margin-top:0.5rem;"></div>
                 </div>
 
-                <div class="props-header">Data Schema Integration</div>
-                <div id="schema-outdated-banner" class="schema-outdated-banner" style="display:none;">⚠️ <span id="schema-outdated-msg"></span></div>
+                <div class="props-header">Data Schema</div>
+                <div id="schema-outdated-banner" style="display:none;"></div>
                 <div style="padding:1rem; border-bottom:1px solid var(--border);">
-                    <label style="font-size:0.8rem; color:var(--text-muted); display:block; margin-bottom:5px;">Assigned Schema</label>
+                    <label style="font-size:0.8rem; color:var(--text-muted); display:block; margin-bottom:5px;">Primary Schema</label>
                     <select id="data-schema-select" class="form-control" onchange="loadSelectedSchema()">
                         <option value="">-- No Schema --</option>
                         @foreach($schemas ?? [] as $s)
                             <option value="{{ $s->id }}" {{ ($template->data_schema_id ?? '') == $s->id ? 'selected' : '' }}>
-                                {{ $s->label ?: $s->schema_name }} (v{{ $s->version }})
+                                {{ $s->label ?: $s->schema_name }} (v{{ $s->version }}){{ $s->clientApp ? ' · '.$s->clientApp->name : '' }}
                             </option>
                         @endforeach
                     </select>
                     <div id="schema-fields-container" style="margin-top:10px; font-size:11px; max-height:200px; overflow-y:auto; padding-right:5px;"></div>
                     <button id="load-history-btn" onclick="openJobHistoryModal()" class="btn btn-secondary btn-sm" style="width:100%; margin-top:10px; display:none;">📦 Load from Job History</button>
+                </div>
+
+                <!-- ── Additional Schemas (Multi-Client App) ── -->
+                <div class="props-header">Additional Schemas</div>
+                <div id="additional-schemas-section" style="padding:0.5rem 1rem 0.75rem; border-bottom:1px solid var(--border);">
+                    <div id="additional-schemas-list" style="margin-bottom:6px;"></div>
+                    <div style="display:flex; gap:4px;">
+                        <select id="add-schema-select" class="form-control" style="flex:1; font-size:11px; padding:4px 6px;">
+                            <option value="">-- Add Schema --</option>
+                            @foreach($schemas ?? [] as $s)
+                                <option value="{{ $s->id }}" {{ ($template->data_schema_id ?? '') == $s->id ? 'disabled' : '' }}>
+                                    {{ $s->label ?: $s->schema_name }} (v{{ $s->version }}){{ $s->clientApp ? ' · '.$s->clientApp->name : '' }}
+                                </option>
+                            @endforeach
+                        </select>
+                        <button onclick="addSchemaToTemplate()" class="action-btn" style="padding:4px 10px; font-size:11px; white-space:nowrap;">+ Add</button>
+                    </div>
+                </div>
+
+                <div class="props-header">🔌 Connector</div>
+                <div id="connector-section" class="connector-section" style="padding:8px; border-bottom:1px solid var(--border);">
+                    <label style="font-size:11px; font-weight:600; color:var(--text-muted); display:block; margin-bottom:4px;">
+                        Data Source
+                    </label>
+                    <select id="connector-select" onchange="onConnectorSelect()" style="width:100%; padding:4px 6px; font-size:12px; border:1px solid var(--border); border-radius:4px; background:var(--bg); color:var(--text);">
+                        <option value="">— No connector —</option>
+                    </select>
+                    <div id="connector-status" class="connector-status" style="font-size:10px; margin-top:4px; color:var(--text-muted);"></div>
+                    <button id="fetch-live-btn" style="display:none; margin-top:6px; padding:4px 10px; font-size:11px; background:var(--primary); color:#fff; border:none; border-radius:4px;">
+                        🔄 Fetch Live Data
+                    </button>
+                </div>
+
+                <!-- ── Runtime Parameters ── -->
+                <div class="props-header">⚙️ Runtime Parameters</div>
+                <div id="parameters-section" style="padding:0.5rem 1rem 0.75rem; border-bottom:1px solid var(--border);">
+                    <div style="font-size:10px; color:var(--text-muted); margin-bottom:6px;">
+                        Define parameters that prompt at preview/print time.
+                        Values can be used in expressions as <code>{param_name}</code>.
+                    </div>
+                    <div id="parameters-list" style="margin-bottom:8px;"></div>
+                    <div style="display:flex; gap:4px; align-items:center; flex-wrap:wrap;">
+                        <input type="text" id="param-name" placeholder="Name" style="flex:1; min-width:80px; padding:4px 6px; font-size:11px; background:var(--bg); border:1px solid var(--border); border-radius:4px; color:var(--text);">
+                        <input type="text" id="param-label" placeholder="Label" style="flex:1; min-width:80px; padding:4px 6px; font-size:11px; background:var(--bg); border:1px solid var(--border); border-radius:4px; color:var(--text);">
+                        <select id="param-type" style="padding:4px 6px; font-size:11px; background:var(--bg); border:1px solid var(--border); border-radius:4px; color:var(--text);">
+                            <option value="text">Text</option>
+                            <option value="number">Number</option>
+                            <option value="date">Date</option>
+                            <option value="boolean">Boolean</option>
+                            <option value="select">Select</option>
+                        </select>
+                        <button onclick="addParameter()" class="action-btn" style="padding:4px 10px; font-size:11px; white-space:nowrap;">+ Add</button>
+                    </div>
+                    <div id="param-select-options-row" style="display:none; margin-top:6px; gap:4px; align-items:center; flex-wrap:wrap;">
+                        <input type="text" id="param-options" placeholder="option1,option2,..." style="flex:1; min-width:120px; padding:4px 6px; font-size:11px; background:var(--bg); border:1px solid var(--border); border-radius:4px; color:var(--text);">
+                        <span style="font-size:9px; color:var(--text-muted);">(comma-separated)</span>
+                    </div>
+                    <div style="margin-top:6px;">
+                        <input type="text" id="param-default" placeholder="Default value (optional)" style="width:100%; padding:4px 6px; font-size:11px; background:var(--bg); border:1px solid var(--border); border-radius:4px; color:var(--text); box-sizing:border-box;">
+                    </div>
+                    <div style="margin-top:4px; display:flex; align-items:center; gap:6px;">
+                        <input type="checkbox" id="param-required" style="accent-color:var(--primary);">
+                        <label for="param-required" style="font-size:11px; color:var(--text-muted);">Required</label>
+                    </div>
+                </div>
+
+                <!-- ── Test Scenarios ── -->
+                <div class="scenarios-section" style="padding: 8px; border-bottom: 1px solid var(--border);">
+                    <label style="font-size: 11px; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 4px;">
+                        🧪 Test Scenarios
+                    </label>
+                    <div id="scenarios-list">
+                        <!-- Scenarios rendered here -->
+                    </div>
+                    <div style="margin-top:6px;display:flex;gap:4px;">
+                        <input type="text" id="new-scenario-name" placeholder="Scenario name" style="flex:1;padding:3px 6px;font-size:11px;border:1px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text);">
+                        <button onclick="createScenario()" style="padding:3px 10px;font-size:11px;background:var(--primary);color:#fff;border:none;border-radius:4px;cursor:pointer;">+ Add</button>
+                    </div>
                 </div>
 
                 <div class="props-header">Sample JSON Explorer</div>
@@ -499,35 +738,69 @@
 </div>
 <div id="coord-tip"></div>
 
+<?php
+$templateSchemasData = $template->relationLoaded('schemas') ? $template->schemas->map(fn($s) => [
+    'id'              => $s->id,
+    'schema_name'     => $s->schema_name,
+    'label'           => $s->label,
+    'version'         => $s->version,
+    'fields'          => $s->fields,
+    'tables'          => $s->tables,
+    'sample_data'     => $s->sample_data,
+    'client_app_id'   => $s->client_app_id,
+    'client_app_name' => $s->clientApp?->name,
+    'pivot'           => [
+        'alias' => $s->pivot->alias,
+    ],
+]) : [];
+?>
 <script>
     const availableSchemas = @json($schemas ?? []);
+    const templateSchemas = @json($templateSchemasData);
     const templateId = "{{ $template->id ?? '' }}";
     const BASE_SCALE = 4;
+
+    // ── Runtime Parameters ──────────────────────────────────
+    let templateParams = [];
+    try {
+        const raw = '{{ json_encode($template->parameters ?? []) }}';
+        // Decode HTML entities that Blade/Laravel may have encoded
+        const decoded = raw.replace(/"/g, '"').replace(/&#039;/g, "'").replace(/&/g, '&');
+        templateParams = JSON.parse(decoded);
+        if (!Array.isArray(templateParams)) templateParams = [];
+    } catch (e) {
+        templateParams = [];
+    }
+    document.addEventListener('DOMContentLoaded', () => {
+        renderParameters();
+    });
     let zoomLevel = 1.0;
     let elements = @json($template->elements ?? []);
     let globalStyles = @json($template->styles ?? []);
-
-    // ── Conditional Formatting ────────────────────────────────
-    const CONDITIONAL_OPERATORS = [
-        { value: 'equals', label: '=' },
-        { value: 'not_equals', label: '≠' },
-        { value: 'greater_than', label: '>' },
-        { value: 'less_than', label: '<' },
-        { value: 'greater_equal', label: '≥' },
-        { value: 'less_equal', label: '≤' },
-        { value: 'between', label: 'Between' },
-        { value: 'contains', label: 'Contains' },
-        { value: 'starts_with', label: 'Starts with' },
-        { value: 'ends_with', label: 'Ends with' },
-        { value: 'is_null', label: 'Is null' },
-        { value: 'is_not_null', label: 'Is not null' },
-    ];
 
     function getSchemaFieldKeys() {
         const activeSchemaId = document.getElementById('data-schema-select')?.value;
         const activeSchema = availableSchemas.find(s => s.id == activeSchemaId);
         if (activeSchema && activeSchema.fields) {
             return Object.keys(activeSchema.fields);
+        }
+        // Include fields from additional schemas (prefixed)
+        if (templateSchemas && templateSchemas.length > 1) {
+            const allKeys = [];
+            templateSchemas.forEach(s => {
+                if (!s.fields) return;
+                const prefix = (s.pivot?.alias || s.client_app_name || '').toLowerCase();
+                Object.keys(s.fields).forEach(k => {
+                    if (s.id == activeSchemaId) {
+                        allKeys.push(k);
+                    } else if (prefix) {
+                        allKeys.push(prefix + '.' + k);
+                    } else {
+                        allKeys.push(k);
+                    }
+                });
+            });
+            if (allKeys.length > 0) return allKeys;
         }
         // Fallback: try to extract fields from sample data
         try {
@@ -828,6 +1101,8 @@
     let sampleDataFields = [];
     const GUIDE_PROXIMITY_MM = 2;
     let availableFonts = [];
+    let selectedConnectorId = null;
+    let connectors = [];
 
     // PDF.js preview state
     let pdfDoc = null;
@@ -952,10 +1227,17 @@
         const container = document.getElementById('schema-fields-container');
         const historyBtn = document.getElementById('load-history-btn');
         container.innerHTML = '';
+
+        // Sync with explorer tab
+        const explorerSelect = document.getElementById('explorer-schema-select');
+        if (explorerSelect && explorerSelect.value !== schemaId) {
+            explorerSelect.value = schemaId;
+        }
         
         if (!schemaId) {
             historyBtn.style.display = 'none';
             sampleDataCache = {};
+            loadAdditionalSchemas();
             return;
         }
 
@@ -974,42 +1256,266 @@
         const usedKeys = elements.filter(e => e.type === 'field').map(e => e.key);
         const usedTables = elements.filter(e => e.type === 'table').map(e => e.key);
 
-        let html = '';
+        // Show schema info
+        const fieldCount = Object.keys(schema.fields || {}).length;
+        const tableCount = Object.keys(schema.tables || {}).length;
+        const attachedCount = (templateSchemas || []).length;
+
+        let html = `<div class="schema-info-bar" style="display:flex;">
+            <span class="schema-name">${schema.label || schema.schema_name}</span>
+            <span class="schema-version">v${schema.version}</span>
+            <span class="schema-count">${fieldCount} fields · ${tableCount} tables${attachedCount > 1 ? ` · 📦 +${attachedCount - 1} more` : ''}</span>
+        </div>`;
+
+        // Search bar for quick filter
+        html += `<input type="text" id="badge-filter" class="fe-search" placeholder="🔍 Filter fields..." oninput="filterSchemaBadges(this.value)" style="margin-bottom:6px;">`;
+
         // Fields with type badges
         const fields = schema.fields || {};
-        if (Object.keys(fields).length > 0) {
-            html += '<div style="font-weight:bold; margin-bottom:4px; color:var(--text);">Fields</div>';
-            html += '<div style="display:flex; flex-wrap:wrap; gap:4px; margin-bottom:8px;">';
-            for (const [key, meta] of Object.entries(fields)) {
-                const type = meta.type || 'string';
-                const format = meta.format || '';
-                const typeClass = format === 'currency' ? 'currency' : type;
-                const isUsed = usedKeys.includes(key);
-                const opacity = isUsed ? 'opacity:0.5;' : '';
-                const icon = isUsed ? '✓' : '➕';
-                html += `<span class="badge-delphi" style="cursor:pointer;${opacity}" onclick="addFieldFromSchema('${key}', 'field')" title="${meta.label || key} (${type}${format ? ':'+format : ''})${meta.required ? ' *required' : ''}">${icon} ${key}<span class="field-type-tag ${typeClass}">${type}</span></span>`;
+        const filteredFields = Object.entries(fields);
+        html += `<div id="schema-fields-list"><div style="font-weight:bold; margin-bottom:4px; color:var(--text); margin-top:6px;">Fields</div>`;
+        html += '<div id="field-badges" style="display:flex; flex-wrap:wrap; gap:4px; margin-bottom:8px;">';
+        for (const [key, meta] of filteredFields) {
+            const type = meta.type || 'string';
+            const format = meta.format || '';
+            const typeClass = format === 'currency' ? 'currency' : type;
+            const isUsed = usedKeys.includes(key);
+            const opacity = isUsed ? 'opacity:0.5;' : '';
+            const icon = isUsed ? '✓' : '➕';
+            
+            // Sample preview value
+            let previewAttr = '';
+            if (schema.sample_data) {
+                const resolved = resolveDataValue(key, schema.sample_data);
+                if (resolved !== null && resolved !== undefined) previewAttr = escapeHtml(String(resolved).substring(0, 40));
             }
-            html += '</div>';
+            
+            html += `<span class="badge-delphi" draggable="true" style="cursor:grab;${opacity}"
+                ondragstart="feDragStart(event, '${key}', 'field')"
+                ondragend="feDragEnd(event)"
+                onclick="addFieldFromSchema('${key}', 'field')"
+                onmouseover="feShowPreview(event, '${key}', '${escapeJs(previewAttr)}')"
+                onmouseout="feHidePreview()"
+                title="${meta.label || key} (${type}${format ? ':'+format : ''})${meta.required ? ' *required' : ''}">
+                ${icon} ${key}<span class="field-type-tag ${typeClass}">${type}</span>
+            </span>`;
         }
+        html += '</div></div>';
 
         // Tables
         const tables = schema.tables || {};
         if (Object.keys(tables).length > 0) {
             html += '<div style="font-weight:bold; margin-bottom:4px; color:var(--text);">Tables</div>';
-            html += '<div style="display:flex; flex-wrap:wrap; gap:4px;">';
+            html += '<div id="table-badges" style="display:flex; flex-wrap:wrap; gap:4px;">';
             for (const [key, meta] of Object.entries(tables)) {
                 const cols = meta.columns || {};
                 const colsSafe = encodeURIComponent(JSON.stringify(cols));
                 const isUsed = usedTables.includes(key);
                 const opacity = isUsed ? 'opacity:0.5;' : '';
                 const icon = isUsed ? '✓' : '▦';
-                html += `<span class="badge-delphi" style="cursor:pointer; background:rgba(59,130,246,0.15); color:#2563eb;${opacity}" onclick="addFieldFromSchema('${key}', 'table', '${colsSafe}')" title="${meta.label || key}">${icon} ${key}</span>`;
+                html += `<span class="badge-delphi" draggable="true" style="cursor:grab; background:rgba(59,130,246,0.15); color:#2563eb;${opacity}"
+                    ondragstart="feDragStart(event, '${key}', 'table', '${colsSafe}')"
+                    ondragend="feDragEnd(event)"
+                    onclick="addFieldFromSchema('${key}', 'table', '${colsSafe}')"
+                    title="${meta.label || key}">
+                    ${icon} ${key}
+                </span>`;
             }
             html += '</div>';
         }
         
         container.innerHTML = html;
         if (liveDataMode) renderElements();
+
+        // ── Auto-select connector based on schema's client app ──
+        if (schema && schema.client_app_id) {
+            const matchingConnector = connectors.find(c => c.client_app_id == schema.client_app_id);
+            if (matchingConnector) {
+                const select = document.getElementById('connector-select');
+                if (select) {
+                    select.value = matchingConnector.id;
+                    onConnectorSelect();
+                }
+            }
+        }
+
+        // ── Refresh additional schemas list ──
+        loadAdditionalSchemas();
+        updateMultiSchemaSelect();
+    }
+
+    // ── Connector Registry ─────────────────────────────────
+    function loadConnectors() {
+        const select = document.getElementById('connector-select');
+        const statusEl = document.getElementById('connector-status');
+        if (!select) return;
+
+        // Show loading state
+        select.disabled = true;
+        select.innerHTML = '<option value="">Loading connectors…</option>';
+
+        fetch('/api/v1/connectors')
+            .then(r => r.json())
+            .then(data => {
+                select.disabled = false;
+                select.innerHTML = '<option value="">— No connector —</option>';
+
+                // Handle both array and { data: [] } response formats
+                connectors = Array.isArray(data) ? data : (data.data || []);
+
+                connectors.forEach(c => {
+                    const opt = document.createElement('option');
+                    opt.value = c.id;
+                    const icon = c.icon || '🔌';
+                    opt.textContent = icon + ' ' + (c.name || c.connector_name || 'Connector #' + c.id);
+                    select.appendChild(opt);
+                });
+
+                // If we already have a selectedConnectorId, re-select it
+                if (selectedConnectorId) {
+                    select.value = selectedConnectorId;
+                    onConnectorSelect();
+                }
+            })
+            .catch(err => {
+                console.error('Failed to load connectors:', err);
+                select.disabled = false;
+                select.innerHTML = '<option value="">— No connector —</option>';
+                if (statusEl) {
+                    statusEl.textContent = '❌ Failed to load connectors';
+                    statusEl.className = 'connector-status disconnected';
+                }
+            });
+    }
+
+    function onConnectorSelect() {
+        const select = document.getElementById('connector-select');
+        const statusEl = document.getElementById('connector-status');
+        const fetchBtn = document.getElementById('fetch-live-btn');
+        const connectorId = select.value;
+
+        if (!connectorId) {
+            selectedConnectorId = null;
+            if (statusEl) {
+                statusEl.textContent = '';
+                statusEl.className = 'connector-status';
+            }
+            if (fetchBtn) fetchBtn.style.display = 'none';
+            return;
+        }
+
+        selectedConnectorId = connectorId;
+        if (statusEl) {
+            statusEl.textContent = '⏳ Testing connection…';
+            statusEl.className = 'connector-status checking';
+        }
+        if (fetchBtn) fetchBtn.style.display = 'none';
+
+        // Test the connection
+        fetch('/api/v1/connectors/' + connectorId + '/test', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.status === 'ok' || data.connected) {
+                if (statusEl) {
+                    statusEl.textContent = '✅ Connected';
+                    statusEl.className = 'connector-status connected';
+                }
+                if (fetchBtn) {
+                    fetchBtn.style.display = 'inline-block';
+                    fetchBtn.disabled = false;
+                }
+            } else {
+                if (statusEl) {
+                    statusEl.textContent = '❌ Connection failed';
+                    statusEl.className = 'connector-status disconnected';
+                }
+                if (fetchBtn) fetchBtn.style.display = 'none';
+            }
+        })
+        .catch(() => {
+            if (statusEl) {
+                statusEl.textContent = '❌ Connection failed';
+                statusEl.className = 'connector-status disconnected';
+            }
+            if (fetchBtn) fetchBtn.style.display = 'none';
+        });
+    }
+
+    // ── Fetch Live Data ────────────────────────────────────
+    function wireFetchLiveBtn() {
+        const btn = document.getElementById('fetch-live-btn');
+        if (!btn) return;
+        btn.addEventListener('click', async function() {
+            if (!selectedConnectorId) {
+                showToast('⚠️ Select a connector first.', 'warning');
+                return;
+            }
+            btn.disabled = true;
+            btn.textContent = '⏳ Fetching...';
+            try {
+                const resp = await fetch('/api/v1/connectors/' + selectedConnectorId + '/fetch-preview', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                });
+                const json = await resp.json();
+                if (!resp.ok) {
+                    showToast('❌ ' + (json.message || 'Fetch failed'), 'error');
+                    return;
+                }
+                if (!json.data || Object.keys(json.data).length === 0) {
+                    showToast('⚠️ Connector returned no data.', 'warning');
+                    return;
+                }
+                // Populate the schema store with fetched data so the field explorer
+                // and canvas can use them.
+                const schemaName = 'live_' + Date.now();
+                schemaStore[schemaName] = { fields: json.data };
+                selectedSchemaName = schemaName;
+                refreshFieldExplorer();
+                showToast('✅ Live data loaded (' + Object.keys(json.data).length + ' fields).', 'success');
+            } catch (err) {
+                showToast('❌ Network error: ' + err.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '🔄 Fetch Live Data';
+            }
+        });
+    }
+
+    /**
+     * Show a temporary toast notification.
+     * @param {string} msg  - Message text
+     * @param {string} type - 'success' | 'error' | 'warning' | 'info'
+     */
+    function showToast(msg, type) {
+        const existing = document.querySelector('.print-hub-toast');
+        if (existing) existing.remove();
+        const colors = { success: '#22c55e', error: '#ef4444', warning: '#f59e0b', info: '#3b82f6' };
+        const toast = document.createElement('div');
+        toast.className = 'print-hub-toast';
+        toast.textContent = msg;
+        Object.assign(toast.style, {
+            position: 'fixed', bottom: '24px', right: '24px', zIndex: '9999',
+            padding: '10px 20px', borderRadius: '8px', color: '#fff',
+            fontSize: '13px', fontWeight: '500', boxShadow: '0 4px 12px rgba(0,0,0,0.25)',
+            background: colors[type] || colors.info, transition: 'opacity 0.3s ease',
+            maxWidth: '360px', wordBreak: 'break-word',
+        });
+        document.body.appendChild(toast);
+        setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, 3500);
+    }
+
+    // ── Badge Filtering ────────────────────────────────────
+    function filterSchemaBadges(val) {
+        const filterVal = val.toLowerCase();
+        const badges = document.querySelectorAll('#field-badges .badge-delphi, #table-badges .badge-delphi');
+        badges.forEach(b => {
+            const text = b.textContent.toLowerCase();
+            b.style.display = (!filterVal || text.includes(filterVal)) ? 'inline-block' : 'none';
+        });
     }
 
     function addFieldFromSchema(key, type, colsStr = null) {
@@ -1093,9 +1599,11 @@
         console.log('[Designer] init() complete - canvas rendered');
 
         loadSelectedSchema();
+        loadFieldExplorer();
         fetchAndPopulateFonts();
         document.getElementById('canvas').addEventListener('mousedown', canvasMouseDown);
         document.getElementById('canvas').addEventListener('contextmenu', canvasContextMenu);
+        initCanvasDropHandlers();
         document.addEventListener('click', () => hideCtxMenu());
 
         // Fetch sample data from server if template exists
@@ -1257,6 +1765,756 @@
         if (tab === 'layers') updateLayersList();
         if (tab === 'sections') updateSectionsList();
         if (tab === 'props') showSectionInspector(selectedSection);
+        if (tab === 'explorer') { loadFieldExplorer(); }
+        if (tab === 'data') { loadConnectors(); loadScenarios(); }
+    }
+
+    // ── Field Explorer ───────────────────────────────────────
+    function getUsedFieldKeys() {
+        const used = {};
+        const allEls = flattenSections();
+        allEls.forEach(el => {
+            if (el.type === 'field' && el.key) used[el.key] = true;
+            if (el.type === 'table' && el.key) used[el.key] = true;
+        });
+        return used;
+    }
+
+    function getSchemaById(schemaId) {
+        return availableSchemas.find(s => s.id == schemaId);
+    }
+
+    function loadFieldExplorer() {
+        const select = document.getElementById('explorer-schema-select');
+        const container = document.getElementById('fe-container');
+        const schemaId = select.value;
+
+        // Sync with data tab selector
+        const dataSelect = document.getElementById('data-schema-select');
+        if (dataSelect && dataSelect.value !== schemaId) {
+            dataSelect.value = schemaId;
+            loadSelectedSchema();
+        }
+
+        if (!schemaId) {
+            container.innerHTML = '<div style="text-align:center; color:var(--text-muted); padding:2rem 1rem; font-size:0.8rem;">Select a schema to browse fields</div>';
+            document.getElementById('schema-info-bar').style.display = 'none';
+            document.getElementById('multi-schema-indicator').style.display = 'none';
+            document.getElementById('schema-outdated-banner-explorer').style.display = 'none';
+            return;
+        }
+
+        const schema = getSchemaById(schemaId);
+        if (!schema) return;
+
+        // Check if we have multiple schemas attached to show a combined view
+        const attachedSchemas = getAttachedTemplateSchemas();
+        const hasMultiple = attachedSchemas.length > 1;
+
+        // Show schema info bar
+        const infoBar = document.getElementById('schema-info-bar');
+        const fieldCount = Object.keys(schema.fields || {}).length;
+        const tableCount = Object.keys(schema.tables || {}).length;
+        const usedKeys = getUsedFieldKeys();
+        const usedCount = Object.keys(usedKeys).length;
+        infoBar.style.display = 'flex';
+        infoBar.innerHTML = `
+            <span class="schema-name">${schema.label || schema.schema_name}</span>
+            <span class="schema-version">v${schema.version}</span>
+            <span class="schema-count">${fieldCount} fields · ${tableCount} tables · ${usedCount} used</span>
+        `;
+
+        // Show multi-schema indicator
+        const multiIndicator = document.getElementById('multi-schema-indicator');
+        if (hasMultiple) {
+            multiIndicator.style.display = 'block';
+            multiIndicator.innerHTML = `📦 ${attachedSchemas.length} schemas attached — showing <strong>${schema.label || schema.schema_name}</strong>`;
+        } else {
+            multiIndicator.style.display = 'none';
+        }
+
+        // Check schema sync status
+        checkSchemaSync(schema);
+
+        // Build hierarchical tree
+        buildFieldExplorerTree(schema, container, usedKeys);
+        document.getElementById('fe-search-input').value = '';
+    }
+
+    /**
+     * Get all schemas currently attached to this template (from the pivot relationship).
+     * Falls back to the legacy single schema if no pivot data exists.
+     */
+    function getAttachedTemplateSchemas() {
+        if (templateSchemas && templateSchemas.length > 0) {
+            return templateSchemas;
+        }
+        // Fallback: return the primary schema if selected
+        const primaryId = document.getElementById('data-schema-select')?.value;
+        if (primaryId) {
+            const schema = getSchemaById(primaryId);
+            if (schema) return [{ ...schema, pivot: { alias: null }, is_primary: true }];
+        }
+        return [];
+    }
+
+    /**
+     * Build the field explorer tree. Supports multi-schema "Explore All" mode
+     * where fields are grouped by client app.
+     */
+    function buildFieldExplorerTree(schema, container, usedKeys) {
+        const fields = schema.fields || {};
+        const tables = schema.tables || {};
+        const allUsed = usedKeys || getUsedFieldKeys();
+        const filterVal = (document.getElementById('fe-search-input')?.value || '').toLowerCase();
+
+        // Check if we should render in multi-schema grouped mode
+        const attachedSchemas = getAttachedTemplateSchemas();
+        const hasMultiple = attachedSchemas.length > 1;
+
+        if (hasMultiple) {
+            // Multi-schema mode: render all attached schemas grouped by client app
+            renderMultiSchemaExplorer(attachedSchemas, container, allUsed, filterVal);
+            return;
+        }
+
+        // ── Single-schema mode (original behavior) ──
+        const groups = {};
+        const ungrouped = {};
+
+        for (const [key, meta] of Object.entries(fields)) {
+            const parts = key.split('.');
+            if (parts.length > 1) {
+                const ns = parts[0];
+                if (!groups[ns]) groups[ns] = {};
+                groups[ns][key] = meta;
+            } else {
+                ungrouped[key] = meta;
+            }
+        }
+
+        let html = '';
+
+        // Helper to render a field item
+        function renderFieldItem(key, meta) {
+            if (filterVal && !key.toLowerCase().includes(filterVal) && !(meta.label || '').toLowerCase().includes(filterVal)) return '';
+            const type = meta.type || 'string';
+            const format = meta.format || '';
+            const isUsed = !!allUsed[key];
+            let statusClass = 'fe-status-unused';
+            let statusIcon = '○';
+            if (isUsed) { statusClass = 'fe-status-used'; statusIcon = '✓'; }
+            
+            let previewVal = '';
+            if (schema.sample_data) {
+                const resolved = resolveDataValue(key, schema.sample_data);
+                if (resolved !== null && resolved !== undefined) previewVal = String(resolved);
+            }
+            
+            const typeClass = format === 'currency' ? 'currency' : type;
+            const labelAttr = (meta.label || key) + (previewVal ? ` → ${previewVal.substring(0, 30)}` : '');
+            
+            return `<div class="fe-item" draggable="true"
+                ondragstart="feDragStart(event, '${key}', 'field')"
+                ondragend="feDragEnd(event)"
+                onclick="feFieldClick('${key}', 'field')"
+                onmouseover="feShowPreview(event, '${key}', '${escapeJs(previewVal)}')"
+                onmouseout="feHidePreview()"
+                title="${labelAttr}">
+                <span class="fe-status ${statusClass}">${statusIcon}</span>
+                <span>${key}</span>
+                <span class="fe-type ${typeClass}">${type}${format ? ':'+format : ''}</span>
+                ${meta.required ? '<span style="color:#ef4444;font-size:9px;">*req</span>' : ''}
+                ${previewVal ? `<span style="margin-left:auto;color:var(--text-muted);font-size:9px;overflow:hidden;text-overflow:ellipsis;max-width:60px;">${previewVal.substring(0, 10)}</span>` : ''}
+            </div>`;
+        }
+
+        // Render ungrouped fields (flat keys)
+        const uFields = Object.entries(ungrouped).filter(([k, m]) => !filterVal || k.toLowerCase().includes(filterVal) || (m.label || '').toLowerCase().includes(filterVal));
+        if (uFields.length > 0) {
+            html += `<div class="fe-group">
+                <div class="fe-group-header" onclick="toggleFeGroup(this)">
+                    <span class="arrow">▾</span> General Fields <span style="color:var(--text-muted);font-weight:normal;">(${uFields.length})</span>
+                </div>
+                <div class="fe-group-body">`;
+            uFields.forEach(([key, meta]) => { html += renderFieldItem(key, meta); });
+            html += `</div></div>`;
+        }
+
+        // Render grouped (namespaced) fields
+        for (const [ns, nsFields] of Object.entries(groups)) {
+            const nsEntries = Object.entries(nsFields).filter(([k, m]) => !filterVal || k.toLowerCase().includes(filterVal) || (m.label || '').toLowerCase().includes(filterVal));
+            if (nsEntries.length === 0 && filterVal) continue;
+            html += `<div class="fe-group">
+                <div class="fe-group-header" onclick="toggleFeGroup(this)">
+                    <span class="arrow">▾</span> ${ns} <span style="color:var(--text-muted);font-weight:normal;">(${nsEntries.length})</span>
+                </div>
+                <div class="fe-group-body">`;
+            nsEntries.forEach(([key, meta]) => { html += renderFieldItem(key, meta); });
+            html += `</div></div>`;
+        }
+
+        // Render tables
+        const tEntries = Object.entries(tables).filter(([k, m]) => !filterVal || k.toLowerCase().includes(filterVal) || (m.label || '').toLowerCase().includes(filterVal));
+        if (tEntries.length > 0) {
+            html += `<div class="fe-group">
+                <div class="fe-group-header" onclick="toggleFeGroup(this)">
+                    <span class="arrow">▾</span> Tables <span style="color:var(--text-muted);font-weight:normal;">(${tEntries.length})</span>
+                </div>
+                <div class="fe-group-body">`;
+            tEntries.forEach(([key, meta]) => {
+                if (filterVal && !key.toLowerCase().includes(filterVal)) return;
+                const cols = meta.columns || {};
+                const colsSafe = encodeURIComponent(JSON.stringify(cols));
+                const isUsed = !!allUsed[key];
+                let statusClass = 'fe-status-unused';
+                let statusIcon = '○';
+                if (isUsed) { statusClass = 'fe-status-used'; statusIcon = '✓'; }
+                html += `<div class="fe-item" draggable="true"
+                    ondragstart="feDragStart(event, '${key}', 'table', '${colsSafe}')"
+                    ondragend="feDragEnd(event)"
+                    onclick="feFieldClick('${key}', 'table', '${colsSafe}')"
+                    title="${meta.label || key} (${Object.keys(cols).length} columns)">
+                    <span class="fe-status ${statusClass}">${statusIcon}</span>
+                    <span>${key}</span>
+                    <span class="fe-type" style="background:rgba(59,130,246,0.15);color:#3b82f6;">table</span>
+                    <span style="margin-left:auto;color:var(--text-muted);font-size:9px;">${Object.keys(cols).length} cols</span>
+                </div>`;
+            });
+            html += `</div></div>`;
+        }
+
+        if (!html) {
+            html = '<div style="text-align:center;color:var(--text-muted);padding:2rem 1rem;font-size:0.8rem;">No fields match filter</div>';
+        }
+
+        container.innerHTML = html;
+    }
+
+    /**
+     * Render the Field Explorer in multi-schema mode, grouping fields by client app.
+     * Each schema's fields are rendered under a header showing the client app name/alias.
+     */
+    function renderMultiSchemaExplorer(schemas, container, allUsed, filterVal) {
+        let html = '';
+
+        schemas.forEach((entry, idx) => {
+            const schema = entry;
+            const fields = schema.fields || {};
+            const tables = schema.tables || {};
+            const alias = entry.pivot?.alias || entry.client_app_name || schema.schema_name;
+            const fieldCount = Object.keys(fields).length;
+            const tableCount = Object.keys(tables).length;
+            const hasContent = fieldCount > 0 || tableCount > 0;
+
+            if (!hasContent) return;
+
+            // Schema group header — shows client app name/alias
+            html += `<div class="fe-group">
+                <div class="fe-group-header" onclick="toggleFeGroup(this)" style="${idx === 0 ? '' : 'border-top:1px dashed var(--border);'}">
+                    <span class="arrow">▾</span>
+                    <span style="font-weight:600;">${alias}</span>
+                    <span style="color:var(--text-muted);font-weight:normal;font-size:10px;">
+                        ${fieldCount} fields · ${tableCount} tables
+                        ${entry.is_primary ? '<span style="color:#6366f1;margin-left:4px;">★ primary</span>' : ''}
+                    </span>
+                </div>
+                <div class="fe-group-body">`;
+
+            // Fields within this schema
+            for (const [key, meta] of Object.entries(fields)) {
+                if (filterVal && !key.toLowerCase().includes(filterVal) && !(meta.label || '').toLowerCase().includes(filterVal)) continue;
+                const type = meta.type || 'string';
+                const format = meta.format || '';
+                const isUsed = !!allUsed[key];
+                let statusClass = 'fe-status-unused';
+                let statusIcon = '○';
+                if (isUsed) { statusClass = 'fe-status-used'; statusIcon = '✓'; }
+
+                let previewVal = '';
+                if (schema.sample_data) {
+                    const resolved = resolveDataValue(key, schema.sample_data);
+                    if (resolved !== null && resolved !== undefined) previewVal = String(resolved);
+                }
+
+                const typeClass = format === 'currency' ? 'currency' : type;
+                const labelAttr = (meta.label || key) + (previewVal ? ` → ${previewVal.substring(0, 30)}` : '');
+
+                html += `<div class="fe-item" draggable="true"
+                    ondragstart="feDragStart(event, '${key}', 'field')"
+                    ondragend="feDragEnd(event)"
+                    onclick="feFieldClick('${key}', 'field')"
+                    onmouseover="feShowPreview(event, '${key}', '${escapeJs(previewVal)}')"
+                    onmouseout="feHidePreview()"
+                    title="${labelAttr}">
+                    <span class="fe-status ${statusClass}">${statusIcon}</span>
+                    <span>${key}</span>
+                    <span class="fe-type ${typeClass}">${type}${format ? ':'+format : ''}</span>
+                    ${meta.required ? '<span style="color:#ef4444;font-size:9px;">*req</span>' : ''}
+                    ${previewVal ? `<span style="margin-left:auto;color:var(--text-muted);font-size:9px;overflow:hidden;text-overflow:ellipsis;max-width:60px;">${previewVal.substring(0, 10)}</span>` : ''}
+                </div>`;
+            }
+
+            // Tables within this schema
+            for (const [key, meta] of Object.entries(tables)) {
+                if (filterVal && !key.toLowerCase().includes(filterVal)) continue;
+                const cols = meta.columns || {};
+                const colsSafe = encodeURIComponent(JSON.stringify(cols));
+                const isUsed = !!allUsed[key];
+                let statusClass = 'fe-status-unused';
+                let statusIcon = '○';
+                if (isUsed) { statusClass = 'fe-status-used'; statusIcon = '✓'; }
+                html += `<div class="fe-item" draggable="true"
+                    ondragstart="feDragStart(event, '${key}', 'table', '${colsSafe}')"
+                    ondragend="feDragEnd(event)"
+                    onclick="feFieldClick('${key}', 'table', '${colsSafe}')"
+                    title="${meta.label || key} (${Object.keys(cols).length} columns)">
+                    <span class="fe-status ${statusClass}">${statusIcon}</span>
+                    <span>${key}</span>
+                    <span class="fe-type" style="background:rgba(59,130,246,0.15);color:#3b82f6;">table</span>
+                    <span style="margin-left:auto;color:var(--text-muted);font-size:9px;">${Object.keys(cols).length} cols</span>
+                </div>`;
+            }
+
+            html += `</div></div>`;
+        });
+
+        if (!html) {
+            html = '<div style="text-align:center;color:var(--text-muted);padding:2rem 1rem;font-size:0.8rem;">No fields available</div>';
+        }
+
+        container.innerHTML = html;
+    }
+
+    function filterFieldExplorer(val) {
+        const select = document.getElementById('explorer-schema-select');
+        const schema = getSchemaById(select.value);
+        if (!schema) return;
+        const container = document.getElementById('fe-container');
+        const usedKeys = getUsedFieldKeys();
+        buildFieldExplorerTree(schema, container, usedKeys);
+    }
+
+    function refreshFieldExplorer() {
+        loadFieldExplorer();
+    }
+
+    function toggleFeGroup(header) {
+        const body = header.nextElementSibling;
+        if (!body) return;
+        const isHidden = body.style.display === 'none';
+        body.style.display = isHidden ? 'block' : 'none';
+        header.querySelector('.arrow').classList.toggle('collapsed', !isHidden);
+    }
+
+    // ── Drag & Drop from Field Explorer to Canvas ─────────
+    let feDragData = null;
+    function feDragStart(e, key, type, colsStr) {
+        feDragData = { key, type, colsStr: colsStr || null };
+        e.dataTransfer.setData('text/plain', key);
+        e.dataTransfer.effectAllowed = 'copy';
+        // Create drag ghost
+        const ghost = document.createElement('div');
+        ghost.className = 'fe-drag-ghost';
+        ghost.textContent = type === 'table' ? '▦ ' + key : 'T ' + key;
+        document.body.appendChild(ghost);
+        e.dataTransfer.setDragImage(ghost, 40, 12);
+        setTimeout(() => ghost.remove(), 0);
+        e.target.classList.add('dragging');
+    }
+
+    function feDragEnd(e) {
+        e.target.classList.remove('dragging');
+        document.querySelectorAll('.canvas-drop-highlight').forEach(el => el.classList.remove('canvas-drop-highlight'));
+        feDragData = null;
+    }
+
+    function feFieldClick(key, type, colsStr) {
+        addFieldFromSchema(key, type, colsStr);
+    }
+
+    // ── Field Preview Tooltip ──────────────────────────────
+    let previewTipTimer = null;
+    let previewTipEl = null;
+
+    function feShowPreview(e, key, previewVal) {
+        if (!previewVal) return;
+        clearTimeout(previewTipTimer);
+        previewTipTimer = setTimeout(() => {
+            const existing = document.querySelector('.fe-preview-tip');
+            if (existing) existing.remove();
+            const tip = document.createElement('div');
+            tip.className = 'fe-preview-tip';
+            tip.innerHTML = `<div class="tip-label">${key}</div><div class="tip-value">${escapeHtml(previewVal)}</div>`;
+            tip.style.left = (e.clientX + 12) + 'px';
+            tip.style.top = (e.clientY - 10) + 'px';
+            document.body.appendChild(tip);
+            previewTipEl = tip;
+        }, 400);
+    }
+
+    function feHidePreview() {
+        clearTimeout(previewTipTimer);
+        if (previewTipEl) {
+            previewTipEl.remove();
+            previewTipEl = null;
+        }
+    }
+
+    // ── Canvas Drop Handler ────────────────────────────────
+    function initCanvasDropHandlers() {
+        const canvas = document.getElementById('canvas');
+        if (!canvas) return;
+
+        canvas.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'copy';
+            canvas.classList.add('canvas-drop-highlight');
+        });
+
+        canvas.addEventListener('dragleave', (e) => {
+            canvas.classList.remove('canvas-drop-highlight');
+        });
+
+        canvas.addEventListener('drop', (e) => {
+            e.preventDefault();
+            canvas.classList.remove('canvas-drop-highlight');
+            if (!feDragData) return;
+
+            const rect = canvas.getBoundingClientRect();
+            const scrollLeft = canvas.parentElement?.scrollLeft || 0;
+            const scrollTop = canvas.parentElement?.scrollTop || 0;
+            const x = ((e.clientX - rect.left + scrollLeft) / (BASE_SCALE * zoomLevel));
+            const y = ((e.clientY - rect.top + scrollTop) / (BASE_SCALE * zoomLevel));
+
+            // Drop at cursor position
+            pushHistory();
+            const el = {
+                id: 'el_' + Date.now(),
+                type: feDragData.type,
+                key: feDragData.key,
+                x: Math.max(0, Math.round(x * 10) / 10),
+                y: Math.max(0, Math.round(y * 10) / 10),
+                width: feDragData.type === 'table' ? 60 : 40,
+                height: feDragData.type === 'table' ? 20 : 5,
+                font_size: 10,
+                bold: false,
+                border: false,
+                align: 'L',
+                locked: false,
+                hidden: false
+            };
+
+            if (feDragData.type === 'table' && feDragData.colsStr) {
+                try {
+                    const colsDict = JSON.parse(decodeURIComponent(feDragData.colsStr));
+                    el.columns = [];
+                    for (const [cKey, cMeta] of Object.entries(colsDict)) {
+                        el.columns.push({
+                            label: cMeta.label || cKey,
+                            key: cKey,
+                            width: 30,
+                            align: 'L',
+                            show_border: true
+                        });
+                    }
+                } catch(e) {}
+            }
+
+            // Determine section from Y position
+            const sectionKey = getSectionAtY(el.y);
+            const sectionOffset = getSectionOffset(sectionKey);
+            el.y = Math.max(0, el.y - sectionOffset);
+            if (!sections[sectionKey].elements) sections[sectionKey].elements = [];
+            sections[sectionKey].elements.push(el);
+            elements = flattenSections();
+
+            activeIds = [el.id]; activeId = el.id;
+            renderElements();
+            updateInspector();
+            updateLayersList();
+            // Refresh explorer to update binding status
+            loadFieldExplorer();
+            feDragData = null;
+        });
+    }
+
+    // ── Schema Sync Detection ──────────────────────────────
+    function checkSchemaSync(schema) {
+        const banner = document.getElementById('schema-outdated-banner');
+        const explorerBanner = document.getElementById('schema-outdated-banner-explorer');
+        if (!schema) {
+            if (banner) banner.style.display = 'none';
+            if (explorerBanner) explorerBanner.style.display = 'none';
+            return;
+        }
+
+        const latestVersion = typeof schema.latest_version !== 'undefined' ? schema.latest_version : schema.version;
+        const currentVersion = schema.version;
+
+        if (latestVersion > currentVersion) {
+            // Fetch diff from server
+            fetch(`/api/v1/schemas/${encodeURIComponent(schema.schema_name)}/diff?from_version=${currentVersion}&to_version=${latestVersion}`, {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    const diff = data.diff;
+                    renderSchemaDiffBanner(banner, diff, schema.schema_name, latestVersion, currentVersion);
+                    renderSchemaDiffBanner(explorerBanner, diff, schema.schema_name, latestVersion, currentVersion);
+                }
+            })
+            .catch(() => {
+                // Fallback to client-side diff
+                const diff = computeClientSideDiff(schema, currentVersion, latestVersion);
+                renderSchemaDiffBanner(banner, diff, schema.schema_name, latestVersion, currentVersion);
+                renderSchemaDiffBanner(explorerBanner, diff, schema.schema_name, latestVersion, currentVersion);
+            });
+        } else {
+            if (banner) banner.style.display = 'none';
+            if (explorerBanner) explorerBanner.style.display = 'none';
+        }
+    }
+
+    function renderSchemaDiffBanner(bannerEl, diff, schemaName, latestVer, currentVer) {
+        if (!bannerEl) return;
+
+        let html = `<div style="padding:8px;background:#fef3c7;border:1px solid #f59e0b;border-radius:4px;margin-bottom:8px;font-size:11px;">
+            <strong>⚠️ Schema Update Available</strong><br>
+            <span style="color:#92400e;">Version ${currentVer} → ${latestVer}</span>
+            <div style="margin-top:4px;">`;
+
+        if (diff.added?.length) {
+            html += `<div style="color:#16a34a;">+ ${diff.added.length} field(s) added:</div>
+                <div style="font-size:10px;padding-left:12px;">${diff.added.slice(0,10).map(f => '✓ ' + f).join('<br>')}${diff.added.length > 10 ? '<br>... and ' + (diff.added.length - 10) + ' more' : ''}</div>`;
+        }
+        if (diff.removed?.length) {
+            html += `<div style="color:#dc2626;margin-top:4px;">- ${diff.removed.length} field(s) removed:</div>
+                <div style="font-size:10px;padding-left:12px;">${diff.removed.slice(0,10).map(f => '✗ ' + f).join('<br>')}${diff.removed.length > 10 ? '<br>... and ' + (diff.removed.length - 10) + ' more' : ''}</div>`;
+        }
+        if (diff.changed?.length) {
+            html += `<div style="color:#f59e0b;margin-top:4px;">~ ${diff.changed.length} field(s) type changed</div>`;
+        }
+
+        html += `</div>
+            <button onclick="updateToLatestSchema(${latestVer})" style="margin-top:6px;padding:4px 10px;background:#f59e0b;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;">
+                Update to v${latestVer}
+            </button>
+        </div>`;
+
+        bannerEl.innerHTML = html;
+        bannerEl.style.display = 'block';
+    }
+
+    /**
+     * Client-side fallback: compute diff between two schema versions.
+     * Used when the server endpoint is unreachable.
+     */
+    function computeClientSideDiff(schema, currentVersion, latestVersion) {
+        // Try to find the latest schema version from availableSchemas
+        const latestSchema = (window.availableSchemas || [])
+            .filter(s => s.schema_name === schema.schema_name)
+            .sort((a, b) => b.version - a.version)[0];
+
+        const oldFields = Object.keys(schema.fields || {});
+        const newFields = latestSchema ? Object.keys(latestSchema.fields || {}) : oldFields;
+
+        const added = newFields.filter(f => !oldFields.includes(f));
+        const removed = oldFields.filter(f => !newFields.includes(f));
+        const changed = [];
+
+        return {
+            added: added,
+            removed: removed,
+            changed: changed,
+        };
+    }
+
+    function updateToLatestSchema(schemaId) {
+        if (!confirm('Update schema to latest version? Existing field bindings will be preserved.')) return;
+        document.getElementById('explorer-schema-select').value = schemaId;
+        document.getElementById('data-schema-select').value = schemaId;
+        loadFieldExplorer();
+        loadSelectedSchema();
+    }
+
+    // ── Multi-Schema Management ────────────────────────────
+
+    /**
+     * Load and display the list of additional schemas attached to this template.
+     */
+    function loadAdditionalSchemas() {
+        const list = document.getElementById('additional-schemas-list');
+        if (!list) return;
+
+        const attached = templateSchemas || [];
+        // Filter out the primary schema
+        const primaryId = document.getElementById('data-schema-select')?.value;
+        const additional = attached.filter(s => s.id != primaryId);
+
+        if (additional.length === 0) {
+            list.innerHTML = '<div style="font-size:10px; color:var(--text-muted); padding:4px 0;">No additional schemas attached.</div>';
+            return;
+        }
+
+        let html = '';
+        additional.forEach(s => {
+            const alias = s.pivot?.alias || s.client_app_name || s.schema_name;
+            const fieldCount = Object.keys(s.fields || {}).length;
+            html += `<div style="display:flex; align-items:center; justify-content:space-between; padding:4px 6px; margin-bottom:4px; background:var(--bg); border-radius:4px; border:1px solid var(--border); font-size:11px;">
+                <div style="flex:1; min-width:0;">
+                    <div style="font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                        ${alias}
+                        ${s.client_app_name ? `<span style="font-weight:normal;color:var(--text-muted);font-size:9px;"> · ${s.client_app_name}</span>` : ''}
+                    </div>
+                    <div style="font-size:9px; color:var(--text-muted);">
+                        ${s.label || s.schema_name} (v${s.version}) · ${fieldCount} fields
+                    </div>
+                </div>
+                <div style="display:flex; gap:4px; flex-shrink:0; margin-left:8px;">
+                    <input type="text" class="alias-input" value="${alias}"
+                        onchange="updateSchemaAlias(${s.id}, this.value)"
+                        placeholder="Alias"
+                        style="width:70px; padding:2px 4px; font-size:10px; border:1px solid var(--border); border-radius:3px; background:var(--surface); color:var(--text);">
+                    <button onclick="removeSchemaFromTemplate(${s.id})" class="action-btn" style="padding:2px 6px; font-size:10px; color:#ef4444;" title="Remove">✕</button>
+                </div>
+            </div>`;
+        });
+        list.innerHTML = html;
+    }
+
+    /**
+     * Add a schema to the template's pivot table via AJAX.
+     */
+    function addSchemaToTemplate() {
+        const select = document.getElementById('add-schema-select');
+        const schemaId = select.value;
+        if (!schemaId) return;
+
+        // Check if already attached
+        if (templateSchemas.some(s => s.id == schemaId)) {
+            alert('This schema is already attached.');
+            return;
+        }
+
+        const alias = prompt('Enter an alias for this schema (e.g. "CRM", "Accounting"):');
+        if (alias === null) return; // cancelled
+
+        // Optimistically add to local state
+        const schema = availableSchemas.find(s => s.id == schemaId);
+        if (!schema) return;
+
+        const newEntry = {
+            ...schema,
+            pivot: { alias: alias || null },
+            client_app_name: schema.client_app_name || null,
+        };
+        templateSchemas.push(newEntry);
+
+        // Disable this option in the add dropdown
+        select.querySelector(`option[value="${schemaId}"]`).disabled = true;
+        select.value = '';
+
+        loadAdditionalSchemas();
+        loadFieldExplorer();
+        updateMultiSchemaSelect();
+
+        // Persist via AJAX
+        saveTemplateSchemas();
+    }
+
+    /**
+     * Remove a schema from the template's pivot table.
+     */
+    function removeSchemaFromTemplate(schemaId) {
+        if (!confirm('Remove this schema from the template?')) return;
+
+        const idx = templateSchemas.findIndex(s => s.id == schemaId);
+        if (idx === -1) return;
+        templateSchemas.splice(idx, 1);
+
+        // Re-enable in add dropdown
+        const addSelect = document.getElementById('add-schema-select');
+        if (addSelect) {
+            addSelect.querySelector(`option[value="${schemaId}"]`).disabled = false;
+        }
+
+        loadAdditionalSchemas();
+        loadFieldExplorer();
+        updateMultiSchemaSelect();
+
+        // Persist via AJAX
+        saveTemplateSchemas();
+    }
+
+    /**
+     * Update the alias for a schema in the pivot table.
+     */
+    function updateSchemaAlias(schemaId, newAlias) {
+        const entry = templateSchemas.find(s => s.id == schemaId);
+        if (entry) {
+            if (!entry.pivot) entry.pivot = {};
+            entry.pivot.alias = newAlias || null;
+        }
+        saveTemplateSchemas();
+    }
+
+    /**
+     * Persist the current set of attached schemas to the server via AJAX.
+     * Sends the full list of schema IDs with aliases.
+     */
+    function saveTemplateSchemas() {
+        if (!templateId) return;
+
+        const schemasData = templateSchemas.map(s => ({
+            id: s.id,
+            alias: s.pivot?.alias || null,
+        }));
+
+        fetch(`/admin/templates/${templateId}/schemas`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '' },
+            body: JSON.stringify({ schemas: schemasData }),
+        }).catch(err => console.error('Failed to save schemas:', err));
+    }
+
+    /**
+     * Update the multi-schema select options in the explorer to show client app names.
+     */
+    function updateMultiSchemaSelect() {
+        // Refresh the explorer select options to show attached schemas status
+        const attached = templateSchemas || [];
+        const multiIndicator = document.getElementById('multi-schema-indicator');
+        if (multiIndicator && attached.length > 1) {
+            multiIndicator.style.display = 'block';
+            multiIndicator.innerHTML = `📦 ${attached.length} schemas attached`;
+        } else if (multiIndicator) {
+            multiIndicator.style.display = 'none';
+        }
+    }
+
+    // ── Autocomplete for Field Key in Inspector ────────────
+    function getAutocompleteFieldKeys() {
+        const schemaId = document.getElementById('data-schema-select')?.value;
+        if (!schemaId) return [];
+        const schema = availableSchemas.find(s => s.id == schemaId);
+        if (!schema || !schema.fields) return [];
+        // Also include fields from additional schemas
+        const keys = Object.keys(schema.fields);
+        if (templateSchemas && templateSchemas.length > 1) {
+            templateSchemas.forEach(s => {
+                if (s.id == schemaId) return;
+                if (s.fields) {
+                    const prefix = (s.pivot?.alias || s.client_app_name || s.schema_name || '').toLowerCase();
+                    Object.keys(s.fields).forEach(k => {
+                        if (prefix) keys.push(prefix + '.' + k);
+                        else keys.push(k);
+                    });
+                }
+            });
+        }
+        return keys;
     }
 
     // ── JSON Explorer ────────────────────────────────────────
@@ -1601,6 +2859,21 @@
             validKeys = Object.keys(activeSchema.fields || {});
             validTables = Object.keys(activeSchema.tables || {});
         }
+        // Also validate against additional schemas' fields
+        if (templateSchemas && templateSchemas.length > 1) {
+            templateSchemas.forEach(s => {
+                if (s.id == activeSchemaId) return;
+                if (s.fields) {
+                    const prefix = (s.pivot?.alias || s.client_app_name || '').toLowerCase();
+                    Object.keys(s.fields).forEach(k => {
+                        validKeys.push(prefix ? prefix + '.' + k : k);
+                    });
+                }
+                if (s.tables) {
+                    Object.keys(s.tables).forEach(k => validTables.push(k));
+                }
+            });
+        }
 
         let currentY = 0;
         const pw = parseFloat(document.getElementById('paper-w').value) || 215.9;
@@ -1788,6 +3061,32 @@
                     }
                 }
 
+                // ── Binding status indicator ──────────────
+                const bindInd = document.createElement('div');
+                bindInd.className = 'bind-indicator';
+
+                const fieldKey = displayEl.key;
+                if (fieldKey && activeSchema) {
+                    const keyExists = validKeys.includes(fieldKey) || validTables.includes(fieldKey);
+                    if (keyExists) {
+                        bindInd.className += ' bind-bound';
+                        bindInd.textContent = '✓';
+                        bindInd.title = 'Bound to schema field: ' + fieldKey;
+                    } else {
+                        bindInd.className += ' bind-unbound';
+                        bindInd.textContent = '✗';
+                        bindInd.title = 'Field "' + fieldKey + '" not found in schema';
+                    }
+                } else if (fieldKey && !activeSchema) {
+                    bindInd.className += ' bind-unresolved';
+                    bindInd.textContent = '?';
+                    bindInd.title = 'No schema loaded for this field key';
+                } else {
+                    // No field key — not a data-bound element (static text, image, etc.)
+                    bindInd.style.display = 'none';
+                }
+                div.appendChild(bindInd);
+
                 // Resize handles
                 if (activeIds.length === 1 && activeIds[0] === displayEl.id && !el.locked) {
                     ['nw','n','ne','e','se','s','sw','w'].forEach(hdl => {
@@ -1935,7 +3234,7 @@
         let html = lockedWarn + `
             <div class="props-section"><div class="props-label">Identity</div><div class="prop-table">
                 <div class="prop-item"><div class="prop-key">Type</div><div class="prop-val" style="padding-left:8px;font-size:11px;color:var(--text-muted);">${el.type}</div></div>
-                <div class="prop-item"><div class="prop-key">${el.type==='label'?'Text':'Key'}</div><div class="prop-val"><input type="text" value="${el.type==='label'?(el.text||''):(el.key||'')}" oninput="updateElProps('${el.type==='label'?'text':'key'}', this.value)"></div></div>
+                <div class="prop-item"><div class="prop-key">${el.type==='label'?'Text':'Key'}</div><div class="prop-val"><input type="text" value="${el.type==='label'?(el.text||''):(el.key||'')}" oninput="updateElProps('${el.type==='label'?'text':'key'}', this.value)"${el.type==='field'?' list="field-key-list"':''}></div></div>
                 <div class="prop-item"><div class="prop-key">Group</div><div class="prop-val" style="padding-left:10px;">${el.groupId ? `<span style="color:var(--primary);font-size:10px;">${el.groupId.slice(-6)}</span> <button onclick="ungroupElements()" style="background:none;border:none;color:var(--danger);cursor:pointer;">[X]</button>` : 'None'}</div></div>
             </div></div>`;
 
@@ -1984,32 +3283,104 @@
                 <div class="prop-item"><div class="prop-key">Size (mm)</div><div class="prop-val"><input type="number" step="0.5" value="${el.size||25}" oninput="updateElProps('size',parseFloat(this.value))"></div></div>
             </div></div>`;
         } else if (el.type === 'running_total') {
-            const opLabel = { sum: 'Sum', count: 'Count', average: 'Average', min: 'Min', max: 'Max' };
-            const resetLabel = { never: 'Never', on_page: 'On Page', on_group: 'On Group' };
-            const evalLabel = { on_change: 'On Change', on_record: 'On Record' };
             html += `
-            <div class="props-section"><div class="props-label">Running Total</div><div class="prop-table">
-                <div class="prop-item"><div class="prop-key">Field Name</div><div class="prop-val"><input type="text" value="${el.field||''}" oninput="updateElProps('field',this.value)" placeholder="data_field_name"></div></div>
-                <div class="prop-item"><div class="prop-key">Operation</div><div class="prop-val"><select onchange="updateElProps('operation',this.value)">
-                    <option value="sum" ${(el.operation||'sum')==='sum'?'selected':''}>Sum</option>
-                    <option value="count" ${el.operation==='count'?'selected':''}>Count</option>
-                    <option value="average" ${el.operation==='average'?'selected':''}>Average</option>
-                    <option value="min" ${el.operation==='min'?'selected':''}>Min</option>
-                    <option value="max" ${el.operation==='max'?'selected':''}>Max</option>
-                </select></div></div>
-                <div class="prop-item"><div class="prop-key">Reset</div><div class="prop-val"><select onchange="updateElProps('reset',this.value);updateInspector();">
-                    <option value="never" ${(el.reset||'never')==='never'?'selected':''}>Never</option>
-                    <option value="on_page" ${el.reset==='on_page'?'selected':''}>On Page</option>
-                    <option value="on_group" ${el.reset==='on_group'?'selected':''}>On Group</option>
-                </select></div></div>
-                ${el.reset === 'on_group' ? `
-                <div class="prop-item"><div class="prop-key">Group Field</div><div class="prop-val"><input type="text" value="${el.resetGroup||''}" oninput="updateElProps('resetGroup',this.value)" placeholder="group_field_name"></div></div>
-                ` : ''}
-                <div class="prop-item"><div class="prop-key">Evaluate</div><div class="prop-val"><select onchange="updateElProps('evaluate',this.value)">
-                    <option value="on_change" ${(el.evaluate||'on_change')==='on_change'?'selected':''}>On Change</option>
-                    <option value="on_record" ${el.evaluate==='on_record'?'selected':''}>On Record</option>
-                </select></div></div>
-            </div></div>`;
+            <div class="fe-container" id="fe-container">
+                <div class="fe-tabs">
+                    <div class="fe-tab active" data-fe-tab="rt" onclick="feSwitchTab('rt', 'running_total')">
+                        <span class="fe-tab-icon">📊</span> RT Builder
+                    </div>
+                    <div class="fe-tab" data-fe-tab="fn-ref" onclick="feSwitchTab('fn-ref', 'running_total')">
+                        <span class="fe-tab-icon">📖</span> Functions
+                    </div>
+                </div>
+                <div class="fe-panel active" id="fe-panel-rt">
+                    <div class="rt-container">
+                        <div class="rt-row">
+                            <label>Operation</label>
+                            <select onchange="rtUpdateConfig(el,'operation',this.value);rtUpdatePreview(el)">
+                                <option value="sum" ${(el.operation||'sum')==='sum'?'selected':''}>Sum</option>
+                                <option value="count" ${el.operation==='count'?'selected':''}>Count</option>
+                                <option value="average" ${el.operation==='average'?'selected':''}>Average</option>
+                                <option value="min" ${el.operation==='min'?'selected':''}>Min</option>
+                                <option value="max" ${el.operation==='max'?'selected':''}>Max</option>
+                            </select>
+                        </div>
+                        <div class="rt-row">
+                            <label>Field</label>
+                            <select class="fe-field-dropdown" onchange="rtUpdateConfig(el,'field',this.value);rtUpdatePreview(el)">
+                                <option value="">— Select field —</option>
+                            </select>
+                        </div>
+                        <div class="rt-field-group">
+                            <div class="rt-field-group-title">⚙️ Evaluate Condition</div>
+                            <div class="rt-toggle-row">
+                                <input type="checkbox" id="rt-eval-enabled" ${el.evaluateCondition?.enabled?'checked':''} onchange="rtToggleEvalField(el,this.checked)">
+                                <label for="rt-eval-enabled">Enable condition</label>
+                                <span class="rt-toggle-hint">(evaluate only when condition matches)</span>
+                            </div>
+                            <div id="rt-eval-fields" style="${el.evaluateCondition?.enabled?'':'display:none;'}margin-top:4px;">
+                                <div class="rt-row" style="margin-bottom:2px;">
+                                    <label style="min-width:50px;">Field</label>
+                                    <select class="fe-field-dropdown" onchange="rtUpdateConfig(el,'evaluateCondition',{field:this.value,operator:el.evaluateCondition?.operator||'==',value:el.evaluateCondition?.value||''});rtUpdatePreview(el)">
+                                        <option value="">— Select —</option>
+                                    </select>
+                                </div>
+                                <div class="rt-row" style="margin-bottom:2px;">
+                                    <label style="min-width:50px;">Op</label>
+                                    <select onchange="rtUpdateConfig(el,'evaluateCondition',{field:el.evaluateCondition?.field||'',operator:this.value,value:el.evaluateCondition?.value||''});rtUpdatePreview(el)">
+                                        <option value="==" ${el.evaluateCondition?.operator==='=='?'selected':''}>=</option>
+                                        <option value="!=" ${el.evaluateCondition?.operator==='!='?'selected':''}>≠</option>
+                                        <option value=">" ${el.evaluateCondition?.operator==='>'?'selected':''}>></option>
+                                        <option value=">=" ${el.evaluateCondition?.operator==='>='?'selected':''}>≥</option>
+                                        <option value="<" ${el.evaluateCondition?.operator==='<'?'selected':''}><</option>
+                                        <option value="<=" ${el.evaluateCondition?.operator==='<='?'selected':''}>≤</option>
+                                    </select>
+                                </div>
+                                <div class="rt-row" style="margin-bottom:2px;">
+                                    <label style="min-width:50px;">Value</label>
+                                    <input type="text" value="${escapeHtml(el.evaluateCondition?.value||'')}" onchange="rtUpdateConfig(el,'evaluateCondition',{field:el.evaluateCondition?.field||'',operator:el.evaluateCondition?.operator||'==',value:this.value});rtUpdatePreview(el)" placeholder="value">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="rt-field-group">
+                            <div class="rt-field-group-title">🔄 Reset Condition</div>
+                            <div class="rt-toggle-row">
+                                <input type="checkbox" id="rt-reset-enabled" ${el.resetCondition?.enabled?'checked':''} onchange="rtToggleResetField(el,this.checked)">
+                                <label for="rt-reset-enabled">Enable condition</label>
+                                <span class="rt-toggle-hint">(reset when condition matches)</span>
+                            </div>
+                            <div id="rt-reset-fields" style="${el.resetCondition?.enabled?'':'display:none;'}margin-top:4px;">
+                                <div class="rt-row" style="margin-bottom:2px;">
+                                    <label style="min-width:50px;">Field</label>
+                                    <select class="fe-field-dropdown" onchange="rtUpdateConfig(el,'resetCondition',{field:this.value,operator:el.resetCondition?.operator||'==',value:el.resetCondition?.value||''});rtUpdatePreview(el)">
+                                        <option value="">— Select —</option>
+                                    </select>
+                                </div>
+                                <div class="rt-row" style="margin-bottom:2px;">
+                                    <label style="min-width:50px;">Op</label>
+                                    <select onchange="rtUpdateConfig(el,'resetCondition',{field:el.resetCondition?.field||'',operator:this.value,value:el.resetCondition?.value||''});rtUpdatePreview(el)">
+                                        <option value="==" ${el.resetCondition?.operator==='=='?'selected':''}>=</option>
+                                        <option value="!=" ${el.resetCondition?.operator==='!='?'selected':''}>≠</option>
+                                        <option value=">" ${el.resetCondition?.operator==='>'?'selected':''}>></option>
+                                        <option value=">=" ${el.resetCondition?.operator==='>='?'selected':''}>≥</option>
+                                        <option value="<" ${el.resetCondition?.operator==='<'?'selected':''}><</option>
+                                        <option value="<=" ${el.resetCondition?.operator==='<='?'selected':''}>≤</option>
+                                    </select>
+                                </div>
+                                <div class="rt-row" style="margin-bottom:2px;">
+                                    <label style="min-width:50px;">Value</label>
+                                    <input type="text" value="${escapeHtml(el.resetCondition?.value||'')}" onchange="rtUpdateConfig(el,'resetCondition',{field:el.resetCondition?.field||'',operator:el.resetCondition?.operator||'==',value:this.value});rtUpdatePreview(el)" placeholder="value">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="rt-preview" id="rt-preview"></div>
+                    </div>
+                    <div id="rt-config-json" style="display:none;"></div>
+                </div>
+                <div class="fe-panel" id="fe-panel-fn-ref">
+                    <div class="fe-functions-list" id="fe-functions-list-rt"></div>
+                </div>
+            </div>`;
             html += `
             <div class="props-section"><div class="props-label">Appearance</div><div class="prop-table">
                 <div class="prop-item"><div class="prop-key">FontFamily</div><div class="prop-val"><select id="propFontFamily" onchange="updateElProps('fontFamily',this.value)"><option value="Arial">Arial (Default)</option></select></div></div>
@@ -2077,13 +3448,46 @@
 
             // ── Conditional Formatting ──────────────────────
             html += `
-            <div class="props-section" id="conditionalFormatSection" style="display:none;">
-                <div class="props-label" style="display:flex;justify-content:space-between;align-items:center;">
-                    <span>Conditional Formatting</span>
-                    <button onclick="addConditionalFormat()" class="btn btn-primary btn-sm" style="font-size:10px;padding:2px 8px;">+ Add Rule</button>
+            <div class="cf-editor" id="cf-editor-container" style="display:none;">
+                <label style="font-size:11px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:4px;">
+                    🎨 Conditional Formatting
+                </label>
+                <div id="cf-rules-list"></div>
+                <button class="cf-add-rule" onclick="cfAddRule()">+ Add Rule</button>
+            </div>
+            <div id="cf-hidden-json" style="display:none;"></div>`;
+
+            // ── Visual Formula Editor ──────────────────────────
+            html += `
+            <div class="fe-container" id="fe-container" style="display:none;">
+                <div class="fe-tabs">
+                    <div class="fe-tab active" data-fe-tab="editor" onclick="feSwitchTab('editor')">
+                        <span class="fe-tab-icon">✏️</span> Formula
+                    </div>
+                    <div class="fe-tab" data-fe-tab="fn-ref" onclick="feSwitchTab('fn-ref')">
+                        <span class="fe-tab-icon">📖</span> Functions
+                    </div>
                 </div>
-                <div id="conditionalFormatList" class="p-2" style="padding:0.5rem;display:flex;flex-direction:column;gap:0.5rem;">
-                    <!-- Rules rendered here by JS -->
+                <div class="fe-panel active" id="fe-panel-editor">
+                    <div class="fe-editor-toolbar">
+                        <button onclick="feInsertField(el)" title="Insert data field">📋 Field</button>
+                        <button onclick="feShowPicker(el)" title="Pick from schema fields">🔍 Pick</button>
+                        <button class="fe-btn-primary" onclick="feValidateFormula(el)" title="Validate formula">✓ Validate</button>
+                    </div>
+                    <div class="fe-editor-area">
+                        <textarea class="fe-editor-textarea" id="fe-formula-input"
+                            placeholder="Enter formula...&#10;e.g.: SUM(items.amount)&#10;e.g.: CONCAT(first_name, ' ', last_name)"
+                            oninput="feValidateFormula(el, true)">${escapeHtml(el.formula || '')}</textarea>
+                    </div>
+                    <div class="fe-validation pending" id="fe-validation">Enter a formula expression</div>
+                    <div style="margin-top:6px;">
+                        <select class="fe-field-dropdown" id="fe-field-picker" onchange="feInsertSelectedField(el, this)">
+                            <option value="">— Insert data field —</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="fe-panel" id="fe-panel-fn-ref">
+                    <div class="fe-functions-list" id="fe-functions-list"></div>
                 </div>
             </div>`;
         }
@@ -2150,9 +3554,34 @@
             <button onclick="duplicateSelected()" class="btn btn-secondary btn-sm" style="flex:1;">⧉ Dup</button>
             <button onclick="deleteActive()" class="btn btn-danger btn-sm" style="flex:1;">🗑 Delete</button>
         </div>`;
+        html += '<datalist id="field-key-list"></datalist>';
         cont.innerHTML = html;
-        // Update conditional formatting list when inspector is refreshed
-        updateConditionalFormatList();
+        // Populate field key autocomplete datalist
+        const datalist = document.getElementById('field-key-list');
+        if (datalist && typeof getAutocompleteFieldKeys === 'function') {
+            const keys = getAutocompleteFieldKeys();
+            datalist.innerHTML = keys.map(k => `<option value="${k}">`).join('');
+        }
+        // Initialize conditional formatting editor
+        if (el.type === 'field' || el.type === 'label') {
+            cfInitEditor(el);
+        } else {
+            const container = document.getElementById('cf-editor-container');
+            if (container) container.style.display = 'none';
+        }
+        // Initialize visual formula editor for field/label elements
+        if (el.type === 'field' || el.type === 'label') {
+            feInit(el);
+        } else {
+            const feContainer = document.getElementById('fe-container');
+            if (feContainer) feContainer.style.display = 'none';
+        }
+        // Initialize running total builder
+        if (el.type === 'running_total') {
+            rtLoadConfig(el);
+            // Populate field dropdowns for the RT builder
+            fePopulateFieldDropdowns(document.querySelector('#fe-container .fe-field-dropdown') || document.querySelector('.rt-container .fe-field-dropdown'));
+        }
     }
 
     function updateCol(idx, prop, val) { const el=elements.find(e=>e.id===activeId); if(el&&el.columns[idx]){el.columns[idx][prop]=val;renderElements();if(prop==='format_type')updateInspector();} }
@@ -2163,161 +3592,219 @@
     function updateElProps(prop,val) { pushHistory(); const el=elements.find(e=>e.id===activeId); if(el){el[prop]=val;renderElements();updateInspector();} }
     function deleteActive() { if(!confirm('Delete selected element(s)?'))return; pushHistory(); elements=elements.filter(el=>!activeIds.includes(el.id)); activeIds=[];activeId=null; renderElements();updateInspector(); }
 
-    // ── Conditional Formatting ────────────────────────────────
+    // ── Conditional Formatting Editor ─────────────────────────
 
-    function addConditionalFormat() {
-        const el = elements.find(e => e.id === activeId);
-        if (!el) return;
-        if (!el.conditionalFormats) {
-            el.conditionalFormats = [];
-        }
-        el.conditionalFormats.push({
-            name: 'Rule ' + (el.conditionalFormats.length + 1),
-            field: el.field || el.key || '',
-            operator: 'equals',
-            value: '',
-            value2: '',
-            style: {
-                color: '#000000',
-                backgroundColor: '#FFFFFF',
-                bold: false,
-                italic: false,
-                underline: false,
-            },
-            enabled: true,
-        });
-        pushHistory();
-        updateConditionalFormatList();
-        markChanged();
+    let cfCurrentElement = null;
+
+    function cfInitEditor(el) {
+        cfCurrentElement = el;
+        const container = document.getElementById('cf-editor-container');
+        if (!container) return;
+        
+        // Parse existing rules from element
+        let rules = [];
+        try {
+            if (el.conditional_format) {
+                rules = typeof el.conditional_format === 'string'
+                    ? JSON.parse(el.conditional_format)
+                    : el.conditional_format;
+            }
+        } catch(e) { rules = []; }
+        
+        if (!Array.isArray(rules)) rules = [];
+        
+        container.style.display = 'block';
+        cfRenderRules(rules);
     }
 
-    function removeConditionalFormat(index) {
-        const el = elements.find(e => e.id === activeId);
-        if (!el?.conditionalFormats) return;
-        el.conditionalFormats.splice(index, 1);
-        pushHistory();
-        updateConditionalFormatList();
-        renderElements();
-        markChanged();
-    }
-
-    function updateConditionalFormatList() {
-        const el = elements.find(e => e.id === activeId);
-        const section = document.getElementById('conditionalFormatSection');
-        const container = document.getElementById('conditionalFormatList');
-
-        if (!section || !container) return;
-
-        if (!el || el.type !== 'field' || !el.conditionalFormats || el.conditionalFormats.length === 0) {
-            section.style.display = 'none';
+    function cfRenderRules(rules) {
+        const list = document.getElementById('cf-rules-list');
+        if (!list) return;
+        
+        if (!rules.length) {
+            list.innerHTML = '<div style="font-size:11px;color:var(--text-muted);padding:8px 0;text-align:center;">No conditional formatting rules.</div>';
             return;
         }
-
-        section.style.display = 'block';
-
-        const schemaFields = getSchemaFieldKeys();
-        // Always include the current element's field key
-        if (el.field && !schemaFields.includes(el.field)) {
-            schemaFields.unshift(el.field);
-        }
-        if (el.key && !schemaFields.includes(el.key)) {
-            schemaFields.unshift(el.key);
-        }
-
-        container.innerHTML = el.conditionalFormats.map((rule, i) => `
-            <div class="border rounded p-2" style="border:1px solid var(--border);border-radius:4px;padding:0.5rem;${rule.enabled ? '' : 'opacity:0.5;'}">
-                <div class="flex items-center justify-between mb-1" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.25rem;">
-                    <input type="text" value="${escapeHtml(rule.name)}"
-                        onchange="selectedElement=elements.find(e=>e.id===activeId); if(selectedElement&&selectedElement.conditionalFormats) { selectedElement.conditionalFormats[${i}].name = this.value; markChanged(); }"
-                        style="font-size:11px;font-weight:600;border:none;background:none;color:var(--text);width:auto;padding:0;" />
-                    <div style="display:flex;align-items:center;gap:0.25rem;">
-                        <input type="checkbox" ${rule.enabled ? 'checked' : ''}
-                            onchange="selectedElement=elements.find(e=>e.id===activeId); if(selectedElement&&selectedElement.conditionalFormats) { selectedElement.conditionalFormats[${i}].enabled = this.checked; updateConditionalFormatList(); renderElements(); markChanged(); }"
-                            style="width:12px;height:12px;cursor:pointer;" title="Enable/disable rule" />
-                        <button onclick="removeConditionalFormat(${i})" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:12px;padding:0;line-height:1;" title="Remove rule">✕</button>
+        
+        list.innerHTML = rules.map((rule, i) => {
+            const condition = rule.condition || {};
+            const style = rule.style || {};
+            
+            return `
+                <div class="cf-rule" data-index="${i}">
+                    <div class="cf-rule-header">
+                        <span class="cf-rule-title">Rule #${i + 1}</span>
+                        <button class="cf-rule-remove" onclick="cfRemoveRule(${i})">✕</button>
+                    </div>
+                    <div class="cf-condition-row">
+                        <span style="font-size:11px;color:var(--text-muted);">IF</span>
+                        <select class="cf-field-picker" onchange="cfUpdateRule(${i},'condition','field',this.value)">
+                            ${cfGetFieldOptions(condition.field || '')}
+                        </select>
+                        <select class="cf-operator" onchange="cfUpdateRule(${i},'condition','operator',this.value)">
+                            ${cfGetOperatorOptions(condition.operator || '==')}
+                        </select>
+                        <input class="cf-value-input" type="text" value="${cfEsc(condition.value || '')}"
+                            placeholder="Value" onchange="cfUpdateRule(${i},'condition','value',this.value)">
+                    </div>
+                    <div class="cf-style-preview">
+                        <label>Text:</label>
+                        <input type="color" value="${style.color || '#000000'}"
+                            onchange="cfUpdateRule(${i},'style','color',this.value)">
+                        <label>Bg:</label>
+                        <input type="color" value="${style.background || '#ffffff'}"
+                            onchange="cfUpdateRule(${i},'style','background',this.value)">
+                        <label><input type="checkbox" ${style.bold ? 'checked' : ''}
+                            onchange="cfUpdateRule(${i},'style','bold',this.checked)"> Bold</label>
+                        <label><input type="checkbox" ${style.italic ? 'checked' : ''}
+                            onchange="cfUpdateRule(${i},'style','italic',this.checked)"> Italic</label>
+                        <label><input type="checkbox" ${style.underline ? 'checked' : ''}
+                            onchange="cfUpdateRule(${i},'style','underline',this.checked)"> Underline</label>
+                    </div>
+                    <div class="cf-preview-box" style="color:${style.color || '#000'};background:${style.background || '#fff'};font-weight:${style.bold ? 'bold' : 'normal'};font-style:${style.italic ? 'italic' : 'normal'};text-decoration:${style.underline ? 'underline' : 'none'};">
+                        Preview: "Sample Text"
                     </div>
                 </div>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.25rem;font-size:11px;">
-                    <select onchange="selectedElement=elements.find(e=>e.id===activeId); if(selectedElement&&selectedElement.conditionalFormats) { selectedElement.conditionalFormats[${i}].field = this.value; markChanged(); }"
-                        style="border:1px solid var(--border);border-radius:3px;padding:2px 4px;background:var(--bg);color:var(--text);font-size:11px;">
-                        ${schemaFields.map(f => `<option value="${f}" ${rule.field === f ? 'selected' : ''}>${f}</option>`).join('')}
-                        ${schemaFields.length === 0 ? `<option value="${rule.field || ''}" ${rule.field ? 'selected' : ''}>${rule.field || '(no fields)'}</option>` : ''}
-                    </select>
-                    <select onchange="selectedElement=elements.find(e=>e.id===activeId); if(selectedElement&&selectedElement.conditionalFormats) { selectedElement.conditionalFormats[${i}].operator = this.value; updateConditionalFormatList(); markChanged(); }"
-                        style="border:1px solid var(--border);border-radius:3px;padding:2px 4px;background:var(--bg);color:var(--text);font-size:11px;">
-                        ${CONDITIONAL_OPERATORS.map(op => `<option value="${op.value}" ${rule.operator === op.value ? 'selected' : ''}>${op.label}</option>`).join('')}
-                    </select>
-                    <input type="text" value="${escapeHtml(rule.value)}" placeholder="Value"
-                        onchange="selectedElement=elements.find(e=>e.id===activeId); if(selectedElement&&selectedElement.conditionalFormats) { selectedElement.conditionalFormats[${i}].value = this.value; updateConditionalFormatList(); renderElements(); markChanged(); }"
-                        style="border:1px solid var(--border);border-radius:3px;padding:2px 4px;background:var(--bg);color:var(--text);font-size:11px;${rule.operator === 'is_null' || rule.operator === 'is_not_null' ? 'display:none;' : ''}" />
-                    ${rule.operator === 'between' ? `<input type="text" value="${escapeHtml(rule.value2)}" placeholder="and"
-                        onchange="selectedElement=elements.find(e=>e.id===activeId); if(selectedElement&&selectedElement.conditionalFormats) { selectedElement.conditionalFormats[${i}].value2 = this.value; updateConditionalFormatList(); renderElements(); markChanged(); }"
-                        style="border:1px solid var(--border);border-radius:3px;padding:2px 4px;background:var(--bg);color:var(--text);font-size:11px;" />` : ''}
-                </div>
-                <div style="display:flex;align-items:center;gap:0.5rem;margin-top:0.25rem;font-size:11px;">
-                    <span style="display:flex;align-items:center;gap:2px;">
-                        <span style="color:var(--text-muted);font-size:9px;">A</span>
-                        <input type="color" value="${rule.style.color || '#000000'}"
-                            onchange="selectedElement=elements.find(e=>e.id===activeId); if(selectedElement&&selectedElement.conditionalFormats) { selectedElement.conditionalFormats[${i}].style.color = this.value; renderElements(); markChanged(); }"
-                            style="width:20px;height:20px;padding:0;border:1px solid var(--border);cursor:pointer;background:none;" title="Text color" />
-                    </span>
-                    <span style="display:flex;align-items:center;gap:2px;">
-                        <span style="color:var(--text-muted);font-size:9px;">▨</span>
-                        <input type="color" value="${rule.style.backgroundColor || '#FFFFFF'}"
-                            onchange="selectedElement=elements.find(e=>e.id===activeId); if(selectedElement&&selectedElement.conditionalFormats) { selectedElement.conditionalFormats[${i}].style.backgroundColor = this.value; renderElements(); markChanged(); }"
-                            style="width:20px;height:20px;padding:0;border:1px solid var(--border);cursor:pointer;background:none;" title="Background color" />
-                    </span>
-                    <label style="display:inline-flex;align-items:center;gap:2px;cursor:pointer;color:var(--text);font-size:10px;">
-                        <input type="checkbox" ${rule.style.bold ? 'checked' : ''}
-                            onchange="selectedElement=elements.find(e=>e.id===activeId); if(selectedElement&&selectedElement.conditionalFormats) { selectedElement.conditionalFormats[${i}].style.bold = this.checked; renderElements(); markChanged(); }"
-                            style="width:11px;height:11px;"> <b>B</b>
-                    </label>
-                    <label style="display:inline-flex;align-items:center;gap:2px;cursor:pointer;color:var(--text);font-size:10px;">
-                        <input type="checkbox" ${rule.style.italic ? 'checked' : ''}
-                            onchange="selectedElement=elements.find(e=>e.id===activeId); if(selectedElement&&selectedElement.conditionalFormats) { selectedElement.conditionalFormats[${i}].style.italic = this.checked; renderElements(); markChanged(); }"
-                            style="width:11px;height:11px;"> <i>I</i>
-                    </label>
-                    <label style="display:inline-flex;align-items:center;gap:2px;cursor:pointer;color:var(--text);font-size:10px;">
-                        <input type="checkbox" ${rule.style.underline ? 'checked' : ''}
-                            onchange="selectedElement=elements.find(e=>e.id===activeId); if(selectedElement&&selectedElement.conditionalFormats) { selectedElement.conditionalFormats[${i}].style.underline = this.checked; renderElements(); markChanged(); }"
-                            style="width:11px;height:11px;"> <u>U</u>
-                    </label>
-                </div>
-            </div>
-        `).join('');
+            `;
+        }).join('');
+        
+        cfSaveToElement(rules);
+    }
+
+    function cfGetFieldOptions(selected) {
+        // Get field keys from the current schema
+        let fields = [];
+        if (typeof getAutocompleteFieldKeys === 'function') {
+            fields = getAutocompleteFieldKeys();
+        } else if (window.currentSchemaData?.fields) {
+            fields = window.currentSchemaData.fields.map(f => f.key || f.name);
+        }
+        
+        let opts = '<option value="">— Select field —</option>';
+        fields.forEach(f => {
+            opts += `<option value="${cfEsc(f)}" ${f === selected ? 'selected' : ''}>${cfEsc(f)}</option>`;
+        });
+        return opts;
+    }
+
+    function cfGetOperatorOptions(selected) {
+        const ops = [
+            { val: '==', label: 'equals' },
+            { val: '!=', label: 'not equals' },
+            { val: '>', label: 'greater than' },
+            { val: '>=', label: 'greater or equal' },
+            { val: '<', label: 'less than' },
+            { val: '<=', label: 'less or equal' },
+            { val: 'contains', label: 'contains' },
+            { val: 'starts_with', label: 'starts with' },
+            { val: 'ends_with', label: 'ends with' },
+            { val: 'is_empty', label: 'is empty' },
+            { val: 'not_empty', label: 'is not empty' },
+        ];
+        return ops.map(o => `<option value="${o.val}" ${o.val === selected ? 'selected' : ''}>${o.label}</option>`).join('');
+    }
+
+    function cfUpdateRule(index, section, field, value) {
+        const container = document.getElementById('cf-rules-list');
+        if (!container) return;
+        
+        // Get current rules from the hidden storage
+        let rules = cfGetCurrentRules();
+        
+        if (!rules[index]) rules[index] = { condition: {}, style: {} };
+        if (!rules[index][section]) rules[index][section] = {};
+        
+        rules[index][section][field] = value;
+        
+        // Re-render to update preview
+        cfRenderRules(rules);
+    }
+
+    function cfAddRule() {
+        let rules = cfGetCurrentRules();
+        rules.push({
+            condition: { field: '', operator: '==', value: '' },
+            style: { color: '#000000', background: '#ffffff', bold: false, italic: false, underline: false }
+        });
+        cfRenderRules(rules);
+    }
+
+    function cfRemoveRule(index) {
+        let rules = cfGetCurrentRules();
+        rules.splice(index, 1);
+        cfRenderRules(rules);
+    }
+
+    function cfGetCurrentRules() {
+        try {
+            const json = document.getElementById('cf-hidden-json')?.textContent;
+            return json ? JSON.parse(json) : [];
+        } catch(e) { return []; }
+    }
+
+    function cfSaveToElement(rules) {
+        // Store in hidden JSON div
+        const hidden = document.getElementById('cf-hidden-json');
+        if (hidden) hidden.textContent = JSON.stringify(rules);
+        
+        // Also update the current element's data
+        if (cfCurrentElement) {
+            cfCurrentElement.conditional_format = rules.length ? rules : null;
+        }
+    }
+
+    function cfEsc(str) {
+        if (!str) return '';
+        return String(str).replace(/&/g,'&').replace(/</g,'<').replace(/>/g,'>').replace(/"/g,'"');
     }
 
     // ── Conditional Style Evaluation (Canvas Preview) ───────
 
     function getConditionalStyle(el, data) {
         const styles = [];
-        if (!el.conditionalFormats || !data) return styles;
+        if (!el.conditional_format || !data) return styles;
 
-        for (const rule of el.conditionalFormats) {
-            if (!rule.enabled) continue;
+        let rules = [];
+        try {
+            rules = typeof el.conditional_format === 'string'
+                ? JSON.parse(el.conditional_format)
+                : el.conditional_format;
+        } catch(e) { return styles; }
 
-            const fieldValue = resolveDataValue(rule.field, data);
-            const compareValue = rule.value;
+        if (!Array.isArray(rules)) return styles;
+
+        for (const rule of rules) {
+            const condition = rule.condition || {};
+            const fieldValue = resolveDataValue(condition.field, data);
+            const compareValue = condition.value;
+            const operator = condition.operator || '==';
             let match = false;
 
-            switch (rule.operator) {
-                case 'equals': match = fieldValue == compareValue; break;
-                case 'not_equals': match = fieldValue != compareValue; break;
-                case 'greater_than': match = parseFloat(fieldValue) > parseFloat(compareValue); break;
-                case 'less_than': match = parseFloat(fieldValue) < parseFloat(compareValue); break;
-                case 'greater_equal': match = parseFloat(fieldValue) >= parseFloat(compareValue); break;
-                case 'less_equal': match = parseFloat(fieldValue) <= parseFloat(compareValue); break;
+            switch (operator) {
+                case '==': match = fieldValue == compareValue; break;
+                case '!=': match = fieldValue != compareValue; break;
+                case '>': match = parseFloat(fieldValue) > parseFloat(compareValue); break;
+                case '>=': match = parseFloat(fieldValue) >= parseFloat(compareValue); break;
+                case '<': match = parseFloat(fieldValue) < parseFloat(compareValue); break;
+                case '<=': match = parseFloat(fieldValue) <= parseFloat(compareValue); break;
                 case 'contains': match = String(fieldValue).includes(compareValue); break;
                 case 'starts_with': match = String(fieldValue).startsWith(compareValue); break;
                 case 'ends_with': match = String(fieldValue).endsWith(compareValue); break;
-                case 'is_null': match = fieldValue === null || fieldValue === undefined || fieldValue === ''; break;
-                case 'is_not_null': match = fieldValue !== null && fieldValue !== undefined && fieldValue !== ''; break;
-                case 'between': match = parseFloat(fieldValue) >= parseFloat(compareValue) && parseFloat(fieldValue) <= parseFloat(rule.value2); break;
+                case 'is_empty': match = fieldValue === null || fieldValue === undefined || fieldValue === ''; break;
+                case 'not_empty': match = fieldValue !== null && fieldValue !== undefined && fieldValue !== ''; break;
                 default: match = false;
             }
 
             if (match) {
-                styles.push(rule.style);
+                const s = rule.style || {};
+                // Map new style format (background) to old format (backgroundColor) for backward compat
+                styles.push({
+                    color: s.color || '#000000',
+                    backgroundColor: s.background || '#FFFFFF',
+                    bold: s.bold || false,
+                    italic: s.italic || false,
+                    underline: s.underline || false,
+                });
                 break; // first match wins
             }
         }
@@ -2354,8 +3841,35 @@
     // ── Save / Preview / Test Print ──────────────────────────
     function saveTemplate() {
         const name=document.getElementById('tpl-name').value; if(!name)return alert('Name required');
+        
+        // Save conditional formatting data from hidden JSON to active element
+        const cfHidden = document.getElementById('cf-hidden-json');
+        if (cfHidden && cfHidden.textContent && cfCurrentElement) {
+            try {
+                const rules = JSON.parse(cfHidden.textContent);
+                cfCurrentElement.conditional_format = rules.length ? rules : null;
+            } catch(e) {}
+        }
+        
+        // Capture formula data from visual editor to active element
+        const formulaInput = document.getElementById('fe-formula-input');
+        if (formulaInput && cfCurrentElement) {
+            const val = formulaInput.value.trim();
+            cfCurrentElement.formula = val || null;
+        }
+        // Capture running total config from RT builder
+        const rtConfigJson = document.getElementById('rt-config-json');
+        if (rtConfigJson && rtConfigJson.textContent && cfCurrentElement) {
+            try {
+                const rtData = JSON.parse(rtConfigJson.textContent);
+                if (rtData) {
+                    Object.assign(cfCurrentElement, rtData);
+                }
+            } catch(e) {}
+        }
+        
         const allElements = flattenSections();
-        const payload={name,paper_width_mm:parseFloat(document.getElementById('paper-w').value),paper_height_mm:parseFloat(document.getElementById('paper-h').value),background_image_path:document.getElementById('bg-path').value,elements:{sections:sections,elements:allElements},styles:globalStyles,background_config:backgroundConfig,_token:'{{ csrf_token() }}'};
+        const payload={name,paper_width_mm:parseFloat(document.getElementById('paper-w').value),paper_height_mm:parseFloat(document.getElementById('paper-h').value),background_image_path:document.getElementById('bg-path').value,elements:{sections:sections,elements:allElements},styles:globalStyles,background_config:backgroundConfig,parameters:templateParams,_token:'{{ csrf_token() }}'};
         const btn=document.getElementById('save-btn'); btn.textContent='Saving…'; btn.disabled=true;
         fetch("{{ $template->id ? route('admin.templates.update', $template, false) : route('admin.templates.store', [], false) }}",{method:"{{ $template->id ? 'PUT' : 'POST' }}",headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify(payload)})
         .then(async r => {
@@ -2832,6 +4346,16 @@
         if (mvd) { pushHistory(); e.preventDefault(); renderElements(); updateInspector(); }
     });
 
+    // Wire up the Fetch Live Data button
+    function domReadyWire() {
+        wireFetchLiveBtn();
+    }
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+        domReadyWire();
+    } else {
+        document.addEventListener('DOMContentLoaded', domReadyWire);
+    }
+
     init();
 </script>
 
@@ -3249,6 +4773,624 @@
                         title="Delete">✕</button>
             </div>
         `).join('');
+    }
+
+    // ── Parameter Editor ────────────────────────────────────
+    function renderParameters() {
+        const container = document.getElementById('parameters-list');
+        if (!container) return;
+        if (!templateParams || templateParams.length === 0) {
+            container.innerHTML = '<div style="font-size:10px; color:var(--text-muted); padding:4px 0;">No parameters defined yet.</div>';
+            return;
+        }
+        container.innerHTML = templateParams.map((p, i) => `
+            <div style="display:flex; align-items:center; gap:4px; padding:6px 8px; margin-bottom:4px; background:var(--bg); border:1px solid var(--border); border-radius:6px;">
+                <div style="flex:1; min-width:0;">
+                    <div style="font-size:11px; font-weight:600; color:var(--text);">${escapeHtml(p.name || '')}</div>
+                    <div style="font-size:10px; color:var(--text-muted);">
+                        ${escapeHtml(p.label || '')}
+                        <span style="color:var(--primary);">(${p.type || 'text'})</span>
+                        ${p.required ? '<span style="color:var(--danger);">*</span>' : ''}
+                    </div>
+                </div>
+                <button onclick="editParameter(${i})" style="background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:12px; padding:2px 6px;" title="Edit">✏️</button>
+                <button onclick="removeParameter(${i})" style="background:none; border:none; color:var(--danger); cursor:pointer; font-size:14px; padding:2px 6px;" title="Remove">×</button>
+            </div>
+        `).join('');
+    }
+
+    function addParameter() {
+        const nameEl = document.getElementById('param-name');
+        const labelEl = document.getElementById('param-label');
+        const typeEl = document.getElementById('param-type');
+        const defaultEl = document.getElementById('param-default');
+        const requiredEl = document.getElementById('param-required');
+        const optionsEl = document.getElementById('param-options');
+        const name = (nameEl.value || '').trim();
+        if (!name) { showToast('⚠️ Parameter name is required.', 'warning'); return; }
+        if (templateParams.some(p => p.name === name)) {
+            showToast('⚠️ A parameter with this name already exists.', 'warning');
+            return;
+        }
+        const type = typeEl.value;
+        let options = [];
+        if (type === 'select') {
+            const raw = (optionsEl.value || '').trim();
+            options = raw ? raw.split(',').map(s => s.trim()).filter(Boolean) : [];
+        }
+        templateParams.push({
+            name,
+            label: (labelEl.value || '').trim(),
+            type,
+            default: defaultEl.value || null,
+            required: requiredEl.checked,
+            options: type === 'select' ? options : undefined
+        });
+        nameEl.value = '';
+        labelEl.value = '';
+        typeEl.value = 'text';
+        defaultEl.value = '';
+        requiredEl.checked = false;
+        optionsEl.value = '';
+        document.getElementById('param-select-options-row').style.display = 'none';
+        renderParameters();
+        showToast('✅ Parameter added.', 'success');
+    }
+
+    function editParameter(index) {
+        const p = templateParams[index];
+        if (!p) return;
+        document.getElementById('param-name').value = p.name || '';
+        document.getElementById('param-label').value = p.label || '';
+        document.getElementById('param-type').value = p.type || 'text';
+        document.getElementById('param-default').value = p.default ?? '';
+        document.getElementById('param-required').checked = !!p.required;
+        if (p.type === 'select' && Array.isArray(p.options)) {
+            document.getElementById('param-options').value = p.options.join(', ');
+            document.getElementById('param-select-options-row').style.display = 'flex';
+        } else {
+            document.getElementById('param-options').value = '';
+            document.getElementById('param-select-options-row').style.display = 'none';
+        }
+        templateParams.splice(index, 1);
+        renderParameters();
+        showToast('✏️ Edit the fields above and click "+ Add" to update.', 'info');
+    }
+
+    function removeParameter(index) {
+        if (!confirm('Remove this parameter?')) return;
+        templateParams.splice(index, 1);
+        renderParameters();
+    }
+
+    // Show/hide options row when "select" type is chosen
+    document.addEventListener('DOMContentLoaded', () => {
+        const typeEl = document.getElementById('param-type');
+        if (typeEl) {
+            typeEl.addEventListener('change', function() {
+                const row = document.getElementById('param-select-options-row');
+                if (row) row.style.display = this.value === 'select' ? 'flex' : 'none';
+            });
+        }
+    });
+
+    // ── Visual Formula Editor ────────────────────────────────────
+    let feCurrentElement = null;
+
+    function feInit(el) {
+        feCurrentElement = el;
+        const container = document.getElementById('fe-container');
+        if (!container) return;
+
+        // Show container for field/label elements
+        if (el.type === 'field' || el.type === 'label') {
+            container.style.display = 'block';
+            // Load formula from element
+            const textarea = document.getElementById('fe-formula-input');
+            if (textarea) {
+                textarea.value = el.formula || '';
+            }
+            // Populate field dropdown
+            fePopulateFieldDropdowns(document.getElementById('fe-field-picker'));
+            // Load functions reference
+            feLoadFunctions('fe-functions-list');
+            // Run initial validation
+            feValidateFormula(el, true);
+        } else {
+            container.style.display = 'none';
+        }
+    }
+
+    function feSwitchTab(tabId, type) {
+        const container = document.getElementById('fe-container');
+        if (!container) return;
+        // Deactivate all tabs and panels
+        container.querySelectorAll('.fe-tab').forEach(t => t.classList.remove('active'));
+        container.querySelectorAll('.fe-panel').forEach(p => p.classList.remove('active'));
+        // Activate selected
+        const tab = container.querySelector(`[data-fe-tab="${tabId}"]`);
+        const panel = document.getElementById(`fe-panel-${tabId}`);
+        if (tab) tab.classList.add('active');
+        if (panel) panel.classList.add('active');
+        // Load functions when switching to fn-ref tab
+        if (tabId === 'fn-ref') {
+            const listId = type === 'running_total' ? 'fe-functions-list-rt' : 'fe-functions-list';
+            feLoadFunctions(listId);
+        }
+    }
+
+    function feInsertField(el) {
+        const textarea = document.getElementById('fe-formula-input');
+        if (!textarea) return;
+        const fieldName = prompt('Enter field name (e.g., total_amount):');
+        if (fieldName && fieldName.trim()) {
+            feInsertAtCursor(textarea, fieldName.trim());
+            textarea.focus();
+            feValidateFormula(el, true);
+        }
+    }
+
+    function feInsertAtCursor(textarea, text) {
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        const before = textarea.value.substring(0, start);
+        const after = textarea.value.substring(end);
+        textarea.value = before + text + after;
+        // Move cursor after inserted text
+        const newPos = start + text.length;
+        textarea.selectionStart = textarea.selectionEnd = newPos;
+        // Trigger input event
+        const event = new Event('input', { bubbles: true });
+        textarea.dispatchEvent(event);
+    }
+
+    function feValidateFormula(el, silent) {
+        const textarea = document.getElementById('fe-formula-input');
+        const validation = document.getElementById('fe-validation');
+        if (!textarea || !validation) return;
+
+        const expr = textarea.value.trim();
+        if (!expr) {
+            validation.textContent = 'Enter a formula expression';
+            validation.className = 'fe-validation pending';
+            // Update element
+            if (el) el.formula = null;
+            return;
+        }
+
+        // Update element's formula
+        if (el) el.formula = expr;
+
+        // Client-side pre-validation
+        let hasError = false;
+        let errorMsg = '';
+
+        // Check unmatched opening braces
+        const openBraces = (expr.match(/\{/g) || []).length;
+        const closeBraces = (expr.match(/\}/g) || []).length;
+        if (openBraces !== closeBraces) {
+            hasError = true;
+            errorMsg = `Unmatched braces: ${openBraces} opening vs ${closeBraces} closing`;
+        }
+
+        // Check unmatched parentheses
+        let parenCount = 0;
+        for (const ch of expr) {
+            if (ch === '(') parenCount++;
+            else if (ch === ')') parenCount--;
+            if (parenCount < 0) { hasError = true; errorMsg = 'Unmatched closing parenthesis'; break; }
+        }
+        if (!hasError && parenCount > 0) {
+            hasError = true;
+            errorMsg = `Missing ${parenCount} closing parenthesis(es)`;
+        }
+
+        if (hasError) {
+            validation.textContent = '❌ ' + errorMsg;
+            validation.className = 'fe-validation error';
+            return;
+        }
+
+        // Check for empty field references {}
+        if (/\{\s*\}/.test(expr)) {
+            validation.textContent = '⚠️ Empty field reference {} found';
+            validation.className = 'fe-validation error';
+            return;
+        }
+
+        // If silent mode and no errors, show pending
+        if (silent) {
+            validation.textContent = '✓ Formula syntax looks valid';
+            validation.className = 'fe-validation valid';
+            return;
+        }
+
+        // Server-side validation when not silent
+        validation.textContent = '⏳ Validating...';
+        validation.className = 'fe-validation pending';
+
+        fetch('/api/v1/formula/validate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ expression: expr })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.valid) {
+                validation.textContent = '✅ Formula is valid';
+                validation.className = 'fe-validation valid';
+            } else {
+                validation.textContent = '❌ ' + (data.error || 'Invalid formula');
+                validation.className = 'fe-validation error';
+            }
+        })
+        .catch(() => {
+            validation.textContent = '⚠️ Validation unavailable (offline)';
+            validation.className = 'fe-validation pending';
+        });
+    }
+
+    function feLoadFunctions(containerId) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+
+        container.innerHTML = '<div style="font-size:10px;color:var(--text-muted);padding:4px;">Loading functions...</div>';
+
+        fetch('/api/v1/formula/functions')
+            .then(r => r.json())
+            .then(functions => {
+                if (!functions || functions.length === 0) {
+                    container.innerHTML = '<div style="font-size:10px;color:var(--text-muted);padding:4px;">No functions available</div>';
+                    return;
+                }
+
+                const categories = {};
+                functions.forEach(f => {
+                    if (!categories[f.category]) categories[f.category] = [];
+                    categories[f.category].push(f);
+                });
+
+                const categoryIcons = {
+                    'Math': '🔢', 'String': '📝', 'Date': '📅',
+                    'Logical': '🔗', 'Conversion': '🔄', 'Other': '📦'
+                };
+
+                container.innerHTML = Object.entries(categories).map(([cat, funcs]) => `
+                    <div class="fe-fn-group">
+                        <div class="fe-fn-group-title">
+                            ${categoryIcons[cat] || '📦'} ${cat}
+                            <span style="font-weight:400;font-size:9px;">(${funcs.length})</span>
+                        </div>
+                        ${funcs.map(f => `
+                            <div class="fe-fn-item" onclick="feInsertFunction('${f.name}', '${containerId}')" title="${(f.description||'')}">
+                                <span class="fe-fn-name">${f.name}</span>
+                                <span class="fe-fn-params">${f.syntax || f.params || ''}</span>
+                                <span class="fe-fn-desc">${f.description || ''}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                `).join('');
+            })
+            .catch(err => {
+                console.error('Failed to load functions:', err);
+                container.innerHTML = '<div style="font-size:10px;color:var(--danger);padding:4px;">Failed to load functions</div>';
+            });
+    }
+
+    function feInsertFunction(funcName, containerId) {
+        // Find the formula textarea - could be in fe-container or running total container
+        const textarea = document.getElementById('fe-formula-input');
+        if (textarea) {
+            feInsertAtCursor(textarea, funcName + '()');
+            // Place cursor inside parentheses
+            const openParen = textarea.value.lastIndexOf('(', textarea.selectionStart);
+            if (openParen !== -1) {
+                textarea.selectionStart = textarea.selectionEnd = openParen + 1;
+            }
+            textarea.focus();
+            if (feCurrentElement) feValidateFormula(feCurrentElement, true);
+        }
+    }
+
+    function fePopulateFieldDropdowns(selectEl) {
+        if (!selectEl) return;
+        // Get field keys
+        let fields = [];
+        if (typeof getAutocompleteFieldKeys === 'function') {
+            fields = getAutocompleteFieldKeys();
+        }
+
+        const currentValue = selectEl.value;
+        selectEl.innerHTML = '<option value="">' + (selectEl.id === 'fe-field-picker' ? '— Insert data field —' : '— Select field —') + '</option>';
+
+        if (fields.length === 0) {
+            // Try getting from schema
+            if (typeof getSchemaFieldKeys === 'function') {
+                fields = getSchemaFieldKeys();
+            }
+        }
+
+        fields.forEach(f => {
+            const opt = document.createElement('option');
+            opt.value = f;
+            opt.textContent = f;
+            selectEl.appendChild(opt);
+        });
+
+        if (currentValue) selectEl.value = currentValue;
+    }
+
+    function feShowPicker(el) {
+        const picker = document.getElementById('fe-field-picker');
+        if (!picker) return;
+        // Re-populate and focus
+        fePopulateFieldDropdowns(picker);
+        picker.focus();
+        picker.size = Math.min(picker.options.length, 10);
+        picker.style.height = 'auto';
+    }
+
+    function feInsertSelectedField(el, select) {
+        if (!select || !select.value) return;
+        const textarea = document.getElementById('fe-formula-input');
+        if (textarea) {
+            feInsertAtCursor(textarea, select.value);
+            textarea.focus();
+            feValidateFormula(el, true);
+        }
+        select.value = '';
+    }
+
+    // ── Running Total Builder ────────────────────────────────────
+
+    function rtLoadConfig(el) {
+        if (!el) return;
+        const container = document.getElementById('fe-container');
+        if (!container) return;
+
+        container.style.display = 'block';
+
+        // Populate all field dropdowns in the RT builder
+        const selects = container.querySelectorAll('.fe-field-dropdown');
+        selects.forEach(s => fePopulateFieldDropdowns(s));
+
+        // Set current values from element config
+        const opSelect = container.querySelector('.rt-row select[onchange*="rtUpdateConfig.*operation"]');
+        if (opSelect && el.operation) opSelect.value = el.operation;
+
+        // Set field value
+        const fieldSelects = container.querySelectorAll('.rt-row select.fe-field-dropdown');
+        if (fieldSelects[0] && el.field) fieldSelects[0].value = el.field;
+
+        // Set evaluate condition
+        const evalEnabled = document.getElementById('rt-eval-enabled');
+        if (evalEnabled) {
+            evalEnabled.checked = !!(el.evaluateCondition && el.evaluateCondition.enabled);
+            rtToggleEvalField(el, evalEnabled.checked);
+            if (el.evaluateCondition && el.evaluateCondition.enabled) {
+                const evalField = document.querySelector('#rt-eval-fields .fe-field-dropdown');
+                const evalOp = document.querySelectorAll('#rt-eval-fields select')[1];
+                const evalVal = document.querySelector('#rt-eval-fields input[type="text"]');
+                if (evalField && el.evaluateCondition.field) evalField.value = el.evaluateCondition.field;
+                if (evalOp && el.evaluateCondition.operator) evalOp.value = el.evaluateCondition.operator;
+                if (evalVal && el.evaluateCondition.value) evalVal.value = el.evaluateCondition.value;
+            }
+        }
+
+        // Set reset condition
+        const resetEnabled = document.getElementById('rt-reset-enabled');
+        if (resetEnabled) {
+            resetEnabled.checked = !!(el.resetCondition && el.resetCondition.enabled);
+            rtToggleResetField(el, resetEnabled.checked);
+            if (el.resetCondition && el.resetCondition.enabled) {
+                const resetField = document.querySelector('#rt-reset-fields .fe-field-dropdown');
+                const resetOp = document.querySelectorAll('#rt-reset-fields select')[1];
+                const resetVal = document.querySelector('#rt-reset-fields input[type="text"]');
+                if (resetField && el.resetCondition.field) resetField.value = el.resetCondition.field;
+                if (resetOp && el.resetCondition.operator) resetOp.value = el.resetCondition.operator;
+                if (resetVal && el.resetCondition.value) resetVal.value = el.resetCondition.value;
+            }
+        }
+
+        // Load functions reference
+        feLoadFunctions('fe-functions-list-rt');
+
+        // Update preview
+        rtUpdatePreview(el);
+    }
+
+    function rtToggleEvalField(el, enabled) {
+        const fields = document.getElementById('rt-eval-fields');
+        if (fields) fields.style.display = enabled ? 'block' : 'none';
+        if (!el.evaluateCondition) el.evaluateCondition = {};
+        el.evaluateCondition.enabled = enabled;
+        rtUpdatePreview(el);
+    }
+
+    function rtToggleResetField(el, enabled) {
+        const fields = document.getElementById('rt-reset-fields');
+        if (fields) fields.style.display = enabled ? 'block' : 'none';
+        if (!el.resetCondition) el.resetCondition = {};
+        el.resetCondition.enabled = enabled;
+        rtUpdatePreview(el);
+    }
+
+    function rtUpdateConfig(el, prop, value) {
+        if (!el) return;
+        // For nested properties like evaluateCondition, resetCondition
+        if (typeof prop === 'string' && (prop === 'evaluateCondition' || prop === 'resetCondition')) {
+            el[prop] = value;
+        } else {
+            el[prop] = value;
+        }
+        // Update hidden JSON storage
+        const jsonEl = document.getElementById('rt-config-json');
+        if (jsonEl) {
+            const config = {
+                operation: el.operation || 'sum',
+                field: el.field || '',
+                evaluateCondition: el.evaluateCondition || null,
+                resetCondition: el.resetCondition || null
+            };
+            jsonEl.textContent = JSON.stringify(config);
+        }
+        // Also directly update via updateElProps for saveTemplate compatibility
+        if (prop === 'operation' || prop === 'field') {
+            updateElProps(prop, value);
+        }
+    }
+
+    function rtUpdatePreview(el) {
+        const preview = document.getElementById('rt-preview');
+        if (!preview || !el) return;
+
+        const op = el.operation || 'sum';
+        const field = el.field || '?';
+        const opSymbol = { sum: 'Σ', count: 'COUNT', average: 'AVG', min: 'MIN', max: 'MAX' };
+
+        let parts = [`${opSymbol[op] || op.toUpperCase()}(${field})`];
+
+        if (el.evaluateCondition && el.evaluateCondition.enabled) {
+            const cond = el.evaluateCondition;
+            parts.push(` IF ${cond.field || '?'} ${cond.operator || '=='} ${cond.value || '?'}`);
+        }
+        if (el.resetCondition && el.resetCondition.enabled) {
+            const cond = el.resetCondition;
+            parts.push(` RESET ON ${cond.field || '?'} ${cond.operator || '=='} ${cond.value || '?'}`);
+        }
+
+        preview.textContent = parts.join('');
+    }
+
+    // ── Test Scenarios ─────────────────────────────────────────
+
+    function loadScenarios() {
+        if (!templateId) return;
+
+        fetch(`/admin/templates/${templateId}/scenarios`, {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(r => r.json())
+        .then(scenarios => {
+            renderScenarios(scenarios);
+        })
+        .catch(() => {});
+    }
+
+    function renderScenarios(scenarios) {
+        const list = document.getElementById('scenarios-list');
+        if (!list) return;
+
+        if (!scenarios.length) {
+            list.innerHTML = '<div style="font-size:11px;color:var(--text-muted);padding:4px 0;">No test scenarios. Create one to test with different data.</div>';
+            return;
+        }
+
+        list.innerHTML = scenarios.map(s => `
+            <div class="scenario-item" style="display:flex;align-items:center;gap:4px;padding:4px 6px;margin-bottom:4px;background:var(--bg);border-radius:4px;font-size:11px;${s.is_default ? 'border-left:3px solid var(--primary);' : ''}">
+                <span style="flex:1;cursor:pointer;" onclick="useScenario(${s.id})" title="Preview with this scenario">
+                    ${s.is_default ? '★ ' : ''}${escapeHtml(s.name)}
+                </span>
+                <span style="font-size:10px;color:var(--text-muted);">${Object.keys(s.data || {}).length} fields</span>
+                <button onclick="setDefaultScenario(${s.id})" style="padding:1px 4px;border:none;background:transparent;cursor:pointer;font-size:12px;" title="Set as default">⭐</button>
+                <button onclick="editScenario(${s.id})" style="padding:1px 4px;border:none;background:transparent;cursor:pointer;font-size:12px;" title="Edit data">✏️</button>
+                <button onclick="deleteScenario(${s.id})" style="padding:1px 4px;border:none;background:transparent;cursor:pointer;color:#ef4444;font-size:12px;" title="Delete">✕</button>
+            </div>
+        `).join('');
+    }
+
+    function createScenario() {
+        const input = document.getElementById('new-scenario-name');
+        const name = input?.value?.trim();
+        if (!name) return;
+
+        if (!templateId) return;
+
+        // Use the current sample data or current canvas data as the scenario data
+        const data = window.currentSchemaData?.data || {};
+
+        fetch(`/admin/templates/${templateId}/scenarios`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content,
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({ name, data: JSON.stringify(data), description: '' })
+        })
+        .then(r => r.json())
+        .then(() => {
+            input.value = '';
+            loadScenarios();
+            showToast('Scenario "' + name + '" created', 'success');
+        })
+        .catch(err => showToast('Failed: ' + err.message, 'error'));
+    }
+
+    function useScenario(scenarioId) {
+        // Preview with this scenario
+        if (templateId) {
+            window.open(`/admin/templates/${templateId}/preview?scenario_id=${scenarioId}`, '_blank');
+        }
+    }
+
+    function setDefaultScenario(scenarioId) {
+        if (!templateId) return;
+
+        fetch(`/admin/templates/${templateId}/scenarios/${scenarioId}/set-default`, {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content,
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(r => r.json())
+        .then(() => loadScenarios())
+        .catch(err => showToast('Failed: ' + err.message, 'error'));
+    }
+
+    function editScenario(scenarioId) {
+        // Open a modal/dialog to edit the scenario data
+        const data = prompt('Enter scenario data as JSON:');
+        if (!data) return;
+
+        if (!templateId) return;
+
+        fetch(`/admin/templates/${templateId}/scenarios/${scenarioId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content,
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({ data })
+        })
+        .then(r => r.json())
+        .then(() => {
+            loadScenarios();
+            showToast('Scenario updated', 'success');
+        })
+        .catch(err => showToast('Failed: ' + err.message, 'error'));
+    }
+
+    function deleteScenario(scenarioId) {
+        if (!confirm('Delete this test scenario?')) return;
+
+        if (!templateId) return;
+
+        fetch(`/admin/templates/${templateId}/scenarios/${scenarioId}`, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content,
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(r => r.json())
+        .then(() => {
+            loadScenarios();
+            showToast('Scenario deleted', 'success');
+        })
+        .catch(err => showToast('Failed: ' + err.message, 'error'));
     }
 </script>
 @endsection
