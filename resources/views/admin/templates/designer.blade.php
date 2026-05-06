@@ -2803,7 +2803,10 @@ $templateSchemasData = $template->relationLoaded('schemas') ? $template->schemas
                 format: { type: 'number', decimals: 2 }
             };
         }
-        elements.push(el); renderElements(); selectElements([id]);
+        if (!sections.detail.elements) sections.detail.elements = [];
+        sections.detail.elements.push(el);
+        elements = flattenSections();
+        renderElements(); selectElements([id]);
     }
 
     // ── Duplicate ────────────────────────────────────────────
@@ -2815,8 +2818,12 @@ $templateSchemasData = $template->relationLoaded('schemas') ? $template->schemas
             const copy = JSON.parse(JSON.stringify(orig));
             copy.id = 'el_dup_' + Date.now() + '_' + Math.random().toString(36).slice(2,6);
             copy.x += 5; copy.y += 5;
-            elements.push(copy); newIds.push(copy.id);
+            const sourceKey = findElementSection(orig.id) || 'detail';
+            if (!sections[sourceKey].elements) sections[sourceKey].elements = [];
+            sections[sourceKey].elements.push(copy);
+            newIds.push(copy.id);
         });
+        elements = flattenSections();
         renderElements(); selectElements(newIds);
     }
 
@@ -3641,6 +3648,58 @@ $templateSchemasData = $template->relationLoaded('schemas') ? $template->schemas
                     <div class="fe-functions-list" id="fe-functions-list"></div>
                 </div>
             </div>`;
+
+            // ── Advanced Properties ──────────────────────────────
+            const pad = el.padding || {};
+            const paddingJson = JSON.stringify(pad).replace(/"/g, '"');
+            html += `
+            <div class="props-section"><div class="props-label" style="cursor:pointer;" onclick="const s=this.nextElementSibling; s.style.display=s.style.display==='none'?'':'none'; this.querySelector('.adv-toggle').textContent=s.style.display==='none'?'▶':'▼';">Advanced <span class="adv-toggle" style="font-size:9px;margin-left:4px;">▼</span></div>
+            <div class="prop-table">
+                <div class="prop-item"><div class="prop-key">Tooltip</div><div class="prop-val"><input type="text" value="${escapeHtml(el.tooltip||'')}" oninput="updateElProps('tooltip',this.value)" placeholder="Hover text"></div></div>
+                ${el.type === 'field' || el.type === 'label' ? `
+                <div class="prop-item"><div class="prop-key">Print When</div><div class="prop-val"><input type="text" value="${escapeHtml(el.print_when||'')}" oninput="updateElProps('print_when',this.value)" placeholder='e.g. {amount} > 0' style="font-family:monospace;font-size:10px;"></div></div>
+                ` : ''}
+                ${el.type === 'field' ? `
+                <div class="prop-item"><div class="prop-key">Suppress Duplicate</div><div class="prop-val" style="padding-left:10px;"><input type="checkbox" ${el.suppress_if_duplicate?'checked':''} onchange="updateElProps('suppress_if_duplicate',this.checked)"></div></div>
+                ` : ''}
+                <div class="prop-item"><div class="prop-key">Can Grow</div><div class="prop-val" style="padding-left:10px;"><input type="checkbox" ${el.can_grow?'checked':''} onchange="updateElProps('can_grow',this.checked)" title="Allow element to expand vertically to fit content"></div></div>
+                <div class="prop-item"><div class="prop-key">Keep Together</div><div class="prop-val" style="padding-left:10px;"><input type="checkbox" ${el.keep_together?'checked':''} onchange="updateElProps('keep_together',this.checked)" title="Prevent page break within this element"></div></div>
+                ${el.type !== 'table' && el.type !== 'line' ? `
+                <div class="prop-item" style="flex-direction:column;align-items:stretch;border-bottom:none;">
+                    <div style="display:flex;justify-content:space-between;padding:4px 8px;background:rgba(59,130,246,0.08);border-radius:3px;">
+                        <span style="font-size:10px;font-weight:600;color:var(--primary);">🔗 Hyperlink</span>
+                    </div>
+                    <div style="padding:4px;">
+                        <div style="display:flex;align-items:center;gap:4px;margin-bottom:4px;">
+                            <span style="font-size:9px;color:var(--text-muted);width:36px;">Type</span>
+                            <select onchange="updateElProps('linkType',this.value)" style="flex:1;">
+                                <option value="none" ${(!el.linkType||el.linkType==='none')?'selected':''}>None</option>
+                                <option value="url" ${el.linkType==='url'?'selected':''}>URL</option>
+                                <option value="email" ${el.linkType==='email'?'selected':''}>Email</option>
+                            </select>
+                        </div>
+                        ${el.linkType && el.linkType !== 'none' ? `
+                        <div style="display:flex;align-items:center;gap:4px;">
+                            <span style="font-size:9px;color:var(--text-muted);width:36px;">URL</span>
+                            <input type="text" value="${escapeHtml(el.linkUrl||'')}" oninput="updateElProps('linkUrl',this.value)" placeholder="https://... or @{{field}}" style="flex:1;font-family:monospace;font-size:10px;">
+                        </div>
+                        ` : ''}
+                    </div>
+                </div>
+                ` : ''}
+                <div class="prop-item" style="flex-direction:column;align-items:stretch;">
+                    <div style="display:flex;justify-content:space-between;padding:4px 8px;background:rgba(255,255,255,0.03);">
+                        <span style="font-size:10px;font-weight:600;color:var(--text-muted);">Padding</span>
+                        <button onclick="const p=this.parentElement.nextElementSibling; p.style.display=p.style.display==='none'?'grid':'none'; this.textContent=p.style.display==='none'?'✚':'✕';" style="background:none;border:none;color:var(--primary);cursor:pointer;font-size:11px;">✚</button>
+                    </div>
+                    <div class="padding-grid" style="display:none;grid-template-columns:1fr 1fr;gap:2px;padding:4px;">
+                        <div style="display:flex;align-items:center;gap:4px;"><span style="font-size:9px;width:24px;">Top</span><input type="number" min="0" max="20" step="0.5" value="${pad.top||0}" oninput="const p=Object.assign({},el.padding||{}); p.top=parseFloat(this.value)||0; updateElProps('padding',p)" style="width:50px;"></div>
+                        <div style="display:flex;align-items:center;gap:4px;"><span style="font-size:9px;width:24px;">Right</span><input type="number" min="0" max="20" step="0.5" value="${pad.right||0}" oninput="const p=Object.assign({},el.padding||{}); p.right=parseFloat(this.value)||0; updateElProps('padding',p)" style="width:50px;"></div>
+                        <div style="display:flex;align-items:center;gap:4px;"><span style="font-size:9px;width:24px;">Bottom</span><input type="number" min="0" max="20" step="0.5" value="${pad.bottom||0}" oninput="const p=Object.assign({},el.padding||{}); p.bottom=parseFloat(this.value)||0; updateElProps('padding',p)" style="width:50px;"></div>
+                        <div style="display:flex;align-items:center;gap:4px;"><span style="font-size:9px;width:24px;">Left</span><input type="number" min="0" max="20" step="0.5" value="${pad.left||0}" oninput="const p=Object.assign({},el.padding||{}); p.left=parseFloat(this.value)||0; updateElProps('padding',p)" style="width:50px;"></div>
+                    </div>
+                </div>
+            </div></div>`;
         }
 
         html += `
@@ -3741,7 +3800,20 @@ $templateSchemasData = $template->relationLoaded('schemas') ? $template->schemas
     function moveColUp(idx) { pushHistory(); const el=elements.find(e=>e.id===activeId); if(el&&idx>0){const c=el.columns.splice(idx,1)[0]; el.columns.splice(idx-1,0,c); updateInspector(); renderElements(); } }
     function moveColDown(idx) { pushHistory(); const el=elements.find(e=>e.id===activeId); if(el&&idx<el.columns.length-1){const c=el.columns.splice(idx,1)[0]; el.columns.splice(idx+1,0,c); updateInspector(); renderElements(); } }
     function updateElProps(prop,val) { pushHistory(); const el=elements.find(e=>e.id===activeId); if(el){el[prop]=val;renderElements();updateInspector();} }
-    function deleteActive() { if(!confirm('Delete selected element(s)?'))return; pushHistory(); elements=elements.filter(el=>!activeIds.includes(el.id)); activeIds=[];activeId=null; renderElements();updateInspector(); }
+    function deleteActive() { 
+        if(!confirm('Delete selected element(s)?'))return; 
+        pushHistory(); 
+        SECTION_ORDER.forEach(key => {
+            if (sections[key] && sections[key].elements) {
+                sections[key].elements = sections[key].elements.filter(el => !activeIds.includes(el.id));
+            }
+        });
+        elements = flattenSections();
+        activeIds=[];
+        activeId=null; 
+        renderElements();
+        updateInspector(); 
+    }
 
     // ── Conditional Formatting Editor ─────────────────────────
 
