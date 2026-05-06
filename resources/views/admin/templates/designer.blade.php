@@ -565,22 +565,42 @@
     let sectionResizing = null;
 
     function initSections(rawElements) {
+        console.log('[Designer] initSections()', {
+            rawType: typeof rawElements,
+            isArray: Array.isArray(rawElements),
+            hasSections: !!(rawElements && rawElements.sections),
+            isNull: !rawElements,
+            rawKeys: rawElements && typeof rawElements === 'object' && !Array.isArray(rawElements) ? Object.keys(rawElements) : null
+        });
         if (!rawElements || typeof rawElements !== 'object') {
             sections = JSON.parse(JSON.stringify(SECTION_DEFAULTS));
             sections.detail.elements = [];
+            console.log('[Designer] initSections: null/invalid path, fresh defaults');
             return sections;
         }
         if (rawElements.sections) {
             sections = JSON.parse(JSON.stringify(rawElements.sections));
+            console.log('[Designer] initSections: sections format detected', {
+                sectionKeys: Object.keys(sections),
+                detailHasElements: 'elements' in (sections.detail || {}),
+                detailElsType: sections.detail ? typeof sections.detail.elements : 'no-detail'
+            });
             SECTION_ORDER.forEach(key => {
                 if (!sections[key]) {
                     sections[key] = JSON.parse(JSON.stringify(SECTION_DEFAULTS[key]));
+                    console.log('[Designer] initSections: added missing section', key);
+                }
+                // Ensure every section has an elements array
+                if (sections[key] && !Array.isArray(sections[key].elements)) {
+                    sections[key].elements = [];
+                    console.log('[Designer] initSections: added missing elements array for section', key);
                 }
             });
             return sections;
         }
         // Legacy flat format — put all in detail
         sections = JSON.parse(JSON.stringify(SECTION_DEFAULTS));
+        console.log('[Designer] initSections: legacy flat format', { isArray: Array.isArray(rawElements), count: rawElements?.length });
         if (Array.isArray(rawElements)) {
             sections.detail.elements = JSON.parse(JSON.stringify(rawElements));
         }
@@ -1051,9 +1071,16 @@
 
     // ── Init ─────────────────────────────────────────────────
     function init() {
+        console.log('[Designer] init() started', { elementsBefore: elements ? (Array.isArray(elements) ? 'array['+elements.length+']' : typeof elements) : null });
         initSections(elements);
+        console.log('[Designer] after initSections', { sectionsKeys: sections ? Object.keys(sections) : null, detailEls: sections?.detail?.elements, detailElsType: typeof sections?.detail?.elements });
         // Ensure elements reference is the flat list from detail section for backward compat
         elements = sections.detail.elements;
+        console.log('[Designer] elements reassigned', { elementsType: typeof elements, isArray: Array.isArray(elements), length: elements?.length });
+        if (!Array.isArray(elements)) {
+            console.error('[Designer] FATAL: elements is not an array after initSections!', elements);
+            elements = [];
+        }
         elements.forEach((el, idx) => {
             if (!el.id) el.id = 'el_' + Date.now() + '_' + idx;
             if (!el.fontFamily) el.fontFamily = 'Arial';
