@@ -1636,8 +1636,8 @@ $templateSchemasData = $template->relationLoaded('schemas') ? $template->schemas
         console.log('[Designer] init() started', { elementsBefore: elements ? (Array.isArray(elements) ? 'array['+elements.length+']' : typeof elements) : null });
         initSections(elements);
         console.log('[Designer] after initSections', { sectionsKeys: sections ? Object.keys(sections) : null, detailEls: sections?.detail?.elements, detailElsType: typeof sections?.detail?.elements });
-        // Ensure elements reference is the flat list from detail section for backward compat
-        elements = sections.detail.elements;
+        // Rebuild flat element list from all sections for global interactions (inspector, alignment, etc.)
+        elements = flattenSections();
         console.log('[Designer] elements reassigned', { elementsType: typeof elements, isArray: Array.isArray(elements), length: elements?.length });
         if (!Array.isArray(elements)) {
             console.error('[Designer] FATAL: elements is not an array after initSections!', elements);
