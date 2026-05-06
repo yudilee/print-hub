@@ -1090,6 +1090,50 @@
         });
         updateCanvasSize(); renderElements(); renderStyles();
         console.log('[Designer] init() complete - canvas rendered');
+
+        // DIAGNOSTIC: Check all parent container dimensions
+        setTimeout(() => {
+            const chain = [
+                { id: 'canvas', desc: '#canvas' },
+                { id: 'canvas-wrapper', desc: '#canvas-wrapper' },
+                { id: 'designer-workspace', desc: '.designer-workspace' },
+            ];
+            chain.forEach(item => {
+                const el = document.getElementById(item.id);
+                if (el) {
+                    const rect = el.getBoundingClientRect();
+                    const style = getComputedStyle(el);
+                    console.log(`[DIAG] ${item.desc}:`, {
+                        boundingRect: `${rect.width.toFixed(1)}x${rect.height.toFixed(1)}`,
+                        offset: `${el.offsetWidth}x${el.offsetHeight}`,
+                        display: style.display,
+                        position: style.position,
+                        overflow: style.overflow,
+                        inlineW: el.style.width,
+                        inlineH: el.style.height,
+                    });
+                } else {
+                    console.log(`[DIAG] ${item.desc}: NOT FOUND`);
+                }
+            });
+            // Also check designer-main-wrapper and designer-main
+            const wrapper = document.querySelector('.designer-main-wrapper');
+            const main = document.querySelector('.designer-main');
+            const container = document.querySelector('.designer-container');
+            if (wrapper) {
+                const r = wrapper.getBoundingClientRect();
+                console.log(`[DIAG] .designer-main-wrapper: ${r.width.toFixed(1)}x${r.height.toFixed(1)} display:${getComputedStyle(wrapper).display}`);
+            }
+            if (main) {
+                const r = main.getBoundingClientRect();
+                console.log(`[DIAG] .designer-main: ${r.width.toFixed(1)}x${r.height.toFixed(1)} display:${getComputedStyle(main).display}`);
+            }
+            if (container) {
+                const r = container.getBoundingClientRect();
+                console.log(`[DIAG] .designer-container: ${r.width.toFixed(1)}x${r.height.toFixed(1)} display:${getComputedStyle(container).display}`);
+            }
+        }, 100);
+
         loadSelectedSchema();
         fetchAndPopulateFonts();
         document.getElementById('canvas').addEventListener('mousedown', canvasMouseDown);
