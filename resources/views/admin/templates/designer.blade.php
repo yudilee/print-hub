@@ -1677,7 +1677,7 @@
                         });
                         div.classList.add('field-resolved');
                     } else {
-                        rowsHtml = '<tr>' + cols.map(c => '<td style="border:1px solid #e2e8f0; padding:1px 3px; font-size:' + (displayEl.font_size*BASE_SCALE*0.16) + 'px; color:#64748b;">{{' + c.key + '}}</td>').join('') + '</tr>';
+                        rowsHtml = '<tr>' + cols.map(c => '<td style="border:1px solid #e2e8f0; padding:1px 3px; font-size:' + (displayEl.font_size*BASE_SCALE*0.16) + 'px; color:#64748b;">@{{' + c.key + '}}</td>').join('') + '</tr>';
                     }
                     div.innerHTML = `<table style="border-collapse:collapse; width:100%; table-layout:fixed;"><tr>${colsHtml}</tr>${rowsHtml}</table>`;
                 } else if (displayEl.type === 'image') {
@@ -1922,7 +1922,7 @@
             </div></div>`;
         } else if (el.type === 'barcode') {
             html += `<div class="props-section"><div class="props-label">Barcode</div><div class="prop-table">
-                <div class="prop-item"><div class="prop-key">Value</div><div class="prop-val"><input type="text" value="${el.value||''}" oninput="updateElProps('value',this.value)" placeholder="Data or {{field_name}}"></div></div>
+                <div class="prop-item"><div class="prop-key">Value</div><div class="prop-val"><input type="text" value="${el.value||''}" oninput="updateElProps('value',this.value)" placeholder="Data or @{{field_name}}"></div></div>
                 <div class="prop-item"><div class="prop-key">Symbology</div><div class="prop-val"><select onchange="updateElProps('symbology',this.value)">
                     <option value="code128" ${el.symbology==='code128'?'selected':''}>Code 128</option>
                     <option value="code39" ${el.symbology==='code39'?'selected':''}>Code 39</option>
