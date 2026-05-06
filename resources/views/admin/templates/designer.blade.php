@@ -1089,6 +1089,7 @@
             }
         });
         updateCanvasSize(); renderElements(); renderStyles();
+        console.log('[Designer] init() complete - canvas rendered');
         loadSelectedSchema();
         fetchAndPopulateFonts();
         document.getElementById('canvas').addEventListener('mousedown', canvasMouseDown);
@@ -1349,8 +1350,11 @@
         const totalSectionH = getTotalSectionsHeight();
         const canvasH = Math.max(h, totalSectionH + 10);
         const c = document.getElementById('canvas');
-        c.style.width = (w * BASE_SCALE) + 'px';
-        c.style.height = (canvasH * BASE_SCALE) + 'px';
+        const computedW = (w * BASE_SCALE) + 'px';
+        const computedH = (canvasH * BASE_SCALE) + 'px';
+        console.log('[Designer] updateCanvasSize', { w, h, totalSectionH, canvasH, computedW, computedH, canvasExists: !!c });
+        c.style.width = computedW;
+        c.style.height = computedH;
         c.style.transform = `scale(${zoomLevel})`;
         drawSnapGrid(); drawMinimap();
     }
