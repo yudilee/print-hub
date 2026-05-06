@@ -89,8 +89,8 @@
     .ruler-top { top: 0; left: 40px; right: 0; height: 25px; border-bottom: 1px solid var(--border); }
     .ruler-left { top: 40px; left: 0; bottom: 0; width: 25px; border-right: 1px solid var(--border); }
 
-    #canvas-wrapper { position: relative; background: var(--surface); box-shadow: 0 0 50px rgba(0,0,0,0.5); transform-origin: top left; }
-    #canvas { position: relative; background: white; overflow: hidden; }
+    #canvas-wrapper { position: relative; box-shadow: 0 0 50px rgba(0,0,0,0.5); }
+    #canvas { position: absolute; top: 0; left: 0; background: white; overflow: hidden; transform-origin: top left; }
     #canvas-bg-img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain; opacity: 0.4; pointer-events: none; }
     
     .design-element {
@@ -409,6 +409,7 @@
                 <div class="tab-item" onclick="switchTab('layers')">Layers</div>
                 <div class="tab-item" onclick="switchTab('explorer')">Explorer</div>
                 <div class="tab-item" onclick="switchTab('data')">Data</div>
+                <div class="tab-item" onclick="switchTab('sgf')">SGF</div>
             </div>
             
             <div id="tab-props" class="tab-panel active">
@@ -608,6 +609,41 @@
                     <button onclick="parseJSON()" class="btn btn-secondary btn-sm" style="width:100%; margin-top:0.5rem;">Parse JSON</button>
                     <div id="json-tree" style="margin-top:1rem; font-size:0.75rem; font-family:monospace;"></div>
                 </div>
+
+                <!-- ── SGF Panel (Sorting, Grouping, Filtering) ── -->
+                <div id="tab-sgf" class="tab-panel">
+                    <div class="props-header">🔀 Sorting</div>
+                    <div id="sgf-sort-section" style="padding:8px; border-bottom:1px solid var(--border);">
+                        <div style="font-size:10px; color:var(--text-muted); margin-bottom:6px;">
+                            Define sort fields to order detail rows. Sort by multiple fields for nested ordering.
+                        </div>
+                        <div id="sgf-sort-list" style="margin-bottom:8px;"></div>
+                        <button onclick="sgfAddSort()" style="padding:3px 10px; font-size:11px; background:var(--primary); color:#fff; border:none; border-radius:4px; cursor:pointer;">+ Add Sort Field</button>
+                    </div>
+
+                    <div class="props-header">📁 Grouping</div>
+                    <div id="sgf-group-section" style="padding:8px; border-bottom:1px solid var(--border);">
+                        <div style="font-size:10px; color:var(--text-muted); margin-bottom:6px;">
+                            Group rows by field value changes. Groups auto-sort and render with a header showing the group name + value.
+                        </div>
+                        <div id="sgf-group-list" style="margin-bottom:8px;"></div>
+                        <button onclick="sgfAddGroup()" style="padding:3px 10px; font-size:11px; background:var(--primary); color:#fff; border:none; border-radius:4px; cursor:pointer;">+ Add Group Field</button>
+                    </div>
+
+                    <div class="props-header">🔍 Filtering</div>
+                    <div id="sgf-filter-section" style="padding:8px; border-bottom:1px solid var(--border);">
+                        <div style="font-size:10px; color:var(--text-muted); margin-bottom:6px;">
+                            Filter rows using an expression. Use <code style="font-size:10px; background:var(--bg); padding:1px 4px; border-radius:2px;">{field_name}</code> for field references and standard operators.
+                        </div>
+                        <input type="text" id="sgf-filter-expression" oninput="sgfUpdateFilter(this.value)"
+                               placeholder='e.g., {amount} > 0'
+                               style="width:100%; background:var(--bg); border:1px solid var(--border); color:var(--text); padding:8px; border-radius:4px; font-size:12px; font-family:monospace;">
+                        <div style="margin-top:6px; font-size:10px; color:var(--text-muted);">
+                            Tips: Use <code style="font-size:10px;">></code>, <code style="font-size:10px;"><</code>, <code style="font-size:10px;">==</code>, <code style="font-size:10px;">!=</code> for comparisons.
+                            Combine with <code style="font-size:10px;">and</code> / <code style="font-size:10px;">or</code> for complex filters.
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -771,8 +807,27 @@ $templateSchemasData = $template->relationLoaded('schemas') ? $template->schemas
     } catch (e) {
         templateParams = [];
     }
+
+    // ── Sorting, Grouping & Filtering (SGF) ──────────────────
+    let dataOptions = { sortFields: [], groupFields: [], filterExpression: '' };
+    try {
+        const raw = '{{ json_encode($template->data_options ?? []) }}';
+        const decoded = raw.replace(/"/g, '"').replace(/&#039;/g, "'").replace(/&/g, '&');
+        const parsed = JSON.parse(decoded);
+        if (parsed && typeof parsed === 'object') {
+            dataOptions = {
+                sortFields: Array.isArray(parsed.sortFields) ? parsed.sortFields : [],
+                groupFields: Array.isArray(parsed.groupFields) ? parsed.groupFields : [],
+                filterExpression: parsed.filterExpression || '',
+            };
+        }
+    } catch (e) {
+        dataOptions = { sortFields: [], groupFields: [], filterExpression: '' };
+    }
     document.addEventListener('DOMContentLoaded', () => {
         renderParameters();
+        // Render SGF panels after DOM is ready
+        setTimeout(() => { sgfRenderSortList(); sgfRenderGroupList(); }, 0);
     });
     let zoomLevel = 1.0;
     let elements = @json($template->elements ?? []);
@@ -1767,6 +1822,93 @@ $templateSchemasData = $template->relationLoaded('schemas') ? $template->schemas
         if (tab === 'props') showSectionInspector(selectedSection);
         if (tab === 'explorer') { loadFieldExplorer(); }
         if (tab === 'data') { loadConnectors(); loadScenarios(); }
+        if (tab === 'sgf') { sgfRenderSortList(); sgfRenderGroupList(); }
+    }
+
+    // ── Sorting, Grouping & Filtering (SGF) ──────────────────
+    function sgfRenderSortList() {
+        const container = document.getElementById('sgf-sort-list');
+        if (!container) return;
+        const fields = dataOptions.sortFields || [];
+        if (fields.length === 0) {
+            container.innerHTML = '<div style="font-size:10px; color:var(--text-muted); padding:4px 0;">No sort fields defined.</div>';
+            return;
+        }
+        container.innerHTML = fields.map((sf, idx) => `
+            <div style="display:flex; align-items:center; gap:4px; margin-bottom:4px; background:var(--bg); border-radius:4px; padding:4px 6px;">
+                <span style="font-size:10px; color:var(--text-muted); min-width:16px;">${idx + 1}.</span>
+                <input type="text" value="${escapeHtml(sf.field || '')}" onchange="sgfUpdateSortField(${idx}, this.value)"
+                       placeholder="field_name" style="flex:1; background:var(--bg); border:1px solid var(--border); color:var(--text); padding:3px 6px; border-radius:3px; font-size:11px; font-family:monospace;">
+                <button onclick="sgfToggleSortDirection(${idx})" style="padding:2px 6px; font-size:10px; border:1px solid var(--border); border-radius:3px; background:var(--surface); color:var(--text); cursor:pointer; min-width:40px;">
+                    ${(sf.direction || 'asc') === 'asc' ? '▲ Asc' : '▼ Desc'}
+                </button>
+                <button onclick="sgfRemoveSort(${idx})" style="padding:2px 6px; font-size:12px; border:none; background:none; color:var(--danger); cursor:pointer;">×</button>
+            </div>
+        `).join('');
+    }
+
+    function sgfAddSort() {
+        if (!dataOptions.sortFields) dataOptions.sortFields = [];
+        dataOptions.sortFields.push({ field: '', direction: 'asc' });
+        sgfRenderSortList();
+    }
+
+    function sgfRemoveSort(idx) {
+        dataOptions.sortFields.splice(idx, 1);
+        sgfRenderSortList();
+    }
+
+    function sgfToggleSortDirection(idx) {
+        const sf = dataOptions.sortFields[idx];
+        if (sf) {
+            sf.direction = sf.direction === 'asc' ? 'desc' : 'asc';
+            sgfRenderSortList();
+        }
+    }
+
+    function sgfUpdateSortField(idx, value) {
+        if (dataOptions.sortFields[idx]) {
+            dataOptions.sortFields[idx].field = value;
+        }
+    }
+
+    function sgfRenderGroupList() {
+        const container = document.getElementById('sgf-group-list');
+        if (!container) return;
+        const fields = dataOptions.groupFields || [];
+        if (fields.length === 0) {
+            container.innerHTML = '<div style="font-size:10px; color:var(--text-muted); padding:4px 0;">No group fields defined.</div>';
+            return;
+        }
+        container.innerHTML = fields.map((gf, idx) => `
+            <div style="display:flex; align-items:center; gap:4px; margin-bottom:4px; background:var(--bg); border-radius:4px; padding:4px 6px;">
+                <span style="font-size:10px; color:var(--text-muted); min-width:16px;">${idx + 1}.</span>
+                <input type="text" value="${escapeHtml(gf.field || '')}" onchange="sgfUpdateGroupField(${idx}, this.value)"
+                       placeholder="field_name" style="flex:1; background:var(--bg); border:1px solid var(--border); color:var(--text); padding:3px 6px; border-radius:3px; font-size:11px; font-family:monospace;">
+                <button onclick="sgfRemoveGroup(${idx})" style="padding:2px 6px; font-size:12px; border:none; background:none; color:var(--danger); cursor:pointer;">×</button>
+            </div>
+        `).join('');
+    }
+
+    function sgfAddGroup() {
+        if (!dataOptions.groupFields) dataOptions.groupFields = [];
+        dataOptions.groupFields.push({ field: '', sortDirection: 'asc', keepTogether: true, repeatHeader: true, newPageBefore: false });
+        sgfRenderGroupList();
+    }
+
+    function sgfRemoveGroup(idx) {
+        dataOptions.groupFields.splice(idx, 1);
+        sgfRenderGroupList();
+    }
+
+    function sgfUpdateGroupField(idx, value) {
+        if (dataOptions.groupFields[idx]) {
+            dataOptions.groupFields[idx].field = value;
+        }
+    }
+
+    function sgfUpdateFilter(value) {
+        dataOptions.filterExpression = value;
     }
 
     // ── Field Explorer ───────────────────────────────────────
@@ -2610,13 +2752,21 @@ $templateSchemasData = $template->relationLoaded('schemas') ? $template->schemas
         const totalSectionH = getTotalSectionsHeight();
         const canvasH = Math.max(h, totalSectionH + 10);
         const c = document.getElementById('canvas');
+        const cw = document.getElementById('canvas-wrapper');
         if (!c) { console.error('[Designer] updateCanvasSize: canvas not found'); return; }
-        const computedW = (w * BASE_SCALE) + 'px';
-        const computedH = (canvasH * BASE_SCALE) + 'px';
-        console.log('[Designer] updateCanvasSize', { w, h, totalSectionH, canvasH, computedW, computedH, canvasExists: !!c });
-        c.style.width = computedW;
-        c.style.height = computedH;
+        
+        const rawW = w * BASE_SCALE;
+        const rawH = canvasH * BASE_SCALE;
+        
+        c.style.width = rawW + 'px';
+        c.style.height = rawH + 'px';
         c.style.transform = `scale(${zoomLevel})`;
+        
+        if (cw) {
+            cw.style.width = (rawW * zoomLevel) + 'px';
+            cw.style.height = (rawH * zoomLevel) + 'px';
+        }
+
         drawSnapGrid(); drawMinimap();
     }
 
@@ -3414,13 +3564,14 @@ $templateSchemasData = $template->relationLoaded('schemas') ? $template->schemas
                 <div class="prop-item"><div class="prop-key">FontSize</div><div class="prop-val"><input type="number" value="${el.font_size}" oninput="updateElProps('font_size',parseInt(this.value))" ${el.styleIdx!==undefined?'disabled':''}></div></div>
                 <div class="prop-item"><div class="prop-key">Align</div><div class="prop-val"><select onchange="updateElProps('align',this.value)"><option value="L" ${el.align==='L'?'selected':''}>Left</option><option value="C" ${el.align==='C'?'selected':''}>Center</option><option value="R" ${el.align==='R'?'selected':''}>Right</option></select></div></div>
                 <div class="prop-item"><div class="prop-key">Bold</div><div class="prop-val" style="padding-left:10px;"><input type="checkbox" ${el.bold?'checked':''} onchange="updateElProps('bold',this.checked)" ${el.styleIdx!==undefined?'disabled':''}></div></div>
-                <div class="prop-item"><div class="prop-key">Border</div><div class="prop-val" style="padding-left:10px;"><input type="checkbox" ${el.border?'checked':''} onchange="updateElProps('border',this.checked)"></div></div>
-                <div class="prop-item"><div class="prop-key">Rotation</div><div class="prop-val"><select onchange="updateElProps('rotation',parseInt(this.value))">
-                    <option value="0" ${(!el.rotation||el.rotation==0)?'selected':''}>0°</option>
-                    <option value="90" ${el.rotation==90?'selected':''}>90°</option>
-                    <option value="180" ${el.rotation==180?'selected':''}>180°</option>
-                    <option value="270" ${el.rotation==270?'selected':''}>270°</option>
+                <div class="prop-item"><div class="prop-key">Border</div><div class="prop-val"><select onchange="updateElProps('border',this.value)">
+                    <option value="none" ${(!el.border||el.border==='none'||el.border===false)?'selected':''}>None</option>
+                    <option value="solid" ${el.border==='solid'||el.border===true||el.border===1?'selected':''}>Solid</option>
+                    <option value="dashed" ${el.border==='dashed'?'selected':''}>Dashed</option>
+                    <option value="dotted" ${el.border==='dotted'?'selected':''}>Dotted</option>
                 </select></div></div>
+                <div class="prop-item"><div class="prop-key">Rotation</div><div class="prop-val"><input type="number" min="0" max="360" step="1" value="${el.rotation||0}" oninput="updateElProps('rotation',parseInt(this.value)||0)" title="Rotation angle 0-360°" style="width:60px;">°</div></div>
+                <div class="prop-item"><div class="prop-key">Opacity</div><div class="prop-val"><input type="range" min="0" max="100" step="5" value="${el.opacity!==undefined?el.opacity:100}" oninput="updateElProps('opacity',parseInt(this.value)); this.nextElementSibling.textContent=this.value+'%'" style="width:60px;vertical-align:middle;"> <span style="font-size:10px;color:var(--text-muted);">${el.opacity!==undefined?el.opacity:100}%</span></div></div>
             </div></div>`;
 
             if (el.type === 'field') {
@@ -3869,7 +4020,7 @@ $templateSchemasData = $template->relationLoaded('schemas') ? $template->schemas
         }
         
         const allElements = flattenSections();
-        const payload={name,paper_width_mm:parseFloat(document.getElementById('paper-w').value),paper_height_mm:parseFloat(document.getElementById('paper-h').value),background_image_path:document.getElementById('bg-path').value,elements:{sections:sections,elements:allElements},styles:globalStyles,background_config:backgroundConfig,parameters:templateParams,_token:'{{ csrf_token() }}'};
+        const payload={name,paper_width_mm:parseFloat(document.getElementById('paper-w').value),paper_height_mm:parseFloat(document.getElementById('paper-h').value),background_image_path:document.getElementById('bg-path').value,elements:{sections:sections,elements:allElements},styles:globalStyles,background_config:backgroundConfig,parameters:templateParams,data_options:dataOptions,_token:'{{ csrf_token() }}'};
         const btn=document.getElementById('save-btn'); btn.textContent='Saving…'; btn.disabled=true;
         fetch("{{ $template->id ? route('admin.templates.update', $template, false) : route('admin.templates.store', [], false) }}",{method:"{{ $template->id ? 'PUT' : 'POST' }}",headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify(payload)})
         .then(async r => {
