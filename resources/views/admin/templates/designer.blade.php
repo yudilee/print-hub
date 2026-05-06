@@ -2503,8 +2503,8 @@
 
         try {
             const url = templateId
-                ? `{{ route('admin.templates.preview-with-template', $template, false) }}`
-                : `{{ route('admin.templates.preview', [], false) }}`;
+                ? "{{ $template->id ? route('admin.templates.preview-with-template', $template, false) : '' }}"
+                : "{{ route('admin.templates.preview', [], false) }}";
             
             const response = await fetch(url, {
                 method: 'POST',
