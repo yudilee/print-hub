@@ -29,7 +29,19 @@
             <tr>
                 <td><strong>{{ $template->name }}</strong></td>
                 <td><span class="badge badge-info">{{ $template->paper_width_mm }} x {{ $template->paper_height_mm }}</span></td>
-                <td style="color: var(--text-muted);">{{ count($template->elements ?? []) }} element(s)</td>
+                <td style="color: var(--text-muted);">
+                    @php
+                        $els = $template->elements ?? [];
+                        if (is_array($els) && isset($els['sections']) && isset($els['elements'])) {
+                            $count = count($els['elements']);
+                        } elseif (is_array($els)) {
+                            $count = count($els);
+                        } else {
+                            $count = 0;
+                        }
+                    @endphp
+                    {{ $count }} element(s)
+                </td>
                 <td style="color: var(--text-muted); font-size: 0.85rem;">{{ $template->updated_at->diffForHumans() }}</td>
                 <td style="display: flex; gap: 0.5rem; justify-content: flex-end;">
                     <a href="{{ route('admin.templates.edit', $template) }}" class="btn btn-secondary btn-sm">Edit Designer</a>

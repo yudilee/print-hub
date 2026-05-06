@@ -169,7 +169,6 @@
         @endif
     </div>
     @endif
-    @endif
 </div>
 
 <script type="module">

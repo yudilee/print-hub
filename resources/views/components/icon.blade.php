@@ -37,8 +37,9 @@ $icons = [
     'filter'      => '<polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>',
     'retry'       => '<polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>',
     'home'        => '<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>',
+    'circle'      => '<circle cx="12" cy="12" r="10"/>',
 ];
-$svg = $icons[$name] ?? $icons['circle'];
+$svg = $icons[$name] ?? ($icons['circle'] ?? '');
 @endphp
 
 <svg xmlns="http://www.w3.org/2000/svg" width="{{ $size }}" height="{{ $size }}" viewBox="0 0 24 24"

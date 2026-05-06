@@ -24,6 +24,30 @@ Route::prefix('print-hub')->middleware('throttle:120,1')->group(function () {
 // ─────────────────────────────────────────────
 Route::prefix('v1')->group(function () {
     Route::get('/agents/version', [PrintHubController::class, 'getAgentVersion']);
+
+    // Fonts endpoint for template designer (no auth required for canvas preview)
+    Route::get('/fonts', function () {
+        return \App\Models\PrintFont::active()->get(['id', 'name', 'font_family', 'font_style', 'file_path']);
+    });
+
+    // Formula Editor API  (no auth required — consumed by admin template designer)
+    Route::get('/formula/functions', function () {
+        return app(\App\Services\FormulaService::class)->getFunctions();
+    });
+    Route::post('/formula/validate', function (\Illuminate\Http\Request $request) {
+        return app(\App\Services\FormulaService::class)->validate($request->input('expression', ''));
+    });
+    Route::post('/formula/evaluate', function (\Illuminate\Http\Request $request) {
+        try {
+            $result = app(\App\Services\FormulaService::class)->evaluate(
+                $request->input('expression', ''),
+                $request->input('data', [])
+            );
+            return ['result' => $result];
+        } catch (\Exception $e) {
+            return response()->json(['result' => null, 'error' => $e->getMessage()], 422);
+        }
+    });
 });
 
 // ─────────────────────────────────────────────

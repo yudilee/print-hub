@@ -123,17 +123,17 @@ SSO_DEFAULT_ROLE=user</pre>
 
     <div style="background: var(--bg); padding: 1rem; border-radius: 6px; overflow-x: auto;">
         <pre style="font-size: 0.75rem; white-space: pre-wrap; word-break: break-all;">
-{{ '<?xml version="1.0"?>' }}
-<md:EntityDescriptor xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata"
-                     entityID="{{ config('sso.sp_entity_id', 'print-hub') }}">
-    <md:SPSSODescriptor AuthnRequestsSigned="false"
+&lt;?xml version="1.0"?&gt;
+&lt;md:EntityDescriptor xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata"
+                     entityID="{{ config('sso.sp_entity_id', 'print-hub') }}"&gt;
+    &lt;md:SPSSODescriptor AuthnRequestsSigned="false"
                         WantAssertionsSigned="false"
-                        protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">
-        <md:AssertionConsumerService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST"
+                        protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol"&gt;
+        &lt;md:AssertionConsumerService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST"
                                      Location="{{ url('/auth/sso/callback') }}"
-                                     index="0"/>
-    </md:SPSSODescriptor>
-</md:EntityDescriptor></pre>
+                                     index="0"/&gt;
+    &lt;/md:SPSSODescriptor&gt;
+&lt;/md:EntityDescriptor&gt;</pre>
     </div>
 
     <p style="margin-top: 1rem; color: var(--text-muted); font-size: 0.875rem;">

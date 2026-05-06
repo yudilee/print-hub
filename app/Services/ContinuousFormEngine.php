@@ -12,6 +12,20 @@ class ContinuousFormEngine
     protected $template;
     protected $data;
     protected ?DataSchema $schema = null;
+    protected FontService $fontService;
+    private array $runningTotals = [];
+    private array $runningTotalCounts = [];
+
+    /** @var array|null Current conditional style from highlighting rules */
+    protected ?array $currentConditionalStyle = null;
+
+    /** @var array|null Sections data from template elements */
+    protected ?array $sections = null;
+
+    /** @var array Flat element list extracted from sections or legacy format */
+    protected array $flatElements = [];
+
+    const SECTION_ORDER = ['pageHeader', 'reportHeader', 'detail', 'reportFooter', 'pageFooter'];
 
     /**
      * Generate PDF binary from template and data.
@@ -21,6 +35,11 @@ class ContinuousFormEngine
         $this->template = $template;
         $this->data = $data;
         $this->schema = $template->dataSchema;
+        $this->fontService = app(FontService::class);
+        $this->initRunningTotals();
+
+        // Parse sections structure from template elements
+        $this->parseSections();
 
         // Determine paper size (priority: options > template)
         $pW = $options['paper_width_mm'] ?? $template->paper_width_mm;
@@ -40,27 +59,41 @@ class ContinuousFormEngine
         $this->pdf->SetMargins($mL, $mT, $mR);
 
         // ── Eco Mode / Sustainability ─────────────────────────────
-        // If eco_mode is enabled, force duplex and grayscale
         $ecoMode = !empty($options['eco_mode']);
         $grayscaleForce = !empty($options['grayscale_force']) || $ecoMode;
         $pagesPerSheet = (int)($options['pages_per_sheet'] ?? 1);
         $removeImages = !empty($options['remove_images']);
         // ─────────────────────────────────────────────────────────
 
-        // Find the table element if any
-        $elements = $template->elements ?? [];
-        $tableElement = collect($elements)->firstWhere('type', 'table');
-        $rows = [];
-        if ($tableElement) {
-            $rows = $this->resolveValue($tableElement['key'], $data) ?: [];
-        }
+        if ($this->sections !== null) {
+            // Section-based rendering
+            $tableElement = $this->findTableInSections();
+            $rows = [];
+            if ($tableElement) {
+                $rows = $this->resolveValue($tableElement['key'], $data) ?: [];
+            }
 
-        if (empty($rows) || !$tableElement) {
-            // Static single page
-            $this->renderPage();
+            if (empty($rows) || !$tableElement) {
+                // Static single page with sections
+                $this->renderSectionedPage();
+            } else {
+                // Multipage with sections
+                $this->renderMultipageWithSections($tableElement, $rows);
+            }
         } else {
-            // Multipage loop
-            $this->renderMultipageTable($tableElement, $rows);
+            // Legacy flat rendering (backward compatible)
+            $elements = $template->elements ?? [];
+            $tableElement = collect($elements)->firstWhere('type', 'table');
+            $rows = [];
+            if ($tableElement) {
+                $rows = $this->resolveValue($tableElement['key'], $data) ?: [];
+            }
+
+            if (empty($rows) || !$tableElement) {
+                $this->renderPage();
+            } else {
+                $this->renderMultipageTable($tableElement, $rows);
+            }
         }
 
         // Apply eco mode transformations after rendering
@@ -72,6 +105,291 @@ class ContinuousFormEngine
         $this->applyWatermark($options);
 
         return $this->pdf->Output('S');
+    }
+
+    /**
+     * Parse sections structure from template elements.
+     */
+    protected function parseSections(): void
+    {
+        $elements = $this->template->elements ?? [];
+
+        if (is_array($elements) && isset($elements['sections'])) {
+            $this->sections = $elements['sections'];
+            $this->flatElements = $elements['elements'] ?? [];
+
+            // Ensure all section keys exist with defaults
+            $defaults = [
+                'pageHeader' => ['enabled' => true, 'height' => 15, 'elements' => [], 'suppressIfBlank' => false, 'keepWithBody' => false],
+                'reportHeader' => ['enabled' => false, 'height' => 20, 'elements' => [], 'suppressIfBlank' => true, 'keepWithBody' => false],
+                'detail' => ['enabled' => true, 'height' => 10, 'elements' => [], 'keepTogether' => false],
+                'reportFooter' => ['enabled' => false, 'height' => 15, 'elements' => [], 'suppressIfBlank' => true, 'keepWithBody' => false],
+                'pageFooter' => ['enabled' => true, 'height' => 10, 'elements' => [], 'suppressIfBlank' => false, 'keepWithBody' => false],
+            ];
+
+            foreach (self::SECTION_ORDER as $key) {
+                if (!isset($this->sections[$key])) {
+                    $this->sections[$key] = $defaults[$key];
+                }
+                if (!isset($this->sections[$key]['elements'])) {
+                    $this->sections[$key]['elements'] = [];
+                }
+            }
+        } else {
+            $this->sections = null;
+            $this->flatElements = is_array($elements) ? $elements : [];
+        }
+    }
+
+    /**
+     * Find the first table element across all sections.
+     */
+    protected function findTableInSections(): ?array
+    {
+        if ($this->sections === null) return null;
+
+        foreach (self::SECTION_ORDER as $key) {
+            $sec = $this->sections[$key] ?? [];
+            if (!($sec['enabled'] ?? false)) continue;
+            foreach ($sec['elements'] ?? [] as $el) {
+                if (($el['type'] ?? '') === 'table') return $el;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Render a single page with all enabled sections.
+     */
+    protected function renderSectionedPage(): void
+    {
+        $this->pdf->AddPage();
+        $this->renderBackground();
+
+        $currentY = 0;
+        foreach (self::SECTION_ORDER as $key) {
+            $sec = $this->sections[$key] ?? [];
+            if (!($sec['enabled'] ?? false)) continue;
+
+            $elements = $sec['elements'] ?? [];
+
+            // Check suppressIfBlank
+            if (!empty($sec['suppressIfBlank']) && empty($elements)) continue;
+
+            // Not a table section — render elements as static content
+            foreach ($elements as $el) {
+                if (!empty($el['hidden'])) continue;
+                if (($el['type'] ?? '') === 'table') continue; // Tables handled separately
+
+                $renderedEl = $el;
+                $renderedEl['y'] = ($el['y'] ?? 0) + $currentY;
+                $this->renderSingleElement($renderedEl);
+            }
+
+            $currentY += ($sec['height'] ?? 10) + 2;
+        }
+    }
+
+    /**
+     * Render multipage output with section headers/footers repeating on each page.
+     */
+    protected function renderMultipageWithSections(array $tableEl, array $rows): void
+    {
+        $x = $tableEl['x'] ?? 0;
+        $startY = $tableEl['y'] ?? 0;
+        $bottomPadding = $tableEl['bottom_padding'] ?? 10;
+        $columns = $tableEl['columns'] ?? [];
+        $headerHeight = $tableEl['header_height'] ?? 7;
+        $rowHeight = $tableEl['row_height'] ?? 6;
+        $fontSize = $tableEl['font_size'] ?? 9;
+        $pH = $this->template->paper_height_mm;
+
+        // Evaluate computed columns
+        $rows = $this->evaluateComputedRows($tableEl, $rows);
+
+        // Calculate total section header height (pageHeader + reportHeader)
+        $sectionHeaderHeight = 0;
+        foreach (self::SECTION_ORDER as $key) {
+            if ($key === 'detail') break;
+            $sec = $this->sections[$key] ?? [];
+            if (!($sec['enabled'] ?? false)) continue;
+            $sectionHeaderHeight += ($sec['height'] ?? 10) + 2;
+        }
+
+        // Calculate section footer height (reportFooter)
+        $sectionFooterHeight = 0;
+        $foundDetail = false;
+        foreach (self::SECTION_ORDER as $key) {
+            if ($key === 'detail') { $foundDetail = true; continue; }
+            if (!$foundDetail) continue;
+            $sec = $this->sections[$key] ?? [];
+            if (!($sec['enabled'] ?? false)) continue;
+            if ($key === 'pageFooter') continue; // pageFooter handled separately
+            $sectionFooterHeight += ($sec['height'] ?? 10) + 2;
+        }
+
+        // Page footer height
+        $pageFooterH = 0;
+        $pfSec = $this->sections['pageFooter'] ?? [];
+        if ($pfSec['enabled'] ?? false) {
+            $pageFooterH = ($pfSec['height'] ?? 10) + 2;
+        }
+
+        // First page: render page header + report header
+        $this->startNewSectionedPage($sectionHeaderHeight);
+
+        // Calculate available height for detail rows
+        $availableH = $pH - $startY - $bottomPadding - $sectionFooterHeight - $pageFooterH;
+
+        // Render table header in the detail section
+        $currentY = $startY;
+        $this->renderTableHeader($x, $currentY, $columns, $headerHeight, $fontSize, $tableEl);
+        $currentY += $headerHeight;
+
+        $rowIndex = 0;
+        $totalRows = count($rows);
+
+        while ($rowIndex < $totalRows) {
+            // Check if we need a page break
+            if ($currentY + $rowHeight > $availableH) {
+                // Render report footer on current page before break
+                $this->renderReportFooterOnPage($currentY);
+
+                // Start new page
+                $this->startNewSectionedPage($sectionHeaderHeight);
+                $currentY = $startY;
+
+                // Re-render table header
+                $this->renderTableHeader($x, $currentY, $columns, $headerHeight, $fontSize, $tableEl);
+                $currentY += $headerHeight;
+            }
+
+            // Render data row
+            $this->renderTableRow($x, $currentY, $columns, $rows[$rowIndex], $rowHeight, $fontSize);
+            $currentY += $rowHeight;
+
+            // Accumulate running totals
+            $this->accumulateRunningTotals($rows[$rowIndex]);
+            $rowIndex++;
+        }
+
+        // Render report footer after all detail rows
+        $this->renderReportFooterOnPage($currentY);
+
+        // Render page footer on last page
+        $this->renderPageFooterOnPage();
+    }
+
+    /**
+     * Start a new page and render repeating sections (pageHeader, reportHeader, pageFooter).
+     */
+    protected function startNewSectionedPage(float $sectionHeaderHeight): void
+    {
+        $this->resetRunningTotalsOnPage();
+        $this->pdf->AddPage();
+        $this->renderBackground();
+
+        $currentY = 0;
+        foreach (self::SECTION_ORDER as $key) {
+            if ($key === 'detail') break;
+            $sec = $this->sections[$key] ?? [];
+            if (!($sec['enabled'] ?? false)) continue;
+
+            $elements = $sec['elements'] ?? [];
+            if (!empty($sec['suppressIfBlank']) && empty($elements)) continue;
+
+            foreach ($elements as $el) {
+                if (!empty($el['hidden'])) continue;
+                $renderedEl = $el;
+                $renderedEl['y'] = ($el['y'] ?? 0) + $currentY;
+                $this->renderSingleElement($renderedEl);
+            }
+
+            $currentY += ($sec['height'] ?? 10) + 2;
+        }
+
+        // Page footer is rendered at the bottom - store for later use
+        $this->currentPageFooterY = $currentY;
+    }
+
+    protected float $currentPageFooterY = 0;
+
+    /**
+     * Render report footer section elements.
+     */
+    protected function renderReportFooterOnPage(float &$currentY): void
+    {
+        foreach (self::SECTION_ORDER as $key) {
+            if ($key === 'reportFooter') {
+                $sec = $this->sections[$key] ?? [];
+                if (!($sec['enabled'] ?? false)) break;
+
+                $elements = $sec['elements'] ?? [];
+                if (!empty($sec['suppressIfBlank']) && empty($elements)) break;
+
+                foreach ($elements as $el) {
+                    if (!empty($el['hidden'])) continue;
+                    $renderedEl = $el;
+                    $renderedEl['y'] = ($el['y'] ?? 0) + $currentY;
+                    $this->renderSingleElement($renderedEl);
+                }
+                $currentY += ($sec['height'] ?? 10) + 2;
+                break;
+            }
+        }
+    }
+
+    /**
+     * Render page footer section at the bottom of the page.
+     */
+    protected function renderPageFooterOnPage(): void
+    {
+        $sec = $this->sections['pageFooter'] ?? [];
+        if (!($sec['enabled'] ?? false)) return;
+
+        $elements = $sec['elements'] ?? [];
+        if (!empty($sec['suppressIfBlank']) && empty($elements)) return;
+
+        $pH = $this->template->paper_height_mm;
+        $footerY = $pH - ($sec['height'] ?? 10) - 2;
+
+        foreach ($elements as $el) {
+            if (!empty($el['hidden'])) continue;
+            $renderedEl = $el;
+            $renderedEl['y'] = ($el['y'] ?? 0) + $footerY;
+            $this->renderSingleElement($renderedEl);
+        }
+    }
+
+    /**
+     * Render a single element based on its type.
+     */
+    protected function renderSingleElement(array $el): void
+    {
+        $type = $el['type'] ?? '';
+        switch ($type) {
+            case 'field':
+                $this->renderField($el);
+                break;
+            case 'label':
+                $this->renderLabel($el);
+                break;
+            case 'line':
+                $this->renderLine($el);
+                break;
+            case 'image':
+                $this->renderImage($el);
+                break;
+            case 'barcode':
+                $this->renderBarcode($el);
+                break;
+            case 'qrcode':
+                $this->renderQrCode($el);
+                break;
+            case 'running_total':
+                $this->renderRunningTotal($el);
+                break;
+        }
     }
 
     protected function renderPage()
@@ -92,6 +410,12 @@ class ContinuousFormEngine
                 $this->renderLine($el);
             } elseif ($el['type'] === 'image') {
                 $this->renderImage($el);
+            } elseif ($el['type'] === 'barcode') {
+                $this->renderBarcode($el);
+            } elseif ($el['type'] === 'qrcode') {
+                $this->renderQrCode($el);
+            } elseif ($el['type'] === 'running_total') {
+                $this->renderRunningTotal($el);
             }
         }
     }
@@ -113,6 +437,21 @@ class ContinuousFormEngine
 
             if (file_exists($localPath)) {
                 $this->pdf->Image($localPath, 0, 0, $this->template->paper_width_mm, $this->template->paper_height_mm);
+            }
+        }
+    }
+
+    protected function resetRunningTotalsOnPage(): void
+    {
+        $elements = $this->template->elements ?? [];
+        foreach ($elements as $el) {
+            if (($el['type'] ?? '') !== 'running_total') continue;
+            if (($el['reset'] ?? 'never') === 'on_page') {
+                $field = $el['field'] ?? '';
+                $operation = $el['operation'] ?? 'sum';
+                $key = $field . '_' . $operation;
+                $this->runningTotals[$key] = 0;
+                $this->runningTotalCounts[$key] = 0;
             }
         }
     }
@@ -140,6 +479,7 @@ class ContinuousFormEngine
         foreach ($rows as $index => $rowData) {
             // Page break check
             if ($currentY + $rowHeight > ($this->template->paper_height_mm - $bottomPadding)) {
+                $this->resetRunningTotalsOnPage();
                 $this->renderPage();
                 $currentY = $startY;
                 $this->renderTableHeader($x, $currentY, $columns, $headerHeight, $fontSize, $el);
@@ -148,28 +488,42 @@ class ContinuousFormEngine
 
             $this->renderTableRow($x, $currentY, $columns, $rowData, $rowHeight, $fontSize);
             $currentY += $rowHeight;
+
+            // Accumulate running totals after each data row
+            $this->accumulateRunningTotals($rowData);
         }
     }
 
     protected function renderField($el)
     {
+        $this->applyRotation($el);
         $el = $this->applyStyle($el);
         $value = $this->resolveValue($el['key'], $this->data);
-        if ($value === null) return;
+        if ($value === null) { $this->resetRotation($el); return; }
 
         // Apply formatting (manual override or schema)
         $value = $this->formatValue($el, $value);
 
+        // Evaluate conditional formatting for this field
+        $this->currentConditionalStyle = $this->getConditionalStyle($el, $value);
+
         $this->renderTextCell($el, (string) $value);
+
+        // Reset conditional style after rendering
+        $this->currentConditionalStyle = null;
+
+        $this->resetRotation($el);
     }
 
     protected function renderLabel($el)
     {
+        $this->applyRotation($el);
         $el = $this->applyStyle($el);
         $text = $el['text'] ?? '';
-        if ($text === '') return;
+        if ($text === '') { $this->resetRotation($el); return; }
 
         $this->renderTextCell($el, $text);
+        $this->resetRotation($el);
     }
 
     protected function renderLine($el)
@@ -192,6 +546,7 @@ class ContinuousFormEngine
 
     protected function renderImage($el)
     {
+        $this->applyRotation($el);
         $x = (float) ($el['x'] ?? 0);
         $y = (float) ($el['y'] ?? 0);
         $w = (float) ($el['width'] ?? 0);
@@ -205,7 +560,7 @@ class ContinuousFormEngine
             if ($dynamicSrc) $src = $dynamicSrc;
         }
 
-        if (!$src) return;
+        if (!$src) { $this->resetRotation($el); return; }
 
         try {
             // FPDF Image($file, $x, $y, $w, $h, $type, $link)
@@ -215,7 +570,191 @@ class ContinuousFormEngine
             // Log or skip if image not found/invalid
             \Illuminate\Support\Facades\Log::warning("PDF Engine: Image render failed for {$src}. " . $e->getMessage());
         }
+        $this->resetRotation($el);
     }
+
+    protected function renderBarcode($el)
+    {
+        $barcodeService = app(BarcodeService::class);
+        $rawValue = $el['value'] ?? '';
+        $value = $this->resolveValue($rawValue, $this->currentData ?? []);
+        if ($value === null || $value === '') {
+            $value = $rawValue;
+        }
+        if (empty($value)) return;
+
+        $base64 = $barcodeService->renderBarcode(
+            $value,
+            $el['symbology'] ?? 'code128',
+            intval(($el['width'] ?? 80) * 3.78),  // mm to pixels at ~96dpi
+            intval(($el['height_mm'] ?? 20) * 3.78)
+        );
+
+        // Decode base64 and save to temp file
+        $imageData = base64_decode(explode(',', $base64)[1]);
+        if ($imageData === false) return;
+        $tempPath = tempnam(sys_get_temp_dir(), 'barcode_') . '.png';
+        file_put_contents($tempPath, $imageData);
+
+        // Place in PDF
+        $this->pdf->Image($tempPath, (float)($el['x'] ?? 0), (float)($el['y'] ?? 0), (float)($el['width'] ?? 80), (float)($el['height_mm'] ?? 20));
+
+        // Clean up
+        unlink($tempPath);
+
+        // Show human-readable text if enabled
+        if (!empty($el['showText'])) {
+            $labelY = (float)($el['y'] ?? 0) + (float)($el['height_mm'] ?? 20) + 1;
+            $this->pdf->SetXY((float)($el['x'] ?? 0), $labelY);
+            $this->pdf->SetFont('Arial', '', 8);
+            $this->pdf->Cell((float)($el['width'] ?? 80), 4, $value, 0, 0, 'C');
+        }
+    }
+
+    protected function renderQrCode($el)
+    {
+        $barcodeService = app(BarcodeService::class);
+        $rawValue = $el['value'] ?? '';
+        $value = $this->resolveValue($rawValue, $this->currentData ?? []);
+        if ($value === null || $value === '') {
+            $value = $rawValue;
+        }
+        if (empty($value)) return;
+
+        $base64 = $barcodeService->renderQrCode(
+            $value,
+            intval(($el['size'] ?? 25) * 10),  // Larger size for QR detail
+            $el['errorCorrection'] ?? 'M'
+        );
+
+        $imageData = base64_decode(explode(',', $base64)[1]);
+        if ($imageData === false) return;
+        $tempPath = tempnam(sys_get_temp_dir(), 'qrcode_') . '.png';
+        file_put_contents($tempPath, $imageData);
+
+        $size = (float)($el['size'] ?? 25);
+        $this->pdf->Image($tempPath, (float)($el['x'] ?? 0), (float)($el['y'] ?? 0), $size, $size);
+
+        unlink($tempPath);
+    }
+
+    // ── Rotation ──────────────────────────────────────────────
+
+    protected function applyRotation($el): void
+    {
+        if (!empty($el['rotation']) && $el['rotation'] != 0) {
+            $angle = floatval($el['rotation']);
+            $x = $el['x'] + ($el['width'] ?? 0) / 2;
+            $y = $el['y'] + ($el['height'] ?? 0) / 2;
+            $this->pdf->_out(sprintf(
+                'q %.4f %.4f %.4f %.4f %.4f %.4f cm',
+                cos($angle * M_PI / 180),
+                sin($angle * M_PI / 180),
+                -sin($angle * M_PI / 180),
+                cos($angle * M_PI / 180),
+                $x * $this->pdf->k,
+                ($this->pdf->h - $y) * $this->pdf->k
+            ));
+        }
+    }
+
+    protected function resetRotation($el): void
+    {
+        if (!empty($el['rotation']) && $el['rotation'] != 0) {
+            $this->pdf->_out('Q');
+        }
+    }
+
+    // ── Running Totals ────────────────────────────────────────
+
+    protected function initRunningTotals(): void
+    {
+        $this->runningTotals = [];
+        $this->runningTotalCounts = [];
+    }
+
+    protected function renderRunningTotal($el): void
+    {
+        $field = $el['field'] ?? '';
+        $operation = $el['operation'] ?? 'sum';
+        $key = $field . '_' . $operation;
+
+        // Calculate current value
+        $value = $this->runningTotals[$key] ?? 0;
+
+        // Format and display
+        $formatted = $this->formatValue($el, $value);
+        $this->pdf->SetFont($el['fontFamily'] ?? 'Arial', '', $el['fontSize'] ?? 10);
+        $this->pdf->SetXY($el['x'], $el['y']);
+        $this->pdf->Cell($el['width'], $el['height'], $formatted, 0, 0, 'L');
+    }
+
+    protected function accumulateRunningTotals(array $rowData, string $groupField = null): void
+    {
+        $elements = $this->template->elements ?? [];
+        foreach ($elements as $el) {
+            if (($el['type'] ?? '') !== 'running_total') continue;
+
+            $field = $el['field'] ?? '';
+            $operation = $el['operation'] ?? 'sum';
+            $reset = $el['reset'] ?? 'never';
+            $key = $field . '_' . $operation;
+
+            if (!isset($this->runningTotals[$key])) {
+                $this->runningTotals[$key] = 0;
+                $this->runningTotalCounts[$key] = 0;
+            }
+
+            // Reset if group changed
+            if ($reset === 'on_group' && !empty($el['resetGroup'])) {
+                $currentGroup = $rowData[$el['resetGroup']] ?? null;
+                static $lastGroup = null;
+                if ($lastGroup !== null && $lastGroup !== $currentGroup) {
+                    $this->runningTotals[$key] = 0;
+                    $this->runningTotalCounts[$key] = 0;
+                }
+                $lastGroup = $currentGroup;
+            }
+
+            // Accumulate
+            $fieldValue = $rowData[$field] ?? 0;
+            $this->runningTotalCounts[$key]++;
+            switch ($operation) {
+                case 'sum':
+                    $this->runningTotals[$key] += $fieldValue;
+                    break;
+                case 'count':
+                    $this->runningTotals[$key] = $this->runningTotalCounts[$key];
+                    break;
+                case 'min':
+                    if ($this->runningTotalCounts[$key] === 1) {
+                        $this->runningTotals[$key] = $fieldValue;
+                    } else {
+                        $this->runningTotals[$key] = min($this->runningTotals[$key], $fieldValue);
+                    }
+                    break;
+                case 'max':
+                    if ($this->runningTotalCounts[$key] === 1) {
+                        $this->runningTotals[$key] = $fieldValue;
+                    } else {
+                        $this->runningTotals[$key] = max($this->runningTotals[$key], $fieldValue);
+                    }
+                    break;
+                case 'average':
+                    // Running average: prevAvg + (newValue - prevAvg) / count
+                    $prevAvg = $this->runningTotals[$key];
+                    $this->runningTotals[$key] = $prevAvg + ($fieldValue - $prevAvg) / $this->runningTotalCounts[$key];
+                    break;
+            }
+
+            // Reset on new page — flag for page break handling
+            if ($reset === 'on_page') {
+                // Reset is triggered via resetRunningTotalsOnPage() at page breaks
+            }
+        }
+    }
+
+    // ── Text Cell ─────────────────────────────────────────────
 
     protected function renderTextCell($el, string $value)
     {
@@ -226,14 +765,56 @@ class ContinuousFormEngine
         $align = $el['align'] ?? 'L';
         $bold = !empty($el['bold']) ? 'B' : '';
         $border = !empty($el['border']) ? 1 : 0;
+        $fill = false;
 
-        $this->pdf->SetFont('Arial', $bold, $fontSize);
+        // Apply conditional formatting style if available
+        $condStyle = $this->currentConditionalStyle;
+        if ($condStyle) {
+            if (!empty($condStyle['color'])) {
+                $hex = ltrim($condStyle['color'], '#');
+                $r = hexdec(substr($hex, 0, 2));
+                $g = hexdec(substr($hex, 2, 2));
+                $b = hexdec(substr($hex, 4, 2));
+                $this->pdf->SetTextColor($r, $g, $b);
+            }
+            if (!empty($condStyle['backgroundColor'])) {
+                $hex = ltrim($condStyle['backgroundColor'], '#');
+                $r = hexdec(substr($hex, 0, 2));
+                $g = hexdec(substr($hex, 2, 2));
+                $b = hexdec(substr($hex, 4, 2));
+                $this->pdf->SetFillColor($r, $g, $b);
+                $fill = true;
+            }
+            if (!empty($condStyle['bold'])) {
+                $bold = 'B';
+            }
+            if (!empty($condStyle['italic'])) {
+                $bold .= 'I';
+            }
+            if (!empty($condStyle['underline'])) {
+                $bold .= 'U';
+            }
+        }
+
+        // Resolve custom font if specified; fallback to Arial
+        $fontFamily = $el['fontFamily'] ?? 'Arial';
+        $resolvedFamily = $this->fontService->loadFontForPdf($this->pdf, $fontFamily, $bold);
+        $this->pdf->SetFont($resolvedFamily, $bold, $fontSize);
         $this->pdf->SetXY($x, $y);
         
         if ($width > 0) {
-            $this->pdf->MultiCell($width, $fontSize * 0.5, $value, $border, $align);
+            $this->pdf->MultiCell($width, $fontSize * 0.5, $value, $border, $align, $fill);
         } else {
-            $this->pdf->Cell(0, $fontSize * 0.5, $value, $border, 0, $align);
+            $this->pdf->Cell(0, $fontSize * 0.5, $value, $border, 0, $align, $fill);
+        }
+
+        // Reset text color to default (black) after rendering
+        if ($condStyle && !empty($condStyle['color'])) {
+            $this->pdf->SetTextColor(0, 0, 0);
+        }
+        // Reset fill color to default (black) after rendering
+        if ($condStyle && !empty($condStyle['backgroundColor'])) {
+            $this->pdf->SetFillColor(0, 0, 0);
         }
     }
 
@@ -243,6 +824,7 @@ class ContinuousFormEngine
             $style = $this->template->styles[$el['styleIdx']];
             $el['font_size'] = $style['font_size'] ?? $el['font_size'];
             $el['bold'] = $style['bold'] ?? $el['bold'];
+            $el['fontFamily'] = $style['fontFamily'] ?? $el['fontFamily'] ?? 'Arial';
         }
         return $el;
     }
@@ -251,7 +833,10 @@ class ContinuousFormEngine
     {
         $headerBgColor = $el['header_bg_color'] ?? null;
 
-        $this->pdf->SetFont('Arial', 'B', $fontSize);
+        // Resolve custom font for table header; default to Arial
+        $fontFamily = $el['fontFamily'] ?? 'Arial';
+        $resolvedFamily = $this->fontService->loadFontForPdf($this->pdf, $fontFamily, 'B');
+        $this->pdf->SetFont($resolvedFamily, 'B', $fontSize);
         $currentX = $x;
         foreach ($columns as $col) {
             // Header background color
@@ -271,6 +856,7 @@ class ContinuousFormEngine
 
     protected function renderTableRow($x, $y, $columns, $rowData, $height, $fontSize)
     {
+        // Use Arial for table row data; columns don't carry fontFamily individually
         $this->pdf->SetFont('Arial', '', $fontSize);
         $currentX = $x;
         foreach ($columns as $col) {
@@ -412,23 +998,30 @@ class ContinuousFormEngine
 
     protected function evaluateExpression(string $expression, array $rowData)
     {
-        // Replace column references with their numeric values
-        $resolved = preg_replace_callback('/\b([a-zA-Z_][a-zA-Z0-9_.]*)\b/', function ($m) use ($rowData) {
-            $key = $m[1];
-            $val = $this->resolveValue($key, $rowData);
-            return is_numeric($val) ? (string) $val : '0';
-        }, $expression);
-
-        // Safety: only allow numbers and basic operators
-        if (!preg_match('/^[\d\s\.\+\-\*\/\(\)]+$/', $resolved)) {
-            return 0;
-        }
-
+        // Try the FormulaService first (supports custom functions like SUM, AVG, etc.)
         try {
-            $el = new \Symfony\Component\ExpressionLanguage\ExpressionLanguage();
-            return $el->evaluate($resolved);
-        } catch (\Throwable $e) {
-            return 0;
+            /** @var \App\Services\FormulaService $formulaService */
+            $formulaService = app(FormulaService::class);
+            return $formulaService->evaluate($expression, $rowData);
+        } catch (\Exception $e) {
+            // Fallback: replace column references with their numeric values
+            $resolved = preg_replace_callback('/\b([a-zA-Z_][a-zA-Z0-9_.]*)\b/', function ($m) use ($rowData) {
+                $key = $m[1];
+                $val = $this->resolveValue($key, $rowData);
+                return is_numeric($val) ? (string) $val : '0';
+            }, $expression);
+
+            // Safety: only allow numbers and basic operators
+            if (!preg_match('/^[\d\s\.\+\-\*\/\(\)]+$/', $resolved)) {
+                return 0;
+            }
+
+            try {
+                $el = new \Symfony\Component\ExpressionLanguage\ExpressionLanguage();
+                return $el->evaluate($resolved);
+            } catch (\Throwable $e) {
+                return 0;
+            }
         }
     }
 
@@ -459,6 +1052,72 @@ class ContinuousFormEngine
         $g = hexdec(substr($hex, 2, 2));
         $b = hexdec(substr($hex, 4, 2));
         $this->pdf->SetFillColor($r, $g, $b);
+    }
+
+    // ── Conditional Formatting ────────────────────────────────
+
+    /**
+     * Evaluate conditional formatting rules for an element and return the first matching style.
+     */
+    protected function getConditionalStyle(array $el, $value): ?array
+    {
+        if (empty($el['conditionalFormats'])) {
+            return null;
+        }
+
+        foreach ($el['conditionalFormats'] as $rule) {
+            if (empty($rule['enabled'])) {
+                continue;
+            }
+
+            // Determine the field value to test
+            $ruleField = $rule['field'] ?? ($el['field'] ?? '');
+            $fieldValue = $value;
+
+            // If rule specifies a different field than the element's field, resolve it from data
+            if (!empty($rule['field']) && $rule['field'] !== ($el['field'] ?? $el['key'] ?? '')) {
+                $fieldValue = $this->resolveValue($rule['field'], $this->data);
+            } elseif (!empty($rule['field']) && $rule['field'] === ($el['field'] ?? $el['key'] ?? '')) {
+                // Same field — use the already-resolved value
+                $fieldValue = $value;
+            }
+
+            $matched = $this->evaluateCondition(
+                $rule['operator'] ?? 'equals',
+                $fieldValue,
+                $rule['value'] ?? '',
+                $rule['value2'] ?? null
+            );
+
+            if ($matched) {
+                return $rule['style'] ?? null;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Evaluate a single conditional operator against field and compare values.
+     */
+    protected function evaluateCondition(string $operator, $fieldValue, $compareValue, $compareValue2 = null): bool
+    {
+        return match ($operator) {
+            'equals' => (string) $fieldValue === (string) $compareValue,
+            'not_equals' => (string) $fieldValue !== (string) $compareValue,
+            'greater_than' => is_numeric($fieldValue) && is_numeric($compareValue) && floatval($fieldValue) > floatval($compareValue),
+            'less_than' => is_numeric($fieldValue) && is_numeric($compareValue) && floatval($fieldValue) < floatval($compareValue),
+            'greater_equal' => is_numeric($fieldValue) && is_numeric($compareValue) && floatval($fieldValue) >= floatval($compareValue),
+            'less_equal' => is_numeric($fieldValue) && is_numeric($compareValue) && floatval($fieldValue) <= floatval($compareValue),
+            'between' => is_numeric($fieldValue) && is_numeric($compareValue) && is_numeric($compareValue2)
+                && floatval($fieldValue) >= floatval($compareValue) && floatval($fieldValue) <= floatval($compareValue2),
+            'contains' => str_contains((string) $fieldValue, (string) $compareValue),
+            'starts_with' => str_starts_with((string) $fieldValue, (string) $compareValue),
+            'ends_with' => str_ends_with((string) $fieldValue, (string) $compareValue),
+            'is_null' => $fieldValue === null || $fieldValue === '' || $fieldValue === [],
+            'is_not_null' => $fieldValue !== null && $fieldValue !== '' && $fieldValue !== [],
+            default => false,
+        };
     }
 
     // ── Watermarking ─────────────────────────────────────────

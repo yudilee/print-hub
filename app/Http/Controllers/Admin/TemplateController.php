@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\PrintTemplate;
 use App\Models\PrintJob;
+use App\Models\TemplateVersion;
 use App\Services\ContinuousFormEngine;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -73,6 +74,9 @@ class TemplateController extends Controller
             if ($schema) $data['data_schema_version'] = $schema->version;
         }
 
+        // Auto-save snapshot before updating
+        $template->createSnapshot('Auto-save', 'Auto-saved before update', $request->user());
+
         $template->update($data);
 
         return response()->json(['status' => 'ok']);
@@ -119,7 +123,7 @@ class TemplateController extends Controller
         ]);
     }
 
-    public function preview(Request $request)
+    public function preview(Request $request, ?PrintTemplate $template = null)
     {
         $data = $request->validate([
             'paper_width_mm'        => 'required|numeric',
@@ -131,13 +135,44 @@ class TemplateController extends Controller
             'sample_data'           => 'nullable|array',
         ]);
 
-        $template = new PrintTemplate($data);
+        $templateModel = new PrintTemplate($data);
         $engine = new ContinuousFormEngine();
-        $pdfBinary = $engine->generate($template, $data['sample_data'] ?? []);
+        $pdfBinary = $engine->generate($templateModel, $data['sample_data'] ?? []);
+
+        // Estimate page count using PDF header/metadata
+        // Count pages by searching for /Type /Page in PDF content
+        $pageCount = preg_match_all('/\/Type\s*\/Page[^s]/i', $pdfBinary);
 
         return response($pdfBinary)
             ->header('Content-Type', 'application/pdf')
-            ->header('Content-Disposition', 'inline; filename="preview.pdf"');
+            ->header('Content-Disposition', 'inline; filename="preview.pdf"')
+            ->header('X-Page-Count', (string) max(1, $pageCount));
+    }
+
+    /**
+     * Save sample data for a template via AJAX.
+     */
+    public function saveSampleData(Request $request, PrintTemplate $template)
+    {
+        $data = $request->validate([
+            'sample_data' => 'nullable|array',
+        ]);
+
+        $template->update([
+            'sample_data' => $data['sample_data'] ?? [],
+        ]);
+
+        return response()->json(['status' => 'ok']);
+    }
+
+    /**
+     * Get sample data for a template via AJAX.
+     */
+    public function getSampleData(PrintTemplate $template)
+    {
+        return response()->json([
+            'sample_data' => $template->sample_data ?? [],
+        ]);
     }
 
     public function testPrint(Request $request)
@@ -167,5 +202,138 @@ class TemplateController extends Controller
         ]);
 
         return response()->json(['status' => 'ok', 'job_id' => $jobId]);
+    }
+
+    // ── Version History ──────────────────────────────────────
+
+    /**
+     * Show version history for a template.
+     */
+    public function versions(PrintTemplate $template)
+    {
+        $versions = $template->versions()->with('creator')->orderBy('version_number', 'desc')->paginate(20);
+        return view('admin.templates.versions', compact('template', 'versions'));
+    }
+
+    /**
+     * Create a manual version snapshot.
+     */
+    public function createVersion(Request $request, PrintTemplate $template)
+    {
+        $validated = $request->validate([
+            'label'     => 'nullable|string|max:255',
+            'changelog' => 'nullable|string|max:1000',
+        ]);
+
+        $version = $template->createSnapshot(
+            $validated['label'] ?? null,
+            $validated['changelog'] ?? null,
+            $request->user()
+        );
+
+        return redirect()->route('templates.versions', $template)
+            ->with('success', "Version {$version->version_number} created.");
+    }
+
+    /**
+     * Restore a template to a previous version.
+     */
+    public function restoreVersion(Request $request, PrintTemplate $template, TemplateVersion $version)
+    {
+        // Make sure the version belongs to this template
+        abort_if($version->print_template_id !== $template->id, 404);
+
+        $template->restoreVersion($version);
+
+        return redirect()->route('admin.templates.edit', $template)
+            ->with('success', "Restored to version {$version->version_number}.");
+    }
+
+    /**
+     * Compare two versions and show diff.
+     */
+    public function diffVersions(Request $request, PrintTemplate $template, TemplateVersion $v1, TemplateVersion $v2)
+    {
+        abort_if($v1->print_template_id !== $template->id || $v2->print_template_id !== $template->id, 404);
+
+        // Compare elements between two versions
+        $diff = $this->computeElementDiff($v1->elements ?? [], $v2->elements ?? []);
+
+        if ($request->wantsJson()) {
+            return response()->json($diff);
+        }
+
+        return view('admin.templates.diff', compact('template', 'v1', 'v2', 'diff'));
+    }
+
+    /**
+     * Flatten elements from sections-based format to a flat array,
+     * supporting both legacy and new formats.
+     */
+    private static function flattenElements(array $elements): array
+    {
+        // Legacy flat format: numeric array of element objects
+        if (array_is_list($elements)) {
+            return $elements;
+        }
+
+        // Sections format: { sections: {...}, elements: [...] }
+        if (isset($elements['sections']) && isset($elements['elements'])) {
+            $flat = [];
+            $sectionOrder = ['pageHeader', 'reportHeader', 'detail', 'reportFooter', 'pageFooter'];
+            foreach ($sectionOrder as $key) {
+                $sec = $elements['sections'][$key] ?? [];
+                if (!empty($sec['elements']) && is_array($sec['elements'])) {
+                    array_push($flat, ...$sec['elements']);
+                }
+            }
+            return $flat;
+        }
+
+        // Fallback: return as-is
+        return $elements;
+    }
+
+    /**
+     * Compute a structured diff between two element arrays.
+     */
+    private function computeElementDiff(array $oldElements, array $newElements): array
+    {
+        $diff = ['added' => [], 'removed' => [], 'modified' => [], 'unchanged' => []];
+
+        // Flatten both to support sections-based format
+        $oldElements = self::flattenElements($oldElements);
+        $newElements = self::flattenElements($newElements);
+
+        // Index by element ID, falling back to type+x+y for elements without IDs
+        $oldIndex = [];
+        foreach ($oldElements as $el) {
+            $key = $el['id'] ?? ($el['type'] . '_' . ($el['x'] ?? 0) . '_' . ($el['y'] ?? 0));
+            $oldIndex[$key] = $el;
+        }
+
+        $newIndex = [];
+        foreach ($newElements as $el) {
+            $key = $el['id'] ?? ($el['type'] . '_' . ($el['x'] ?? 0) . '_' . ($el['y'] ?? 0));
+            $newIndex[$key] = $el;
+        }
+
+        foreach ($newIndex as $key => $el) {
+            if (!isset($oldIndex[$key])) {
+                $diff['added'][] = $el;
+            } elseif (json_encode($el) !== json_encode($oldIndex[$key])) {
+                $diff['modified'][] = ['old' => $oldIndex[$key], 'new' => $el];
+            } else {
+                $diff['unchanged'][] = $el;
+            }
+        }
+
+        foreach ($oldIndex as $key => $el) {
+            if (!isset($newIndex[$key])) {
+                $diff['removed'][] = $el;
+            }
+        }
+
+        return $diff;
     }
 }

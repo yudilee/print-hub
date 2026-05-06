@@ -204,6 +204,14 @@ class ClientAppController extends Controller
                     'key'   => $c['key'],
                 ])->values(),
             ])->values();
+            $barcodes = collect($elements)->where('type', 'barcode')->map(fn($el) => [
+                'value'     => $el['value'] ?? '',
+                'symbology' => $el['symbology'] ?? 'code128',
+            ])->values();
+            $qrcodes  = collect($elements)->where('type', 'qrcode')->map(fn($el) => [
+                'value'           => $el['value'] ?? '',
+                'errorCorrection' => $el['errorCorrection'] ?? 'M',
+            ])->values();
 
             return [
                 'name'            => $t->name,
@@ -211,6 +219,8 @@ class ClientAppController extends Controller
                 'paper_height_mm' => $t->paper_height_mm,
                 'fields'          => $fields,
                 'tables'          => $tables,
+                'barcodes'        => $barcodes,
+                'qrcodes'         => $qrcodes,
                 'schema'          => $t->dataSchema ? [
                     'name'    => $t->dataSchema->schema_name,
                     'version' => $t->dataSchema->version,
@@ -244,15 +254,16 @@ class ClientAppController extends Controller
 
         $elements = $template->elements ?? [];
         $fields   = collect($elements)->where('type', 'field')->map(fn($el) => [
-            'key'       => $el['key'],
-            'font_size' => $el['font_size'] ?? 10,
-            'bold'      => $el['bold'] ?? false,
-            'border'    => $el['border'] ?? false,
-            'align'     => $el['align'] ?? 'L',
-            'x'         => $el['x'],
-            'y'         => $el['y'],
-            'width'     => $el['width'],
-            'height'    => $el['height'],
+            'key'                => $el['key'],
+            'font_size'          => $el['font_size'] ?? 10,
+            'bold'               => $el['bold'] ?? false,
+            'border'             => $el['border'] ?? false,
+            'align'              => $el['align'] ?? 'L',
+            'x'                  => $el['x'],
+            'y'                  => $el['y'],
+            'width'              => $el['width'],
+            'height'             => $el['height'],
+            'conditionalFormats' => $el['conditionalFormats'] ?? [],
         ])->values();
 
         $tables = collect($elements)->where('type', 'table')->map(fn($el) => [
@@ -266,12 +277,30 @@ class ClientAppController extends Controller
             ])->values(),
         ])->values();
 
+        $barcodes = collect($elements)->where('type', 'barcode')->map(fn($el) => [
+            'value'     => $el['value'] ?? '',
+            'symbology' => $el['symbology'] ?? 'code128',
+            'x'         => $el['x'],
+            'y'         => $el['y'],
+            'width'     => $el['width'],
+        ])->values();
+
+        $qrcodes  = collect($elements)->where('type', 'qrcode')->map(fn($el) => [
+            'value'           => $el['value'] ?? '',
+            'errorCorrection' => $el['errorCorrection'] ?? 'M',
+            'x'               => $el['x'],
+            'y'               => $el['y'],
+            'size'            => $el['size'] ?? 25,
+        ])->values();
+
         return ApiResponse::success([
             'name'            => $template->name,
             'paper_width_mm'  => $template->paper_width_mm,
             'paper_height_mm' => $template->paper_height_mm,
             'fields'          => $fields,
             'tables'          => $tables,
+            'barcodes'        => $barcodes,
+            'qrcodes'         => $qrcodes,
             'schema'          => $template->dataSchema ? [
                 'name'    => $template->dataSchema->schema_name,
                 'version' => $template->dataSchema->version,

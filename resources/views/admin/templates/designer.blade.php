@@ -1,5 +1,12 @@
 @extends('admin.layout')
 
+@section('head')
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+</script>
+@endsection
+
 @section('content')
 <style>
     :root {
@@ -173,12 +180,18 @@
     <div class="designer-top-bar">
         <div class="action-group">
             <button onclick="saveTemplate()" id="save-btn" class="btn btn-primary btn-sm" title="Save (Ctrl+S)">💾 Save</button>
-            <button onclick="showPreview()" class="btn btn-success btn-sm">👁 Preview</button>
+            <button onclick="openPreview()" class="btn btn-success btn-sm">👁 Preview</button>
             <button onclick="showTestPrint()" class="btn btn-warning btn-sm">🖨 Print Test</button>
+            <button onclick="toggleSampleDataPanel()" class="btn btn-secondary btn-sm" title="Sample Data">📋 Sample Data</button>
             <button onclick="exportTemplate()" class="btn btn-secondary btn-sm" title="Export JSON">↓ Export</button>
             <button onclick="importTemplate()" class="btn btn-secondary btn-sm" title="Import JSON">↑ Import</button>
             <input type="file" id="import-file" accept=".json" style="display:none">
             <button onclick="window.location.href='{{ route('admin.templates') }}'" class="btn btn-secondary btn-sm">Discard</button>
+            @if($template->id)
+            <a href="/admin/templates/{{ $template->id }}/versions" class="btn btn-secondary btn-sm" style="text-decoration: none;">
+                📜 Versions
+            </a>
+            @endif
         </div>
         <div style="border-left: 1px solid var(--border); height: 20px;"></div>
         <div class="action-group">
@@ -235,6 +248,9 @@
             <button onclick="addElement('table')" class="tool-btn" title="Add Data Table">▦</button>
             <button onclick="addElement('line')" class="tool-btn" title="Add Separator Line">—</button>
             <button onclick="addElement('image')" class="tool-btn" title="Add Image/Logo">🖼</button>
+            <button onclick="addElement('barcode')" class="tool-btn" title="Add Barcode">▌▐</button>
+            <button onclick="addElement('qrcode')" class="tool-btn" title="Add QR Code">◈</button>
+            <button onclick="addElement('running_total')" class="tool-btn" title="Add Running Total">Σ</button>
             <label class="tool-btn" title="Upload Background Trace" style="cursor:pointer">
                 🖼️<input type="file" id="bg-upload" style="display:none" onchange="uploadBg()">
             </label>
@@ -260,6 +276,7 @@
         <div class="designer-right-props">
             <div class="designer-tabs">
                 <div class="tab-item active" onclick="switchTab('props')">Properties</div>
+                <div class="tab-item" onclick="switchTab('sections')">Sections</div>
                 <div class="tab-item" onclick="switchTab('layers')">Layers</div>
                 <div class="tab-item" onclick="switchTab('data')">Data</div>
             </div>
@@ -297,6 +314,17 @@
                         </div>
                     </div>
                 </div>
+            </div>
+
+            <div id="tab-sections" class="tab-panel">
+                <div class="props-header" style="display:flex; justify-content:space-between; align-items:center;">
+                    <span>Sections</span>
+                    <div style="display:flex; gap:4px;">
+                        <button onclick="addSection()" class="action-btn" style="padding:2px 6px; font-size:10px;" title="Add Section">+</button>
+                        <button onclick="resetSectionDefaults()" class="action-btn" style="padding:2px 6px; font-size:10px;" title="Reset to Defaults">↺</button>
+                    </div>
+                </div>
+                <div id="sections-list" style="padding:8px;"></div>
             </div>
 
             <div id="tab-layers" class="tab-panel">
@@ -347,21 +375,40 @@
     </div>
 </div>
 
-<!-- Preview Modal -->
-<div id="preview-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); z-index:2000; align-items:center; justify-content:center;">
-    <div style="background:var(--surface); width:90%; height:90%; border-radius:12px; display:flex; flex-direction:column; overflow:hidden;">
-        <div style="padding:1rem; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
-            <h3 style="margin:0; font-size:1.1rem;">Template Preview</h3>
-            <button onclick="closePreview()" class="action-btn">Close</button>
-        </div>
-        <div style="flex:1; display:flex;">
-            <div style="width:300px; border-right:1px solid var(--border); padding:1rem; display:flex; flex-direction:column;">
-                <label style="font-size:0.8rem; color:var(--text-muted); margin-bottom:0.5rem;">Sample Data (JSON)</label>
-                <textarea id="preview-json" style="flex:1; background:var(--bg); color:var(--text); border:1px solid var(--border); border-radius:4px; font-family:monospace; font-size:11px; padding:8px; resize:none;"></textarea>
-                <button onclick="refreshPreview()" class="btn btn-primary btn-sm" style="margin-top:1rem;">Refresh Preview</button>
+<!-- Multi-Page Preview Overlay -->
+<div id="previewOverlay" class="fixed inset-0" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); z-index:3000;">
+    <div style="position:absolute; inset:10px; background:var(--surface); border-radius:12px; display:flex; flex-direction:column; overflow:hidden; border:1px solid var(--border);">
+        <!-- Preview Toolbar -->
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:10px 16px; border-bottom:1px solid var(--border); background:var(--bg);">
+            <div style="display:flex; align-items:center; gap:8px;">
+                <button id="prevPage" onclick="previewPrevPage()" style="padding:6px 12px; border:1px solid var(--border); border-radius:6px; background:var(--surface); color:var(--text); cursor:pointer; font-size:14px;">◀</button>
+                <input id="pageInput" type="number" min="1" value="1" style="width:60px; text-align:center; border:1px solid var(--border); border-radius:4px; padding:6px; background:var(--bg); color:var(--text); font-size:14px;">
+                <span id="pageCount" style="font-size:13px; color:var(--text-muted);">of 1</span>
+                <button id="nextPage" onclick="previewNextPage()" style="padding:6px 12px; border:1px solid var(--border); border-radius:6px; background:var(--surface); color:var(--text); cursor:pointer; font-size:14px;">▶</button>
             </div>
-            <div style="flex:1; background:#000;">
-                <iframe id="preview-iframe" style="width:100%; height:100%; border:none;"></iframe>
+            <div style="display:flex; align-items:center; gap:8px;">
+                <select id="zoomSelect" onchange="previewChangeZoom(this.value)" style="border:1px solid var(--border); border-radius:4px; padding:6px; background:var(--bg); color:var(--text); font-size:12px;">
+                    <option value="0.5">50%</option>
+                    <option value="0.75">75%</option>
+                    <option value="1" selected>100%</option>
+                    <option value="1.5">150%</option>
+                    <option value="2">200%</option>
+                    <option value="fit">Fit Width</option>
+                </select>
+                <button onclick="previewDownloadPdf()" style="padding:6px 14px; background:var(--primary); color:white; border:none; border-radius:6px; cursor:pointer; font-size:12px; font-weight:600;">⬇ Download PDF</button>
+                <button onclick="closePreviewOverlay()" style="padding:6px 12px; border:1px solid var(--border); border-radius:6px; background:var(--surface); color:var(--text); cursor:pointer; font-size:14px;">✕</button>
+            </div>
+        </div>
+        <!-- Preview Canvas Container -->
+        <div id="previewCanvasContainer" style="flex:1; overflow:auto; background:#1a1a2e; display:flex; justify-content:center; padding:20px;">
+            <div style="position:relative; display:inline-block;">
+                <canvas id="previewCanvas" style="box-shadow:0 4px 30px rgba(0,0,0,0.5); background:white;"></canvas>
+                <div id="previewLoading" style="display:none; position:absolute; inset:0; background:rgba(255,255,255,0.8); display:flex; align-items:center; justify-content:center; border-radius:4px;">
+                    <div style="text-align:center; color:#64748b;">
+                        <div style="font-size:24px; margin-bottom:8px;">⏳</div>
+                        <div style="font-size:13px; font-weight:500;">Rendering page...</div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -396,6 +443,47 @@
 </div>
 </div>
 
+<!-- Sample Data Panel -->
+<div id="sampleDataPanel" style="display:none; position:fixed; top:0; right:0; width:480px; height:100vh; background:var(--surface); z-index:2500; border-left:1px solid var(--border); box-shadow:-4px 0 20px rgba(0,0,0,0.3); flex-direction:column; overflow:hidden;">
+    <div style="padding:14px 16px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; background:var(--bg);">
+        <h3 style="margin:0; font-size:14px; font-weight:600; color:var(--text);">📋 Sample Data Editor</h3>
+        <button onclick="toggleSampleDataPanel()" style="padding:4px 10px; border:1px solid var(--border); border-radius:4px; background:var(--surface); color:var(--text); cursor:pointer; font-size:12px;">✕</button>
+    </div>
+    <div style="flex:1; overflow-y:auto; padding:12px 16px;">
+        <!-- Toolbar -->
+        <div style="display:flex; gap:6px; margin-bottom:12px; flex-wrap:wrap;">
+            <button onclick="sampleDataAddRow()" class="btn btn-primary btn-sm" style="font-size:11px;">+ Add Row</button>
+            <button onclick="sampleDataImportCsv()" class="btn btn-secondary btn-sm" style="font-size:11px;">📄 Import CSV</button>
+            <input type="file" id="csvFileInput" accept=".csv" style="display:none" onchange="sampleDataParseCsv(this)">
+            <button onclick="sampleDataLoadFromJobHistory()" class="btn btn-secondary btn-sm" style="font-size:11px;">📦 From Job</button>
+            <button onclick="sampleDataSaveToServer()" class="btn btn-success btn-sm" style="font-size:11px;">💾 Save as Default</button>
+            <button onclick="sampleDataReset()" class="btn btn-danger btn-sm" style="font-size:11px;">↺ Reset</button>
+        </div>
+        <!-- Action buttons: Apply / Close -->
+        <div style="display:flex; gap:6px; margin-bottom:12px;">
+            <button onclick="sampleDataApply()" class="btn btn-primary btn-sm" style="flex:1; font-size:12px;">✅ Apply Data</button>
+        </div>
+        <!-- Table editor -->
+        <div style="overflow-x:auto; border:1px solid var(--border); border-radius:6px;">
+            <table id="sampleDataTable" style="width:100%; border-collapse:collapse; font-size:11px;">
+                <thead id="sampleDataThead">
+                    <tr style="background:var(--bg);">
+                        <th style="padding:6px 8px; border-bottom:2px solid var(--border); color:var(--text-muted); font-weight:600; text-align:left; min-width:30px;">#</th>
+                        <th style="padding:6px 8px; border-bottom:2px solid var(--border); color:var(--text-muted); font-weight:600; text-align:left;">Field</th>
+                        <th style="padding:6px 8px; border-bottom:2px solid var(--border); color:var(--text-muted); font-weight:600; text-align:left;">Value</th>
+                        <th style="padding:6px 8px; border-bottom:2px solid var(--border); color:var(--text-muted); font-weight:600; text-align:center; width:30px;">×</th>
+                    </tr>
+                </thead>
+                <tbody id="sampleDataTbody">
+                </tbody>
+            </table>
+        </div>
+        <div style="margin-top:8px; font-size:10px; color:var(--text-muted);">
+            <span>💡 Use dot notation for nested fields (e.g., <code>customer.name</code>)</span>
+        </div>
+    </div>
+</div>
+
 <!-- Context Menu -->
 <div id="ctx-menu">
     <div class="ctx-item" onclick="ctxDuplicate()">⧉ Duplicate</div>
@@ -414,10 +502,296 @@
 <script>
     const availableSchemas = @json($schemas ?? []);
     const templateId = "{{ $template->id ?? '' }}";
+
+    // ── Conditional Formatting ────────────────────────────────
+    const CONDITIONAL_OPERATORS = [
+        { value: 'equals', label: '=' },
+        { value: 'not_equals', label: '≠' },
+        { value: 'greater_than', label: '>' },
+        { value: 'less_than', label: '<' },
+        { value: 'greater_equal', label: '≥' },
+        { value: 'less_equal', label: '≤' },
+        { value: 'between', label: 'Between' },
+        { value: 'contains', label: 'Contains' },
+        { value: 'starts_with', label: 'Starts with' },
+        { value: 'ends_with', label: 'Ends with' },
+        { value: 'is_null', label: 'Is null' },
+        { value: 'is_not_null', label: 'Is not null' },
+    ];
+
+    function getSchemaFieldKeys() {
+        const activeSchemaId = document.getElementById('data-schema-select')?.value;
+        const activeSchema = availableSchemas.find(s => s.id == activeSchemaId);
+        if (activeSchema && activeSchema.fields) {
+            return Object.keys(activeSchema.fields);
+        }
+        // Fallback: try to extract fields from sample data
+        try {
+            const sampleData = JSON.parse(document.getElementById('json-input').value || '{}');
+            return Object.keys(sampleData).filter(k => typeof sampleData[k] !== 'object' || sampleData[k] === null);
+        } catch(e) {}
+        return [];
+    }
     const BASE_SCALE = 4;
     let zoomLevel = 1.0;
     let elements = @json($template->elements ?? []);
     let globalStyles = @json($template->styles ?? []);
+
+    // ── Sections ─────────────────────────────────────────────
+    const SECTION_ORDER = ['pageHeader', 'reportHeader', 'detail', 'reportFooter', 'pageFooter'];
+    const SECTION_COLORS = {
+        pageHeader: '#f3f4f6',
+        reportHeader: '#dbeafe',
+        detail: '#ffffff',
+        reportFooter: '#dbeafe',
+        pageFooter: '#f3f4f6',
+    };
+    const SECTION_LABELS = {
+        pageHeader: 'Page Header',
+        reportHeader: 'Report Header',
+        detail: 'Detail',
+        reportFooter: 'Report Footer',
+        pageFooter: 'Page Footer',
+    };
+    const SECTION_DEFAULTS = {
+        pageHeader: { enabled: true, height: 15, elements: [], suppressIfBlank: false, keepWithBody: false },
+        reportHeader: { enabled: false, height: 20, elements: [], suppressIfBlank: true, keepWithBody: false },
+        detail: { enabled: true, height: 10, elements: [], keepTogether: false },
+        reportFooter: { enabled: false, height: 15, elements: [], suppressIfBlank: true, keepWithBody: false },
+        pageFooter: { enabled: true, height: 10, elements: [], suppressIfBlank: false, keepWithBody: false },
+    };
+
+    let sections = null;
+    let sectionResizing = null;
+
+    function initSections(rawElements) {
+        if (!rawElements || typeof rawElements !== 'object') {
+            sections = JSON.parse(JSON.stringify(SECTION_DEFAULTS));
+            sections.detail.elements = [];
+            return sections;
+        }
+        if (rawElements.sections) {
+            sections = JSON.parse(JSON.stringify(rawElements.sections));
+            SECTION_ORDER.forEach(key => {
+                if (!sections[key]) {
+                    sections[key] = JSON.parse(JSON.stringify(SECTION_DEFAULTS[key]));
+                }
+            });
+            return sections;
+        }
+        // Legacy flat format — put all in detail
+        sections = JSON.parse(JSON.stringify(SECTION_DEFAULTS));
+        if (Array.isArray(rawElements)) {
+            sections.detail.elements = JSON.parse(JSON.stringify(rawElements));
+        }
+        return sections;
+    }
+
+    function flattenSections() {
+        const all = [];
+        SECTION_ORDER.forEach(key => {
+            const sec = sections[key];
+            if (sec && sec.elements) {
+                sec.elements.forEach(el => all.push(el));
+            }
+        });
+        return all;
+    }
+
+    function getSectionAtY(y_mm) {
+        let cumulativeY = 0;
+        for (const key of SECTION_ORDER) {
+            const section = sections[key];
+            if (!section || !section.enabled) continue;
+            const h = section.height;
+            if (y_mm >= cumulativeY && y_mm < cumulativeY + h) return key;
+            cumulativeY += h + 2;
+        }
+        return 'detail';
+    }
+
+    function getSectionOffset(key) {
+        let offset = 0;
+        for (const k of SECTION_ORDER) {
+            if (k === key) return offset;
+            const sec = sections[k];
+            if (sec && sec.enabled) offset += sec.height + 2;
+        }
+        return offset;
+    }
+
+    function getTotalSectionsHeight() {
+        let total = 0;
+        SECTION_ORDER.forEach(key => {
+            const sec = sections[key];
+            if (sec && sec.enabled) total += sec.height + 2;
+        });
+        return Math.max(total - 2, 10);
+    }
+
+    // ── Sections Panel ────────────────────────────────────────
+    let selectedSection = null;
+
+    function findElementSection(elId) {
+        for (const key of SECTION_ORDER) {
+            const sec = sections[key];
+            if (sec && sec.elements) {
+                const found = sec.elements.find(e => e.id === elId);
+                if (found) return key;
+            }
+        }
+        return null;
+    }
+
+    function removeElementFromAllSections(elId) {
+        for (const key of SECTION_ORDER) {
+            const sec = sections[key];
+            if (sec && sec.elements) {
+                const idx = sec.elements.findIndex(e => e.id === elId);
+                if (idx !== -1) {
+                    sec.elements.splice(idx, 1);
+                    return;
+                }
+            }
+        }
+    }
+
+    function updateSectionsList() {
+        const container = document.getElementById('sections-list');
+        if (!container) return;
+        container.innerHTML = '';
+        SECTION_ORDER.forEach(key => {
+            const sec = sections[key];
+            if (!sec) return;
+            const div = document.createElement('div');
+            div.style.cssText = 'margin-bottom:8px; border-radius:6px; border:1px solid var(--border); overflow:hidden; cursor:pointer;';
+            div.onclick = () => showSectionInspector(key);
+            const color = SECTION_COLORS[key] || '#f3f4f6';
+            div.innerHTML = `
+                <div style="display:flex; align-items:center; gap:8px; padding:8px 10px; background:${color}22; border-bottom:1px solid var(--border);">
+                    <div style="width:14px; height:14px; border-radius:3px; background:${color}; border:1px solid rgba(0,0,0,0.1);"></div>
+                    <span style="flex:1; font-size:12px; font-weight:600; color:var(--text);">${SECTION_LABELS[key]}</span>
+                    <span style="font-size:10px; color:var(--text-muted);">${sec.height}mm</span>
+                    <label style="font-size:10px; display:flex; align-items:center; gap:3px; color:var(--text-muted); cursor:pointer;" onclick="event.stopPropagation()">
+                        <input type="checkbox" ${sec.enabled ? 'checked' : ''} onchange="toggleSection('${key}', this.checked)">
+                        Show
+                    </label>
+                </div>
+                <div style="padding:4px 10px; font-size:10px; color:var(--text-muted); background:rgba(0,0,0,0.1);">
+                    ${sec.elements ? sec.elements.length : 0} element(s)
+                </div>
+            `;
+            container.appendChild(div);
+        });
+    }
+
+    function toggleSection(key, enabled) {
+        pushHistory();
+        sections[key].enabled = enabled;
+        selectedSection = key;
+        updateCanvasSize();
+        renderElements();
+        updateSectionsList();
+        showSectionInspector(key);
+    }
+
+    function addSection() {
+        // Sections are fixed; this is a placeholder for future custom sections
+        switchTab('sections');
+    }
+
+    function resetSectionDefaults() {
+        if (!confirm('Reset all sections to default heights and visibility?')) return;
+        pushHistory();
+        SECTION_ORDER.forEach(key => {
+            const def = SECTION_DEFAULTS[key];
+            sections[key].enabled = def.enabled;
+            sections[key].height = def.height;
+            sections[key].suppressIfBlank = def.suppressIfBlank || false;
+            sections[key].keepWithBody = def.keepWithBody || false;
+            if (sections[key].keepTogether !== undefined) {
+                sections[key].keepTogether = def.keepTogether || false;
+            }
+        });
+        updateCanvasSize();
+        renderElements();
+        updateSectionsList();
+        showSectionInspector(selectedSection);
+    }
+
+    function showSectionInspector(key) {
+        if (!key || !sections[key]) {
+            document.getElementById('inspector-content').innerHTML =
+                '<div style="text-align:center; padding:3rem 1rem; color:var(--text-muted); font-size:0.8rem;">Select an object or section</div>';
+            return;
+        }
+        selectedSection = key;
+        const sec = sections[key];
+        const color = SECTION_COLORS[key] || '#f3f4f6';
+        const isDetail = key === 'detail';
+        const isPageFooter = key === 'pageFooter';
+        const isPageHeader = key === 'pageHeader';
+        document.getElementById('inspector-content').innerHTML = `
+            <div class="props-header" style="display:flex; align-items:center; gap:8px; background:${color}33;">
+                <div style="width:12px; height:12px; border-radius:2px; background:${color}; border:1px solid rgba(0,0,0,0.1);"></div>
+                <span>${SECTION_LABELS[key]}</span>
+            </div>
+            <div class="prop-table">
+                <div class="prop-item">
+                    <div class="prop-key">Enabled</div>
+                    <div class="prop-val" style="padding-left:10px;">
+                        <input type="checkbox" ${sec.enabled ? 'checked' : ''} onchange="toggleSection('${key}', this.checked)">
+                    </div>
+                </div>
+                <div class="prop-item">
+                    <div class="prop-key">Height (mm)</div>
+                    <div class="prop-val">
+                        <input type="number" value="${sec.height}" min="2" max="200" step="0.5"
+                               onchange="updateSectionHeight('${key}', parseFloat(this.value) || 10)">
+                    </div>
+                </div>
+                ${!isDetail && !isPageHeader && !isPageFooter ? `
+                <div class="prop-item">
+                    <div class="prop-key">Suppress if Blank</div>
+                    <div class="prop-val" style="padding-left:10px;">
+                        <input type="checkbox" ${sec.suppressIfBlank ? 'checked' : ''} onchange="sections['${key}'].suppressIfBlank = this.checked; updateSectionsList();">
+                    </div>
+                </div>
+                <div class="prop-item">
+                    <div class="prop-key">Keep with Body</div>
+                    <div class="prop-val" style="padding-left:10px;">
+                        <input type="checkbox" ${sec.keepWithBody ? 'checked' : ''} onchange="sections['${key}'].keepWithBody = this.checked; updateSectionsList();">
+                    </div>
+                </div>
+                ` : ''}
+                ${isDetail ? `
+                <div class="prop-item">
+                    <div class="prop-key">Keep Together</div>
+                    <div class="prop-val" style="padding-left:10px;">
+                        <input type="checkbox" ${sec.keepTogether ? 'checked' : ''} onchange="sections['${key}'].keepTogether = this.checked; updateSectionsList();">
+                    </div>
+                </div>
+                ` : ''}
+                <div class="prop-item">
+                    <div class="prop-key">Elements</div>
+                    <div class="prop-val" style="padding-left:10px; font-size:11px; color:var(--text-muted);">
+                        ${sec.elements ? sec.elements.length : 0}
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    function updateSectionHeight(key, newHeight) {
+        if (!sections[key]) return;
+        pushHistory();
+        sections[key].height = Math.max(2, Math.min(200, newHeight));
+        updateCanvasSize();
+        renderElements();
+        updateSectionsList();
+        showSectionInspector(key);
+    }
+
     let backgroundConfig = @json($template->background_config ?? ['is_printed' => false, 'opacity' => 40]);
     let activeId = null;
     let activeIds = [];
@@ -429,26 +803,78 @@
     let liveDataMode = false;
     let smartGuidesEnabled = false;
     let sampleDataCache = {};
+    let sampleDataRows = [];
+    let sampleDataFields = [];
     const GUIDE_PROXIMITY_MM = 2;
+    let availableFonts = [];
+
+    // PDF.js preview state
+    let pdfDoc = null;
+    let previewCurrentPage = 1;
+    let previewCurrentZoom = 1;
+    let previewPdfData = null;
+
+    // ── Font Management ──────────────────────────────────────
+    async function loadFontForPreview(fontFamily, fontUrl) {
+        try {
+            const font = new FontFace(fontFamily, `url(${fontUrl})`);
+            await font.load();
+            document.fonts.add(font);
+            return true;
+        } catch (e) {
+            console.warn('Font load failed:', fontFamily, e);
+            return false;
+        }
+    }
+
+    async function fetchAndPopulateFonts() {
+        try {
+            const response = await fetch('/api/v1/fonts');
+            availableFonts = await response.json();
+            const select = document.getElementById('propFontFamily');
+            if (!select) return;
+            // Keep Arial as first option
+            select.innerHTML = '<option value="Arial">Arial (Default)</option>';
+            for (const font of availableFonts) {
+                const opt = document.createElement('option');
+                opt.value = font.font_family;
+                opt.textContent = font.name;
+                opt.dataset.filePath = font.file_path;
+                select.appendChild(opt);
+                // Pre-load font for canvas preview
+                const fontUrl = `/fonts/${font.id}/preview`;
+                await loadFontForPreview(font.font_family, fontUrl);
+            }
+        } catch (e) {
+            console.warn('Failed to fetch fonts:', e);
+        }
+    }
 
     // ── Undo / Redo ──────────────────────────────────────────
     function pushHistory() {
-        undoStack.push(JSON.stringify(elements));
+        const state = { elements: JSON.parse(JSON.stringify(elements)), sections: JSON.parse(JSON.stringify(sections)) };
+        undoStack.push(JSON.stringify(state));
         if (undoStack.length > 60) undoStack.shift();
         redoStack = [];
         updateUndoButtons();
     }
     function undo() {
         if (!undoStack.length) return;
-        redoStack.push(JSON.stringify(elements));
-        elements = JSON.parse(undoStack.pop());
+        const currentState = { elements: JSON.parse(JSON.stringify(elements)), sections: JSON.parse(JSON.stringify(sections)) };
+        redoStack.push(JSON.stringify(currentState));
+        const state = JSON.parse(undoStack.pop());
+        elements = state.elements || [];
+        sections = state.sections || JSON.parse(JSON.stringify(SECTION_DEFAULTS));
         activeIds = []; activeId = null;
         renderElements(); updateInspector(); updateUndoButtons();
     }
     function redo() {
         if (!redoStack.length) return;
-        undoStack.push(JSON.stringify(elements));
-        elements = JSON.parse(redoStack.pop());
+        const currentState = { elements: JSON.parse(JSON.stringify(elements)), sections: JSON.parse(JSON.stringify(sections)) };
+        undoStack.push(JSON.stringify(currentState));
+        const state = JSON.parse(redoStack.pop());
+        elements = state.elements || [];
+        sections = state.sections || JSON.parse(JSON.stringify(SECTION_DEFAULTS));
         activeIds = []; activeId = null;
         renderElements(); updateInspector(); updateUndoButtons();
     }
@@ -491,9 +917,10 @@
         ctx.clearRect(0, 0, W, H);
         ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, H);
         const sx = W / pw, sy = H / ph;
-        elements.forEach(el => {
+        const allEls = flattenSections();
+        allEls.forEach(el => {
             if (el.hidden) return;
-            ctx.fillStyle = el.type === 'label' ? '#64748b' : el.type === 'table' ? '#3b82f6' : el.type === 'line' ? '#ef4444' : '#0ea5e9';
+            ctx.fillStyle = el.type === 'label' ? '#64748b' : el.type === 'table' ? '#3b82f6' : el.type === 'line' ? '#ef4444' : el.type === 'running_total' ? '#818cf8' : '#0ea5e9';
             ctx.fillRect(el.x * sx, el.y * sy, (el.width || 1) * sx + 1, (el.height || 1) * sy + 1);
         });
     }
@@ -624,14 +1051,37 @@
 
     // ── Init ─────────────────────────────────────────────────
     function init() {
+        initSections(elements);
+        // Ensure elements reference is the flat list from detail section for backward compat
+        elements = sections.detail.elements;
         elements.forEach((el, idx) => {
             if (!el.id) el.id = 'el_' + Date.now() + '_' + idx;
+            if (!el.fontFamily) el.fontFamily = 'Arial';
+            if ((el.type === 'field' || el.type === 'label' || el.type === 'image') && el.rotation === undefined) {
+                el.rotation = 0;
+            }
         });
         updateCanvasSize(); renderElements(); renderStyles();
         loadSelectedSchema();
+        fetchAndPopulateFonts();
         document.getElementById('canvas').addEventListener('mousedown', canvasMouseDown);
         document.getElementById('canvas').addEventListener('contextmenu', canvasContextMenu);
         document.addEventListener('click', () => hideCtxMenu());
+
+        // Fetch sample data from server if template exists
+        if (templateId) {
+            fetch(`/templates/${templateId}/sample-data`)
+                .then(r => r.json())
+                .then(data => {
+                    if (data.sample_data && Object.keys(data.sample_data).length > 0) {
+                        sampleDataCache = data.sample_data;
+                        document.getElementById('json-input').value = JSON.stringify(data.sample_data, null, 2);
+                        parseJSON();
+                        if (liveDataMode) renderElements();
+                    }
+                })
+                .catch(err => console.warn('Could not load sample data:', err));
+        }
     }
 
     // ── Live Data Preview ────────────────────────────────────
@@ -775,6 +1225,8 @@
         if (t) t.classList.add('active');
         document.getElementById('tab-' + tab).classList.add('active');
         if (tab === 'layers') updateLayersList();
+        if (tab === 'sections') updateSectionsList();
+        if (tab === 'props') showSectionInspector(selectedSection);
     }
 
     // ── JSON Explorer ────────────────────────────────────────
@@ -817,7 +1269,7 @@
             const row = document.createElement('div');
             row.className = 'layer-row' + (activeIds.includes(el.id) ? ' active' : '');
             row.onclick = () => selectElements([el.id]);
-            const typeIcon = el.type === 'table' ? '▦' : el.type === 'label' ? 'Aa' : el.type === 'line' ? '—' : 'T';
+            const typeIcon = el.type === 'table' ? '▦' : el.type === 'label' ? 'Aa' : el.type === 'line' ? '—' : el.type === 'running_total' ? 'Σ' : 'T';
             row.innerHTML = `
                 <span style="color:var(--text-muted); font-size:10px; margin-right:6px;">${typeIcon}</span>
                 <span class="lbl">${el.key || el.text || el.type}</span>
@@ -867,8 +1319,11 @@
     function updateCanvasSize() {
         const w = parseFloat(document.getElementById('paper-w').value) || 215.9;
         const h = parseFloat(document.getElementById('paper-h').value) || 139.7;
+        const totalSectionH = getTotalSectionsHeight();
+        const canvasH = Math.max(h, totalSectionH + 10);
         const c = document.getElementById('canvas');
-        c.style.width = (w * BASE_SCALE) + 'px'; c.style.height = (h * BASE_SCALE) + 'px';
+        c.style.width = (w * BASE_SCALE) + 'px';
+        c.style.height = (canvasH * BASE_SCALE) + 'px';
         c.style.transform = `scale(${zoomLevel})`;
         drawSnapGrid(); drawMinimap();
     }
@@ -877,12 +1332,35 @@
     function addElement(type) {
         pushHistory();
         const id = 'el_new_' + Date.now();
-        let el = { id, type, key: '', x: 10, y: 10, width: 50, height: 10, font_size: 10, bold: false, border: false, align: 'L' };
-        if (type === 'field')  { el.key = 'field_key'; }
-        if (type === 'label')  { el.key = ''; el.text = 'Label Text'; el.width = 60; }
+        const centerX = 10, centerY = 10;
+        const defaultStyles = { font_size: 10, fontFamily: 'Arial', bold: false, border: false, align: 'L' };
+        let el = { id, type, key: '', x: centerX, y: centerY, width: 50, height: 10, font_size: 10, fontFamily: 'Arial', bold: false, border: false, align: 'L' };
+        if (type === 'field')  { el.key = 'field_key'; el.rotation = 0; }
+        if (type === 'label')  { el.key = ''; el.text = 'Label Text'; el.width = 60; el.rotation = 0; }
         if (type === 'table')  { el.key = 'items'; el.width = 180; el.columns = [{ label: 'Item', key: 'name', width: 100 }, { label: 'Qty', key: 'qty', width: 40, align: 'R' }]; }
         if (type === 'line')   { el.key = ''; el.width = 180; el.height = 0.5; el.lineColor = '#000000'; }
-        if (type === 'image')  { el.key = ''; el.src = 'https://via.placeholder.com/150?text=Logo'; el.width = 30; el.height = 30; }
+        if (type === 'image')  { el.key = ''; el.src = 'https://via.placeholder.com/150?text=Logo'; el.width = 30; el.height = 30; el.rotation = 0; }
+        if (type === 'barcode') {
+            el = { id, type: 'barcode', symbology: 'code128', value: '', showText: true, barWidth: 0, height_mm: 20, x: centerX, y: centerY, width: 80, height: 25, ...defaultStyles };
+        }
+        if (type === 'qrcode') {
+            el = { id, type: 'qrcode', value: '', errorCorrection: 'M', x: centerX, y: centerY, size: 25, ...defaultStyles };
+        }
+        if (type === 'running_total') {
+            el = {
+                id, type: 'running_total',
+                name: 'Running Total',
+                field: '',
+                operation: 'sum',
+                reset: 'never',
+                resetGroup: '',
+                evaluate: 'on_change',
+                x: centerX, y: centerY, width: 50, height: 6,
+                fontSize: 10,
+                fontFamily: 'Arial',
+                format: { type: 'number', decimals: 2 }
+            };
+        }
         elements.push(el); renderElements(); selectElements([id]);
     }
 
@@ -994,6 +1472,12 @@
             const rb = document.getElementById('rubber-band');
             rb.style.left = Math.min(cx, rbStartX) + 'px'; rb.style.top = Math.min(cy, rbStartY) + 'px';
             rb.style.width = Math.abs(cx - rbStartX) + 'px'; rb.style.height = Math.abs(cy - rbStartY) + 'px';
+        } else if (sectionResizing) {
+            const dy = (e.clientY - sectionResizing.startY) / (BASE_SCALE * zoomLevel);
+            const newH = Math.max(5, sectionResizing.startHeight + dy);
+            sections[sectionResizing.key].height = parseFloat(newH.toFixed(1));
+            updateCanvasSize();
+            renderElements();
         } else {
             hideCoordTip();
         }
@@ -1019,14 +1503,62 @@
                 if (hit.length) selectElements(hit);
             }
         }
-        if (draggingEl || resizingEl) { pushHistory(); renderElements(); drawMinimap(); }
-        draggingEl = null; resizingEl = null; hideCoordTip(); clearSmartGuides();
+        if (draggingEl) {
+            // ── Section boundary detection on drop ──────────────
+            const movedIds = [];
+            // Collect all dragged element IDs
+            activeIds.forEach(id => { if (!movedIds.includes(id)) movedIds.push(id); });
+            // Also include draggingEl if not in activeIds
+            if (draggingEl && !movedIds.includes(draggingEl.id)) movedIds.push(draggingEl.id);
+
+            movedIds.forEach(id => {
+                const sourceKey = findElementSection(id);
+                if (!sourceKey) return;
+                const el = sections[sourceKey].elements.find(e => e.id === id);
+                if (!el) return;
+
+                // Calculate global Y = section offset + element Y
+                const srcOffset = getSectionOffset(sourceKey);
+                const globalY = srcOffset + el.y + (el.height || 10) / 2;
+
+                // Determine which section this globalY falls into
+                let targetKey = null;
+                let cumY = 0;
+                for (const sk of SECTION_ORDER) {
+                    const sec = sections[sk];
+                    if (!sec || !sec.enabled) continue;
+                    if (globalY >= cumY && globalY < cumY + sec.height) {
+                        targetKey = sk;
+                        break;
+                    }
+                    cumY += sec.height + 2;
+                }
+                if (!targetKey) targetKey = 'detail';
+
+                if (sourceKey !== targetKey) {
+                    // Move element from source section to target section
+                    const elData = sections[sourceKey].elements.find(e => e.id === id);
+                    if (elData) {
+                        removeElementFromAllSections(id);
+                        // Adjust Y to be relative to target section
+                        const targetOffset = getSectionOffset(targetKey);
+                        elData.y = parseFloat(Math.max(0, (globalY - (elData.height || 10) / 2 - targetOffset)).toFixed(2));
+                        if (!sections[targetKey].elements) sections[targetKey].elements = [];
+                        sections[targetKey].elements.push(elData);
+                    }
+                }
+            });
+        }
+        if (draggingEl || resizingEl || sectionResizing) { pushHistory(); renderElements(); drawMinimap(); }
+        draggingEl = null; resizingEl = null; sectionResizing = null; hideCoordTip(); clearSmartGuides();
     });
 
     // ── Render ───────────────────────────────────────────────
     function renderElements() {
         const c = document.getElementById('canvas');
         c.querySelectorAll('.design-element').forEach(el => el.remove());
+        c.querySelectorAll('.section-band').forEach(el => el.remove());
+        c.querySelectorAll('.section-resize-handle').forEach(el => el.remove());
         
         const activeSchemaId = document.getElementById('data-schema-select')?.value;
         const activeSchema = availableSchemas.find(s => s.id == activeSchemaId);
@@ -1036,125 +1568,258 @@
             validTables = Object.keys(activeSchema.tables || {});
         }
 
-        elements.forEach(el => {
-            if (el.hidden) return;
-            const displayEl = JSON.parse(JSON.stringify(el));
-            if (displayEl.styleIdx !== undefined && globalStyles[displayEl.styleIdx]) {
-                const s = globalStyles[displayEl.styleIdx];
-                displayEl.font_size = s.font_size; displayEl.bold = s.bold;
-            }
-            const div = document.createElement('div');
-            div.className = 'design-element';
-            if (el.locked) div.style.cursor = 'not-allowed';
-            div.setAttribute('data-id', displayEl.id);
-            if (activeIds.includes(displayEl.id)) div.classList.add('active');
-            div.style.left = (displayEl.x * BASE_SCALE) + 'px';
-            div.style.top = (displayEl.y * BASE_SCALE) + 'px';
-            div.style.width = (displayEl.width * BASE_SCALE) + 'px';
-            div.style.height = ((displayEl.height || 10) * BASE_SCALE) + 'px';
+        let currentY = 0;
+        const pw = parseFloat(document.getElementById('paper-w').value) || 215.9;
 
-            if (activeSchema && displayEl.type === 'field' && !validKeys.includes(displayEl.key) && displayEl.key) {
-                div.style.outline = '2px solid var(--danger)';
-                div.style.outlineOffset = '-2px';
-                div.title = 'Invalid field: ' + displayEl.key + ' is not in schema';
-            }
-            if (activeSchema && displayEl.type === 'table' && !validTables.includes(displayEl.key) && displayEl.key) {
-                div.style.outline = '2px solid var(--danger)';
-                div.style.outlineOffset = '-2px';
-                div.title = 'Invalid table: ' + displayEl.key + ' is not in schema';
-            }
+        SECTION_ORDER.forEach(sectionKey => {
+            const section = sections[sectionKey];
+            if (!section || !section.enabled) return;
 
-            if (displayEl.type === 'line') {
-                div.innerHTML = `<div style="width:100%; height:${Math.max(1, displayEl.height*BASE_SCALE)}px; background:${displayEl.lineColor||'#000'}; border-radius:1px;"></div>`;
-            } else if (displayEl.type === 'label') {
-                if (displayEl.border) div.style.border = '1px solid #cbd5e1';
-                div.innerHTML = `<div style="font-size:${displayEl.font_size*BASE_SCALE*0.2}px; color:#1e293b; padding:2px; height:100%; overflow:hidden; font-weight:${displayEl.bold?'bold':'normal'}; text-align:${displayEl.align==='C'?'center':(displayEl.align==='R'?'right':'left')}; background:rgba(100,116,139,0.08);">${displayEl.text || 'Label'}</div>`;
-            } else if (displayEl.type === 'table') {
-                if (displayEl.border) div.style.border = '1px solid #cbd5e1';
-                const cols = displayEl.columns || [];
-                const colsHtml = cols.map(c => `<td style="border:1px solid #94a3b8; padding:1px 3px; font-size:${displayEl.font_size*BASE_SCALE*0.18}px; font-weight:bold; color:#1e40af; white-space:nowrap; overflow:hidden;">${c.label}</td>`).join('');
-                // Live data: show sample rows
-                const liveRows = getLiveTableRows(displayEl);
-                let rowsHtml = '';
-                if (liveRows && liveRows.length > 0) {
-                    liveRows.forEach((row, ri) => {
-                        const bg = ri % 2 === 0 ? '' : 'background:rgba(59,130,246,0.04);';
-                        rowsHtml += '<tr>' + cols.map(c => {
-                            let val = resolveDataValue(c.key, row) ?? '';
-                            if (c.format_type && c.format_type !== 'none') {
-                                val = formatValueJS(val, c.format_type, c.format_string, {
-                                    decimal_places: c.decimal_places,
-                                    currency_symbol: c.format_string
-                                });
-                            }
-                            return `<td style="border:1px solid #e2e8f0; padding:1px 3px; font-size:${displayEl.font_size*BASE_SCALE*0.16}px; color:#334155;${bg}">${val}</td>`;
-                        }).join('') + '</tr>';
-                    });
-                    div.classList.add('field-resolved');
-                } else {
-                    rowsHtml = '<tr>' + cols.map(c => '<td style="border:1px solid #e2e8f0; padding:1px 3px; font-size:' + (displayEl.font_size*BASE_SCALE*0.16) + 'px; color:#64748b;">{{' + c.key + '}}</td>').join('') + '</tr>';
-                }
-                div.innerHTML = `<table style="border-collapse:collapse; width:100%; table-layout:fixed;"><tr>${colsHtml}</tr>${rowsHtml}</table>`;
-            } else if (displayEl.type === 'image') {
-                const img = document.createElement('img');
-                img.src = displayEl.src || 'https://via.placeholder.com/150?text=Image';
-                img.style.width = '100%'; img.style.height = '100%'; img.style.objectFit = 'contain'; img.style.pointerEvents = 'none';
-                div.appendChild(img);
-                if (displayEl.key) {
-                    const badge = document.createElement('div');
-                    badge.textContent = 'LINKED: ' + displayEl.key;
-                    badge.style.position = 'absolute'; badge.style.bottom = '0'; badge.style.left = '0';
-                    badge.style.background = 'rgba(59,130,246,0.8)'; badge.style.color = 'white';
-                    badge.style.fontSize = '8px'; badge.style.padding = '1px 3px';
-                    div.appendChild(badge);
-                }
-            } else {
-                // Field element — live data preview
-                if (displayEl.border) div.style.border = '1px solid #1e293b';
-                const liveVal = getLiveDisplayValue(displayEl);
-                if (liveVal !== null) {
-                    div.classList.add('field-resolved');
-                    div.innerHTML = `<div style="font-size:${displayEl.font_size*BASE_SCALE*0.2}px; color:#0f172a; padding:2px; height:100%; overflow:hidden; font-weight:${displayEl.bold?'bold':'normal'}; text-align:${displayEl.align==='C'?'center':(displayEl.align==='R'?'right':'left')}">${liveVal}</div>`;
-                } else {
-                    if (liveDataMode) div.classList.add('field-unresolved');
-                    div.innerHTML = `<div style="font-size:${displayEl.font_size*BASE_SCALE*0.2}px; color:#1e293b; padding:2px; height:100%; overflow:hidden; font-weight:${displayEl.bold?'bold':'normal'}; text-align:${displayEl.align==='C'?'center':(displayEl.align==='R'?'right':'left')}">@{{ ${displayEl.key} }}</div>`;
-                }
-            }
+            const sectionHeight = section.height;
+            const sectionHpx = sectionHeight * BASE_SCALE;
+            const currentYpx = currentY * BASE_SCALE;
 
-            // Resize handles
-            if (activeIds.length === 1 && activeIds[0] === displayEl.id && !el.locked) {
-                ['nw','n','ne','e','se','s','sw','w'].forEach(hdl => {
-                    const handle = document.createElement('div');
-                    handle.className = `handle res-${hdl}`;
-                    handle.setAttribute('data-handle', hdl);
-                    handle.onmousedown = (ev) => {
-                        ev.stopPropagation(); ev.preventDefault();
-                        resizingEl = el; resizeHandle = hdl;
-                        startMouseX = ev.clientX; startMouseY = ev.clientY;
-                        startX = el.x; startY = el.y; startW = el.width; startH = el.height || 10;
-                    };
-                    div.appendChild(handle);
-                });
-            }
+            // Section band background
+            const band = document.createElement('div');
+            band.className = 'section-band';
+            band.dataset.section = sectionKey;
+            band.style.cssText = `
+                position: absolute; left: 0; top: ${currentYpx}px;
+                width: ${pw * BASE_SCALE}px; height: ${sectionHpx}px;
+                background: ${SECTION_COLORS[sectionKey]};
+                border: 1px dashed #d1d5db;
+                box-sizing: border-box; pointer-events: none;
+                z-index: 0;
+            `;
+            c.appendChild(band);
 
-            div.onmousedown = (ev) => {
-                if (ev.target.classList.contains('handle')) return;
-                if (el.locked) return;
-                ev.stopPropagation();
-                draggingEl = el;
-                let tIds = [el.id];
-                if (el.groupId) tIds = elements.filter(i => i.groupId === el.groupId).map(i => i.id);
-                if (ev.shiftKey) {
-                    tIds.forEach(id => { if (activeIds.includes(id)) activeIds = activeIds.filter(a => a !== id); else activeIds.push(id); });
-                    selectElements(activeIds);
-                } else if (!activeIds.includes(el.id)) {
-                    activeIds = tIds; selectElements(activeIds);
-                }
-                activeIds.forEach(id => { const t = elements.find(x => x.id === id); if (t) { t.origX = t.x; t.origY = t.y; } });
-                startMouseX = ev.clientX; startMouseY = ev.clientY;
+            // Section label (clickable for section properties)
+            const label = document.createElement('div');
+            label.className = 'section-label';
+            label.dataset.section = sectionKey;
+            label.style.cssText = `
+                position: absolute; left: 4px; top: ${currentYpx + 2}px;
+                font-size: 9px; font-family: sans-serif;
+                color: #6b7280; pointer-events: auto; cursor: pointer;
+                z-index: 1; user-select: none;
+            `;
+            label.textContent = SECTION_LABELS[sectionKey] + ` (${sectionHeight}mm)`;
+            label.title = 'Click to edit section properties';
+            label.onclick = (e) => {
+                e.stopPropagation();
+                showSectionInspector(sectionKey);
             };
-            c.appendChild(div);
+            c.appendChild(label);
+
+            // Render elements in this section
+            const secEls = section.elements || [];
+            secEls.forEach(el => {
+                if (el.hidden) return;
+                const displayEl = JSON.parse(JSON.stringify(el));
+                if (displayEl.styleIdx !== undefined && globalStyles[displayEl.styleIdx]) {
+                    const s = globalStyles[displayEl.styleIdx];
+                    displayEl.font_size = s.font_size; displayEl.bold = s.bold;
+                }
+                const div = document.createElement('div');
+                div.className = 'design-element';
+                if (el.locked) div.style.cursor = 'not-allowed';
+                div.setAttribute('data-id', displayEl.id);
+                if (activeIds.includes(displayEl.id)) div.classList.add('active');
+                div.style.left = (displayEl.x * BASE_SCALE) + 'px';
+                div.style.top = ((displayEl.y + currentY) * BASE_SCALE) + 'px';
+                div.style.width = (displayEl.width * BASE_SCALE) + 'px';
+                div.style.height = ((displayEl.height || 10) * BASE_SCALE) + 'px';
+
+                // Apply rotation
+                if ((displayEl.type === 'field' || displayEl.type === 'label' || displayEl.type === 'image') && displayEl.rotation && displayEl.rotation != 0) {
+                    const cx = (displayEl.width * BASE_SCALE) / 2;
+                    const cy = ((displayEl.height || 10) * BASE_SCALE) / 2;
+                    div.style.transform = `rotate(${displayEl.rotation}deg)`;
+                    div.style.transformOrigin = `${cx}px ${cy}px`;
+                }
+
+                if (activeSchema && displayEl.type === 'field' && !validKeys.includes(displayEl.key) && displayEl.key) {
+                    div.style.outline = '2px solid var(--danger)';
+                    div.style.outlineOffset = '-2px';
+                    div.title = 'Invalid field: ' + displayEl.key + ' is not in schema';
+                }
+                if (activeSchema && displayEl.type === 'table' && !validTables.includes(displayEl.key) && displayEl.key) {
+                    div.style.outline = '2px solid var(--danger)';
+                    div.style.outlineOffset = '-2px';
+                    div.title = 'Invalid table: ' + displayEl.key + ' is not in schema';
+                }
+
+                if (displayEl.type === 'line') {
+                    div.innerHTML = `<div style="width:100%; height:${Math.max(1, displayEl.height*BASE_SCALE)}px; background:${displayEl.lineColor||'#000'}; border-radius:1px;"></div>`;
+                } else if (displayEl.type === 'label') {
+                    if (displayEl.border) div.style.border = '1px solid #cbd5e1';
+                    const labelFontFamily = displayEl.fontFamily || 'Arial';
+                    div.innerHTML = `<div style="font-size:${displayEl.font_size*BASE_SCALE*0.2}px; font-family:'${labelFontFamily}', sans-serif; color:#1e293b; padding:2px; height:100%; overflow:hidden; font-weight:${displayEl.bold?'bold':'normal'}; text-align:${displayEl.align==='C'?'center':(displayEl.align==='R'?'right':'left')}; background:rgba(100,116,139,0.08);">${displayEl.text || 'Label'}</div>`;
+                } else if (displayEl.type === 'table') {
+                    if (displayEl.border) div.style.border = '1px solid #cbd5e1';
+                    const cols = displayEl.columns || [];
+                    const colsHtml = cols.map(c => `<td style="border:1px solid #94a3b8; padding:1px 3px; font-size:${displayEl.font_size*BASE_SCALE*0.18}px; font-weight:bold; color:#1e40af; white-space:nowrap; overflow:hidden;">${c.label}</td>`).join('');
+                    const liveRows = getLiveTableRows(displayEl);
+                    let rowsHtml = '';
+                    if (liveRows && liveRows.length > 0) {
+                        liveRows.forEach((row, ri) => {
+                            const bg = ri % 2 === 0 ? '' : 'background:rgba(59,130,246,0.04);';
+                            rowsHtml += '<tr>' + cols.map(c => {
+                                let val = resolveDataValue(c.key, row) ?? '';
+                                if (c.format_type && c.format_type !== 'none') {
+                                    val = formatValueJS(val, c.format_type, c.format_string, {
+                                        decimal_places: c.decimal_places,
+                                        currency_symbol: c.format_string
+                                    });
+                                }
+                                return `<td style="border:1px solid #e2e8f0; padding:1px 3px; font-size:${displayEl.font_size*BASE_SCALE*0.16}px; color:#334155;${bg}">${val}</td>`;
+                            }).join('') + '</tr>';
+                        });
+                        div.classList.add('field-resolved');
+                    } else {
+                        rowsHtml = '<tr>' + cols.map(c => '<td style="border:1px solid #e2e8f0; padding:1px 3px; font-size:' + (displayEl.font_size*BASE_SCALE*0.16) + 'px; color:#64748b;">{{' + c.key + '}}</td>').join('') + '</tr>';
+                    }
+                    div.innerHTML = `<table style="border-collapse:collapse; width:100%; table-layout:fixed;"><tr>${colsHtml}</tr>${rowsHtml}</table>`;
+                } else if (displayEl.type === 'image') {
+                    const img = document.createElement('img');
+                    img.src = displayEl.src || 'https://via.placeholder.com/150?text=Image';
+                    img.style.width = '100%'; img.style.height = '100%'; img.style.objectFit = 'contain'; img.style.pointerEvents = 'none';
+                    div.appendChild(img);
+                    if (displayEl.key) {
+                        const badge = document.createElement('div');
+                        badge.textContent = 'LINKED: ' + displayEl.key;
+                        badge.style.position = 'absolute'; badge.style.bottom = '0'; badge.style.left = '0';
+                        badge.style.background = 'rgba(59,130,246,0.8)'; badge.style.color = 'white';
+                        badge.style.fontSize = '8px'; badge.style.padding = '1px 3px';
+                        div.appendChild(badge);
+                    }
+                } else if (displayEl.type === 'barcode') {
+                    div.style.border = '1px dashed #94a3b8';
+                    div.style.background = 'rgba(241,245,249,0.6)';
+                    const barcodeVal = displayEl.value || '(no value)';
+                    const symLabel = displayEl.symbology || 'code128';
+                    div.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;padding:2px;font-family:monospace;">
+                        <div style="font-size:9px;color:#64748b;font-weight:bold;">[BARCODE]</div>
+                        <div style="font-size:8px;color:#475569;margin-top:2px;">${symLabel}</div>
+                        <div style="font-size:7px;color:#94a3b8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%;">${barcodeVal}</div>
+                    </div>`;
+                } else if (displayEl.type === 'qrcode') {
+                    div.style.border = '1px dashed #94a3b8';
+                    div.style.background = 'rgba(241,245,249,0.6)';
+                    const qrVal = displayEl.value || '(no value)';
+                    div.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;padding:2px;font-family:monospace;">
+                        <div style="font-size:9px;color:#64748b;font-weight:bold;">[QR CODE]</div>
+                        <div style="font-size:7px;color:#94a3b8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%;">${qrVal}</div>
+                    </div>`;
+                } else if (displayEl.type === 'running_total') {
+                    div.style.border = '1px dashed #818cf8';
+                    div.style.background = 'rgba(129,140,248,0.1)';
+                    const rtField = displayEl.field || '(no field)';
+                    const rtOp = displayEl.operation || 'sum';
+                    const opLabel = { sum: 'Sum', count: 'Count', average: 'Average', min: 'Min', max: 'Max' };
+                    div.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;padding:2px;font-family:monospace;">
+                        <div style="font-size:9px;color:#6366f1;font-weight:bold;">[Σ Running Total]</div>
+                        <div style="font-size:8px;color:#4f46e5;margin-top:2px;">${rtField} → ${opLabel[rtOp] || rtOp}</div>
+                    </div>`;
+                } else {
+                    if (displayEl.border) div.style.border = '1px solid #1e293b';
+                    const fieldFontFamily = displayEl.fontFamily || 'Arial';
+                    const liveVal = getLiveDisplayValue(displayEl);
+                    
+                    // Evaluate conditional formatting from sample data
+                    let condTextColor = null, condBgColor = null, condBold = null, condItalic = null, condUnderline = null;
+                    if (liveDataMode && Object.keys(sampleDataCache).length > 0) {
+                        const condStyles = getConditionalStyle(displayEl, sampleDataCache);
+                        if (condStyles.length > 0) {
+                            const s = condStyles[0];
+                            if (s.color && s.color !== '#000000') condTextColor = s.color;
+                            if (s.backgroundColor && s.backgroundColor !== '#FFFFFF') condBgColor = s.backgroundColor;
+                            if (s.bold) condBold = true;
+                            if (s.italic) condItalic = true;
+                            if (s.underline) condUnderline = true;
+                        }
+                    }
+                    
+                    if (liveVal !== null) {
+                        div.classList.add('field-resolved');
+                        const textColor = condTextColor || '#0f172a';
+                        const bgColor = condBgColor || 'transparent';
+                        const fontWeight = condBold ? 'bold' : (displayEl.bold ? 'bold' : 'normal');
+                        const fontStyle = condItalic ? 'italic' : 'normal';
+                        const textDecor = condUnderline ? 'underline' : 'none';
+                        div.innerHTML = `<div style="font-size:${displayEl.font_size*BASE_SCALE*0.2}px; font-family:'${fieldFontFamily}', sans-serif; color:${textColor}; background:${bgColor}; padding:2px; height:100%; overflow:hidden; font-weight:${fontWeight}; font-style:${fontStyle}; text-decoration:${textDecor}; text-align:${displayEl.align==='C'?'center':(displayEl.align==='R'?'right':'left')}">${liveVal}</div>`;
+                    } else {
+                        if (liveDataMode) div.classList.add('field-unresolved');
+                        div.innerHTML = `<div style="font-size:${displayEl.font_size*BASE_SCALE*0.2}px; font-family:'${fieldFontFamily}', sans-serif; color:#1e293b; padding:2px; height:100%; overflow:hidden; font-weight:${displayEl.bold?'bold':'normal'}; text-align:${displayEl.align==='C'?'center':(displayEl.align==='R'?'right':'left')}">@{{ ${displayEl.key} }}</div>`;
+                    }
+                }
+
+                // Resize handles
+                if (activeIds.length === 1 && activeIds[0] === displayEl.id && !el.locked) {
+                    ['nw','n','ne','e','se','s','sw','w'].forEach(hdl => {
+                        const handle = document.createElement('div');
+                        handle.className = `handle res-${hdl}`;
+                        handle.setAttribute('data-handle', hdl);
+                        handle.onmousedown = (ev) => {
+                            ev.stopPropagation(); ev.preventDefault();
+                            resizingEl = el; resizeHandle = hdl;
+                            startMouseX = ev.clientX; startMouseY = ev.clientY;
+                            startX = el.x; startY = el.y; startW = el.width; startH = el.height || 10;
+                        };
+                        div.appendChild(handle);
+                    });
+                }
+
+                div.onmousedown = (ev) => {
+                    if (ev.target.classList.contains('handle')) return;
+                    if (el.locked) return;
+                    ev.stopPropagation();
+                    draggingEl = el;
+                    let tIds = [el.id];
+                    if (el.groupId) tIds = elements.filter(i => i.groupId === el.groupId).map(i => i.id);
+                    if (ev.shiftKey) {
+                        tIds.forEach(id => { if (activeIds.includes(id)) activeIds = activeIds.filter(a => a !== id); else activeIds.push(id); });
+                        selectElements(activeIds);
+                    } else if (!activeIds.includes(el.id)) {
+                        activeIds = tIds; selectElements(activeIds);
+                    }
+                    activeIds.forEach(id => { const t = elements.find(x => x.id === id); if (t) { t.origX = t.x; t.origY = t.y; } });
+                    startMouseX = ev.clientX; startMouseY = ev.clientY;
+                };
+                c.appendChild(div);
+            });
+
+            // Section resize handle (except detail and pageFooter)
+            if (sectionKey !== 'detail' && sectionKey !== 'pageFooter') {
+                const rh = document.createElement('div');
+                rh.className = 'section-resize-handle';
+                rh.dataset.section = sectionKey;
+                rh.style.cssText = `
+                    position: absolute; left: 0; top: ${currentYpx + sectionHpx - 3}px;
+                    width: ${pw * BASE_SCALE}px; height: 6px;
+                    cursor: ns-resize; z-index: 50;
+                    background: transparent;
+                `;
+                rh.title = 'Drag to resize section height';
+                rh.onmousedown = (ev) => {
+                    ev.stopPropagation(); ev.preventDefault();
+                    sectionResizing = { key: sectionKey, startY: ev.clientY, startHeight: sectionHeight };
+                };
+                // Visual indicator line
+                const line = document.createElement('div');
+                line.style.cssText = `
+                    position: absolute; left: 0; top: 2px;
+                    width: 100%; height: 2px;
+                    background: rgba(59,130,246,0.5);
+                    pointer-events: none;
+                `;
+                rh.appendChild(line);
+                c.appendChild(rh);
+            }
+
+            currentY += sectionHeight + 2; // gap between sections
         });
+
         document.getElementById('align-tools').style.display = activeIds.length > 1 ? 'flex' : 'none';
         drawRulers(); updateLayersList(); drawMinimap();
     }
@@ -1248,17 +1913,109 @@
         } else if (el.type === 'image') {
             html += `<div class="props-section"><div class="props-label">Image</div><div class="prop-table">
                 <div class="prop-item"><div class="prop-key">Source URL</div><div class="prop-val"><input type="text" value="${el.src||''}" oninput="updateElProps('src',this.value)"></div></div>
+                <div class="prop-item"><div class="prop-key">Rotation</div><div class="prop-val"><select onchange="updateElProps('rotation',parseInt(this.value))">
+                    <option value="0" ${(!el.rotation||el.rotation==0)?'selected':''}>0°</option>
+                    <option value="90" ${el.rotation==90?'selected':''}>90°</option>
+                    <option value="180" ${el.rotation==180?'selected':''}>180°</option>
+                    <option value="270" ${el.rotation==270?'selected':''}>270°</option>
+                </select></div></div>
             </div></div>`;
+        } else if (el.type === 'barcode') {
+            html += `<div class="props-section"><div class="props-label">Barcode</div><div class="prop-table">
+                <div class="prop-item"><div class="prop-key">Value</div><div class="prop-val"><input type="text" value="${el.value||''}" oninput="updateElProps('value',this.value)" placeholder="Data or {{field_name}}"></div></div>
+                <div class="prop-item"><div class="prop-key">Symbology</div><div class="prop-val"><select onchange="updateElProps('symbology',this.value)">
+                    <option value="code128" ${el.symbology==='code128'?'selected':''}>Code 128</option>
+                    <option value="code39" ${el.symbology==='code39'?'selected':''}>Code 39</option>
+                    <option value="ean13" ${el.symbology==='ean13'?'selected':''}>EAN-13</option>
+                    <option value="ean8" ${el.symbology==='ean8'?'selected':''}>EAN-8</option>
+                    <option value="upca" ${el.symbology==='upca'?'selected':''}>UPC-A</option>
+                    <option value="itf14" ${el.symbology==='itf14'?'selected':''}>ITF-14</option>
+                </select></div></div>
+                <div class="prop-item"><div class="prop-key">Show Text</div><div class="prop-val" style="padding-left:10px;"><input type="checkbox" ${el.showText?'checked':''} onchange="updateElProps('showText',this.checked)"></div></div>
+                <div class="prop-item"><div class="prop-key">Height (mm)</div><div class="prop-val"><input type="number" step="0.5" value="${el.height_mm||20}" oninput="updateElProps('height_mm',parseFloat(this.value))"></div></div>
+                <div class="prop-item"><div class="prop-key">Bar Width</div><div class="prop-val"><input type="number" step="0.1" min="0" value="${el.barWidth||0}" oninput="updateElProps('barWidth',parseFloat(this.value))" title="0 = auto"></div></div>
+            </div></div>`;
+            html += `<div class="props-section"><div class="props-label">Appearance</div><div class="prop-table">
+                <div class="prop-item"><div class="prop-key">FontFamily</div><div class="prop-val"><select onchange="updateElProps('fontFamily',this.value)"><option value="Arial">Arial (Default)</option></select></div></div>
+            </div></div>`;
+        } else if (el.type === 'qrcode') {
+            html += `<div class="props-section"><div class="props-label">QR Code</div><div class="prop-table">
+                <div class="prop-item"><div class="prop-key">Value</div><div class="prop-val"><input type="text" value="${el.value||''}" oninput="updateElProps('value',this.value)" placeholder="URL or text"></div></div>
+                <div class="prop-item"><div class="prop-key">Error Correction</div><div class="prop-val"><select onchange="updateElProps('errorCorrection',this.value)">
+                    <option value="L" ${el.errorCorrection==='L'?'selected':''}>L (Low)</option>
+                    <option value="M" ${el.errorCorrection==='M'||!el.errorCorrection?'selected':''}>M (Medium)</option>
+                    <option value="Q" ${el.errorCorrection==='Q'?'selected':''}>Q (Quartile)</option>
+                    <option value="H" ${el.errorCorrection==='H'?'selected':''}>H (High)</option>
+                </select></div></div>
+                <div class="prop-item"><div class="prop-key">Size (mm)</div><div class="prop-val"><input type="number" step="0.5" value="${el.size||25}" oninput="updateElProps('size',parseFloat(this.value))"></div></div>
+            </div></div>`;
+        } else if (el.type === 'running_total') {
+            const opLabel = { sum: 'Sum', count: 'Count', average: 'Average', min: 'Min', max: 'Max' };
+            const resetLabel = { never: 'Never', on_page: 'On Page', on_group: 'On Group' };
+            const evalLabel = { on_change: 'On Change', on_record: 'On Record' };
+            html += `
+            <div class="props-section"><div class="props-label">Running Total</div><div class="prop-table">
+                <div class="prop-item"><div class="prop-key">Field Name</div><div class="prop-val"><input type="text" value="${el.field||''}" oninput="updateElProps('field',this.value)" placeholder="data_field_name"></div></div>
+                <div class="prop-item"><div class="prop-key">Operation</div><div class="prop-val"><select onchange="updateElProps('operation',this.value)">
+                    <option value="sum" ${(el.operation||'sum')==='sum'?'selected':''}>Sum</option>
+                    <option value="count" ${el.operation==='count'?'selected':''}>Count</option>
+                    <option value="average" ${el.operation==='average'?'selected':''}>Average</option>
+                    <option value="min" ${el.operation==='min'?'selected':''}>Min</option>
+                    <option value="max" ${el.operation==='max'?'selected':''}>Max</option>
+                </select></div></div>
+                <div class="prop-item"><div class="prop-key">Reset</div><div class="prop-val"><select onchange="updateElProps('reset',this.value);updateInspector();">
+                    <option value="never" ${(el.reset||'never')==='never'?'selected':''}>Never</option>
+                    <option value="on_page" ${el.reset==='on_page'?'selected':''}>On Page</option>
+                    <option value="on_group" ${el.reset==='on_group'?'selected':''}>On Group</option>
+                </select></div></div>
+                ${el.reset === 'on_group' ? `
+                <div class="prop-item"><div class="prop-key">Group Field</div><div class="prop-val"><input type="text" value="${el.resetGroup||''}" oninput="updateElProps('resetGroup',this.value)" placeholder="group_field_name"></div></div>
+                ` : ''}
+                <div class="prop-item"><div class="prop-key">Evaluate</div><div class="prop-val"><select onchange="updateElProps('evaluate',this.value)">
+                    <option value="on_change" ${(el.evaluate||'on_change')==='on_change'?'selected':''}>On Change</option>
+                    <option value="on_record" ${el.evaluate==='on_record'?'selected':''}>On Record</option>
+                </select></div></div>
+            </div></div>`;
+            html += `
+            <div class="props-section"><div class="props-label">Appearance</div><div class="prop-table">
+                <div class="prop-item"><div class="prop-key">FontFamily</div><div class="prop-val"><select id="propFontFamily" onchange="updateElProps('fontFamily',this.value)"><option value="Arial">Arial (Default)</option></select></div></div>
+                <div class="prop-item"><div class="prop-key">FontSize</div><div class="prop-val"><input type="number" value="${el.fontSize||10}" oninput="updateElProps('fontSize',parseInt(this.value))"></div></div>
+            </div></div>`;
+            html += `<div class="props-section"><div class="props-label">Formatting</div><div class="prop-table">
+                <div class="prop-item"><div class="prop-key">Type</div><div class="prop-val">
+                    <select onchange="updateElProps('format_type',this.value)">
+                        <option value="none" ${el.format_type==='none'||!el.format_type?'selected':''}>None</option>
+                        <option value="date" ${el.format_type==='date'?'selected':''}>Date</option>
+                        <option value="number" ${el.format_type==='number'?'selected':''}>Number</option>
+                        <option value="currency" ${el.format_type==='currency'?'selected':''}>Currency</option>
+                    </select>
+                </div></div>`;
+            if (el.format_type === 'date') {
+                html += `<div class="prop-item"><div class="prop-key">Pattern</div><div class="prop-val"><input type="text" value="${el.format_string||'dd/MM/yyyy'}" oninput="updateElProps('format_string',this.value)" placeholder="dd/MM/yyyy"></div></div>`;
+            } else if (el.format_type === 'number' || el.format_type === 'currency') {
+                if (el.format_type === 'currency') {
+                    html += `<div class="prop-item"><div class="prop-key">Symbol</div><div class="prop-val"><input type="text" value="${el.format_string||'Rp'}" oninput="updateElProps('format_string',this.value)" placeholder="Rp"></div></div>`;
+                }
+                html += `<div class="prop-item"><div class="prop-key">Decimals</div><div class="prop-val"><input type="number" min="0" max="4" value="${el.decimal_places!==undefined?el.decimal_places:2}" oninput="updateElProps('decimal_places',parseInt(this.value))"></div></div>`;
+            }
+            html += `</div></div>`;
         } else {
             html += `
             <div class="props-section"><div class="props-label">Global Style</div><div class="prop-table">
                 <div class="prop-item"><div class="prop-key">Link</div><div class="prop-val"><select onchange="updateElProps('styleIdx',this.value==='none'?undefined:parseInt(this.value))" style="color:var(--primary)"><option value="none">Manual</option>${globalStyles.map((s,i)=>`<option value="${i}" ${el.styleIdx===i?'selected':''}>${s.name}</option>`).join('')}</select></div></div>
             </div></div>
             <div class="props-section"><div class="props-label">Appearance</div><div class="prop-table">
+                <div class="prop-item"><div class="prop-key">FontFamily</div><div class="prop-val"><select id="propFontFamily" onchange="updateElProps('fontFamily',this.value)"><option value="Arial">Arial (Default)</option></select></div></div>
                 <div class="prop-item"><div class="prop-key">FontSize</div><div class="prop-val"><input type="number" value="${el.font_size}" oninput="updateElProps('font_size',parseInt(this.value))" ${el.styleIdx!==undefined?'disabled':''}></div></div>
                 <div class="prop-item"><div class="prop-key">Align</div><div class="prop-val"><select onchange="updateElProps('align',this.value)"><option value="L" ${el.align==='L'?'selected':''}>Left</option><option value="C" ${el.align==='C'?'selected':''}>Center</option><option value="R" ${el.align==='R'?'selected':''}>Right</option></select></div></div>
                 <div class="prop-item"><div class="prop-key">Bold</div><div class="prop-val" style="padding-left:10px;"><input type="checkbox" ${el.bold?'checked':''} onchange="updateElProps('bold',this.checked)" ${el.styleIdx!==undefined?'disabled':''}></div></div>
                 <div class="prop-item"><div class="prop-key">Border</div><div class="prop-val" style="padding-left:10px;"><input type="checkbox" ${el.border?'checked':''} onchange="updateElProps('border',this.checked)"></div></div>
+                <div class="prop-item"><div class="prop-key">Rotation</div><div class="prop-val"><select onchange="updateElProps('rotation',parseInt(this.value))">
+                    <option value="0" ${(!el.rotation||el.rotation==0)?'selected':''}>0°</option>
+                    <option value="90" ${el.rotation==90?'selected':''}>90°</option>
+                    <option value="180" ${el.rotation==180?'selected':''}>180°</option>
+                    <option value="270" ${el.rotation==270?'selected':''}>270°</option>
+                </select></div></div>
             </div></div>`;
 
             if (el.type === 'field') {
@@ -1283,6 +2040,18 @@
                 }
                 html += `</div></div>`;
             }
+
+            // ── Conditional Formatting ──────────────────────
+            html += `
+            <div class="props-section" id="conditionalFormatSection" style="display:none;">
+                <div class="props-label" style="display:flex;justify-content:space-between;align-items:center;">
+                    <span>Conditional Formatting</span>
+                    <button onclick="addConditionalFormat()" class="btn btn-primary btn-sm" style="font-size:10px;padding:2px 8px;">+ Add Rule</button>
+                </div>
+                <div id="conditionalFormatList" class="p-2" style="padding:0.5rem;display:flex;flex-direction:column;gap:0.5rem;">
+                    <!-- Rules rendered here by JS -->
+                </div>
+            </div>`;
         }
 
         html += `
@@ -1324,6 +2093,21 @@
                     }
                     html += `<div class="prop-item"><div class="prop-key">Decs</div><div class="prop-val"><input type="number" min="0" value="${col.decimal_places!==undefined?col.decimal_places:2}" oninput="updateCol(${idx},'decimal_places',parseInt(this.value))"></div></div>`;
                 }
+                // ── Computed Column Expression ──────────────────
+                html += `
+                    <div class="prop-item">
+                        <div class="prop-key">Expression</div>
+                        <div class="prop-val" style="display:flex; gap:2px; padding:1px;">
+                            <input type="text" value="${escapeHtml(col.expression || '')}"
+                                placeholder="e.g. qty * price"
+                                oninput="updateCol(${idx},'expression',this.value); updateCol(${idx},'computed',true)"
+                                style="flex:1; min-width:0; height:26px; border:none; background:transparent; color:var(--text); padding:0 4px; font-size:10px; font-family:monospace; outline:none;">
+                            <button onclick="openFormulaEditor(${idx}, '${el.id}', '${escapeJs(col.expression || '')}')"
+                                class="px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded text-xs hover:bg-purple-200"
+                                style="padding:2px 6px; background:rgba(168,85,247,0.15); color:#a855f7; border:none; border-radius:3px; font-size:11px; cursor:pointer; font-weight:700; white-space:nowrap;"
+                                title="Open Formula Editor">fx</button>
+                        </div>
+                    </div>`;
             });
             html += `</div><div style="padding:0.5rem;"><button onclick="addCol()" class="btn btn-secondary btn-sm" style="width:100%;">+ Add Column</button></div></div>`;
         }
@@ -1333,6 +2117,8 @@
             <button onclick="deleteActive()" class="btn btn-danger btn-sm" style="flex:1;">🗑 Delete</button>
         </div>`;
         cont.innerHTML = html;
+        // Update conditional formatting list when inspector is refreshed
+        updateConditionalFormatList();
     }
 
     function updateCol(idx, prop, val) { const el=elements.find(e=>e.id===activeId); if(el&&el.columns[idx]){el.columns[idx][prop]=val;renderElements();if(prop==='format_type')updateInspector();} }
@@ -1342,6 +2128,168 @@
     function moveColDown(idx) { pushHistory(); const el=elements.find(e=>e.id===activeId); if(el&&idx<el.columns.length-1){const c=el.columns.splice(idx,1)[0]; el.columns.splice(idx+1,0,c); updateInspector(); renderElements(); } }
     function updateElProps(prop,val) { pushHistory(); const el=elements.find(e=>e.id===activeId); if(el){el[prop]=val;renderElements();updateInspector();} }
     function deleteActive() { if(!confirm('Delete selected element(s)?'))return; pushHistory(); elements=elements.filter(el=>!activeIds.includes(el.id)); activeIds=[];activeId=null; renderElements();updateInspector(); }
+
+    // ── Conditional Formatting ────────────────────────────────
+
+    function addConditionalFormat() {
+        const el = elements.find(e => e.id === activeId);
+        if (!el) return;
+        if (!el.conditionalFormats) {
+            el.conditionalFormats = [];
+        }
+        el.conditionalFormats.push({
+            name: 'Rule ' + (el.conditionalFormats.length + 1),
+            field: el.field || el.key || '',
+            operator: 'equals',
+            value: '',
+            value2: '',
+            style: {
+                color: '#000000',
+                backgroundColor: '#FFFFFF',
+                bold: false,
+                italic: false,
+                underline: false,
+            },
+            enabled: true,
+        });
+        pushHistory();
+        updateConditionalFormatList();
+        markChanged();
+    }
+
+    function removeConditionalFormat(index) {
+        const el = elements.find(e => e.id === activeId);
+        if (!el?.conditionalFormats) return;
+        el.conditionalFormats.splice(index, 1);
+        pushHistory();
+        updateConditionalFormatList();
+        renderElements();
+        markChanged();
+    }
+
+    function updateConditionalFormatList() {
+        const el = elements.find(e => e.id === activeId);
+        const section = document.getElementById('conditionalFormatSection');
+        const container = document.getElementById('conditionalFormatList');
+
+        if (!section || !container) return;
+
+        if (!el || el.type !== 'field' || !el.conditionalFormats || el.conditionalFormats.length === 0) {
+            section.style.display = 'none';
+            return;
+        }
+
+        section.style.display = 'block';
+
+        const schemaFields = getSchemaFieldKeys();
+        // Always include the current element's field key
+        if (el.field && !schemaFields.includes(el.field)) {
+            schemaFields.unshift(el.field);
+        }
+        if (el.key && !schemaFields.includes(el.key)) {
+            schemaFields.unshift(el.key);
+        }
+
+        container.innerHTML = el.conditionalFormats.map((rule, i) => `
+            <div class="border rounded p-2" style="border:1px solid var(--border);border-radius:4px;padding:0.5rem;${rule.enabled ? '' : 'opacity:0.5;'}">
+                <div class="flex items-center justify-between mb-1" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.25rem;">
+                    <input type="text" value="${escapeHtml(rule.name)}"
+                        onchange="selectedElement=elements.find(e=>e.id===activeId); if(selectedElement&&selectedElement.conditionalFormats) { selectedElement.conditionalFormats[${i}].name = this.value; markChanged(); }"
+                        style="font-size:11px;font-weight:600;border:none;background:none;color:var(--text);width:auto;padding:0;" />
+                    <div style="display:flex;align-items:center;gap:0.25rem;">
+                        <input type="checkbox" ${rule.enabled ? 'checked' : ''}
+                            onchange="selectedElement=elements.find(e=>e.id===activeId); if(selectedElement&&selectedElement.conditionalFormats) { selectedElement.conditionalFormats[${i}].enabled = this.checked; updateConditionalFormatList(); renderElements(); markChanged(); }"
+                            style="width:12px;height:12px;cursor:pointer;" title="Enable/disable rule" />
+                        <button onclick="removeConditionalFormat(${i})" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:12px;padding:0;line-height:1;" title="Remove rule">✕</button>
+                    </div>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.25rem;font-size:11px;">
+                    <select onchange="selectedElement=elements.find(e=>e.id===activeId); if(selectedElement&&selectedElement.conditionalFormats) { selectedElement.conditionalFormats[${i}].field = this.value; markChanged(); }"
+                        style="border:1px solid var(--border);border-radius:3px;padding:2px 4px;background:var(--bg);color:var(--text);font-size:11px;">
+                        ${schemaFields.map(f => `<option value="${f}" ${rule.field === f ? 'selected' : ''}>${f}</option>`).join('')}
+                        ${schemaFields.length === 0 ? `<option value="${rule.field || ''}" ${rule.field ? 'selected' : ''}>${rule.field || '(no fields)'}</option>` : ''}
+                    </select>
+                    <select onchange="selectedElement=elements.find(e=>e.id===activeId); if(selectedElement&&selectedElement.conditionalFormats) { selectedElement.conditionalFormats[${i}].operator = this.value; updateConditionalFormatList(); markChanged(); }"
+                        style="border:1px solid var(--border);border-radius:3px;padding:2px 4px;background:var(--bg);color:var(--text);font-size:11px;">
+                        ${CONDITIONAL_OPERATORS.map(op => `<option value="${op.value}" ${rule.operator === op.value ? 'selected' : ''}>${op.label}</option>`).join('')}
+                    </select>
+                    <input type="text" value="${escapeHtml(rule.value)}" placeholder="Value"
+                        onchange="selectedElement=elements.find(e=>e.id===activeId); if(selectedElement&&selectedElement.conditionalFormats) { selectedElement.conditionalFormats[${i}].value = this.value; updateConditionalFormatList(); renderElements(); markChanged(); }"
+                        style="border:1px solid var(--border);border-radius:3px;padding:2px 4px;background:var(--bg);color:var(--text);font-size:11px;${rule.operator === 'is_null' || rule.operator === 'is_not_null' ? 'display:none;' : ''}" />
+                    ${rule.operator === 'between' ? `<input type="text" value="${escapeHtml(rule.value2)}" placeholder="and"
+                        onchange="selectedElement=elements.find(e=>e.id===activeId); if(selectedElement&&selectedElement.conditionalFormats) { selectedElement.conditionalFormats[${i}].value2 = this.value; updateConditionalFormatList(); renderElements(); markChanged(); }"
+                        style="border:1px solid var(--border);border-radius:3px;padding:2px 4px;background:var(--bg);color:var(--text);font-size:11px;" />` : ''}
+                </div>
+                <div style="display:flex;align-items:center;gap:0.5rem;margin-top:0.25rem;font-size:11px;">
+                    <span style="display:flex;align-items:center;gap:2px;">
+                        <span style="color:var(--text-muted);font-size:9px;">A</span>
+                        <input type="color" value="${rule.style.color || '#000000'}"
+                            onchange="selectedElement=elements.find(e=>e.id===activeId); if(selectedElement&&selectedElement.conditionalFormats) { selectedElement.conditionalFormats[${i}].style.color = this.value; renderElements(); markChanged(); }"
+                            style="width:20px;height:20px;padding:0;border:1px solid var(--border);cursor:pointer;background:none;" title="Text color" />
+                    </span>
+                    <span style="display:flex;align-items:center;gap:2px;">
+                        <span style="color:var(--text-muted);font-size:9px;">▨</span>
+                        <input type="color" value="${rule.style.backgroundColor || '#FFFFFF'}"
+                            onchange="selectedElement=elements.find(e=>e.id===activeId); if(selectedElement&&selectedElement.conditionalFormats) { selectedElement.conditionalFormats[${i}].style.backgroundColor = this.value; renderElements(); markChanged(); }"
+                            style="width:20px;height:20px;padding:0;border:1px solid var(--border);cursor:pointer;background:none;" title="Background color" />
+                    </span>
+                    <label style="display:inline-flex;align-items:center;gap:2px;cursor:pointer;color:var(--text);font-size:10px;">
+                        <input type="checkbox" ${rule.style.bold ? 'checked' : ''}
+                            onchange="selectedElement=elements.find(e=>e.id===activeId); if(selectedElement&&selectedElement.conditionalFormats) { selectedElement.conditionalFormats[${i}].style.bold = this.checked; renderElements(); markChanged(); }"
+                            style="width:11px;height:11px;"> <b>B</b>
+                    </label>
+                    <label style="display:inline-flex;align-items:center;gap:2px;cursor:pointer;color:var(--text);font-size:10px;">
+                        <input type="checkbox" ${rule.style.italic ? 'checked' : ''}
+                            onchange="selectedElement=elements.find(e=>e.id===activeId); if(selectedElement&&selectedElement.conditionalFormats) { selectedElement.conditionalFormats[${i}].style.italic = this.checked; renderElements(); markChanged(); }"
+                            style="width:11px;height:11px;"> <i>I</i>
+                    </label>
+                    <label style="display:inline-flex;align-items:center;gap:2px;cursor:pointer;color:var(--text);font-size:10px;">
+                        <input type="checkbox" ${rule.style.underline ? 'checked' : ''}
+                            onchange="selectedElement=elements.find(e=>e.id===activeId); if(selectedElement&&selectedElement.conditionalFormats) { selectedElement.conditionalFormats[${i}].style.underline = this.checked; renderElements(); markChanged(); }"
+                            style="width:11px;height:11px;"> <u>U</u>
+                    </label>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    // ── Conditional Style Evaluation (Canvas Preview) ───────
+
+    function getConditionalStyle(el, data) {
+        const styles = [];
+        if (!el.conditionalFormats || !data) return styles;
+
+        for (const rule of el.conditionalFormats) {
+            if (!rule.enabled) continue;
+
+            const fieldValue = resolveDataValue(rule.field, data);
+            const compareValue = rule.value;
+            let match = false;
+
+            switch (rule.operator) {
+                case 'equals': match = fieldValue == compareValue; break;
+                case 'not_equals': match = fieldValue != compareValue; break;
+                case 'greater_than': match = parseFloat(fieldValue) > parseFloat(compareValue); break;
+                case 'less_than': match = parseFloat(fieldValue) < parseFloat(compareValue); break;
+                case 'greater_equal': match = parseFloat(fieldValue) >= parseFloat(compareValue); break;
+                case 'less_equal': match = parseFloat(fieldValue) <= parseFloat(compareValue); break;
+                case 'contains': match = String(fieldValue).includes(compareValue); break;
+                case 'starts_with': match = String(fieldValue).startsWith(compareValue); break;
+                case 'ends_with': match = String(fieldValue).endsWith(compareValue); break;
+                case 'is_null': match = fieldValue === null || fieldValue === undefined || fieldValue === ''; break;
+                case 'is_not_null': match = fieldValue !== null && fieldValue !== undefined && fieldValue !== ''; break;
+                case 'between': match = parseFloat(fieldValue) >= parseFloat(compareValue) && parseFloat(fieldValue) <= parseFloat(rule.value2); break;
+                default: match = false;
+            }
+
+            if (match) {
+                styles.push(rule.style);
+                break; // first match wins
+            }
+        }
+
+        return styles;
+    }
 
     // ── Rulers ───────────────────────────────────────────────
     function drawRulers() {
@@ -1372,7 +2320,8 @@
     // ── Save / Preview / Test Print ──────────────────────────
     function saveTemplate() {
         const name=document.getElementById('tpl-name').value; if(!name)return alert('Name required');
-        const payload={name,paper_width_mm:parseFloat(document.getElementById('paper-w').value),paper_height_mm:parseFloat(document.getElementById('paper-h').value),background_image_path:document.getElementById('bg-path').value,elements,styles:globalStyles,background_config:backgroundConfig,_token:'{{ csrf_token() }}'};
+        const allElements = flattenSections();
+        const payload={name,paper_width_mm:parseFloat(document.getElementById('paper-w').value),paper_height_mm:parseFloat(document.getElementById('paper-h').value),background_image_path:document.getElementById('bg-path').value,elements:{sections:sections,elements:allElements},styles:globalStyles,background_config:backgroundConfig,_token:'{{ csrf_token() }}'};
         const btn=document.getElementById('save-btn'); btn.textContent='Saving…'; btn.disabled=true;
         fetch("{{ $template->id ? route('admin.templates.update', $template, false) : route('admin.templates.store', [], false) }}",{method:"{{ $template->id ? 'PUT' : 'POST' }}",headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify(payload)})
         .then(async r => {
@@ -1390,15 +2339,357 @@
             alert('Failed to save template: ' + err.message);
         });
     }
-    function showPreview() { document.getElementById('preview-modal').style.display='flex'; refreshPreview(); }
-    function closePreview() { document.getElementById('preview-modal').style.display='none'; document.getElementById('preview-iframe').src=''; }
-    function refreshPreview() {
-        const sampleStr=document.getElementById('preview-json').value||'{}'; let sampleData={}; try{sampleData=JSON.parse(sampleStr);}catch(e){}
-        const payload={paper_width_mm:parseFloat(document.getElementById('paper-w').value),paper_height_mm:parseFloat(document.getElementById('paper-h').value),background_image_path:document.getElementById('bg-path').value,elements,styles:globalStyles,background_config:backgroundConfig,sample_data:sampleData,_token:'{{ csrf_token() }}'};
-        fetch("{{ route('admin.templates.preview', [], false) }}",{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}).then(r=>r.blob()).then(blob=>{document.getElementById('preview-iframe').src=URL.createObjectURL(blob);});
+    // ── Sample Data Panel ─────────────────────────────────────
+    function getPreviewData() {
+        try {
+            if (Object.keys(sampleDataCache).length > 0) return sampleDataCache;
+            return JSON.parse(document.getElementById('json-input').value || '{}');
+        } catch(e) { return {}; }
+    }
+
+    function toggleSampleDataPanel() {
+        const panel = document.getElementById('sampleDataPanel');
+        const isVisible = panel.style.display !== 'none';
+        panel.style.display = isVisible ? 'none' : 'flex';
+        if (!isVisible) sampleDataBuildTable();
+    }
+
+    function sampleDataBuildTable() {
+        // Build a flat list of key→value pairs for the table editor
+        const data = getPreviewData();
+        const flat = flattenObject(data);
+        sampleDataFields = Object.keys(flat);
+        sampleDataRows = sampleDataFields.map(key => ({ key, value: String(flat[key] ?? '') }));
+
+        const tbody = document.getElementById('sampleDataTbody');
+        tbody.innerHTML = '';
+        if (sampleDataRows.length === 0) {
+            // Add a default empty row
+            sampleDataRows.push({ key: '', value: '' });
+        }
+        sampleDataRows.forEach((row, idx) => {
+            const tr = document.createElement('tr');
+            tr.style.borderBottom = '1px solid var(--border)';
+            tr.innerHTML = `
+                <td style="padding:4px 6px; color:var(--text-muted); font-size:10px; text-align:center;">${idx + 1}</td>
+                <td style="padding:2px 4px;"><input type="text" value="${escapeHtml(row.key)}" onchange="sampleDataUpdateRow(${idx}, 'key', this.value)" style="width:100%; background:var(--bg); border:1px solid var(--border); color:var(--text); padding:4px 6px; border-radius:3px; font-size:11px; font-family:monospace;"></td>
+                <td style="padding:2px 4px;"><input type="text" value="${escapeHtml(row.value)}" onchange="sampleDataUpdateRow(${idx}, 'value', this.value)" style="width:100%; background:var(--bg); border:1px solid var(--border); color:var(--text); padding:4px 6px; border-radius:3px; font-size:11px;"></td>
+                <td style="padding:2px 4px; text-align:center;"><button onclick="sampleDataRemoveRow(${idx})" style="background:none; border:none; color:var(--danger); cursor:pointer; font-size:14px;">×</button></td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    function sampleDataUpdateRow(idx, prop, val) {
+        if (sampleDataRows[idx]) sampleDataRows[idx][prop] = val;
+    }
+
+    function sampleDataAddRow() {
+        sampleDataRows.push({ key: '', value: '' });
+        sampleDataBuildTable();
+        // Scroll to bottom
+        const panel = document.getElementById('sampleDataPanel');
+        panel.scrollTop = panel.scrollHeight;
+    }
+
+    function sampleDataRemoveRow(idx) {
+        if (sampleDataRows.length <= 1) return;
+        sampleDataRows.splice(idx, 1);
+        sampleDataBuildTable();
+    }
+
+    function sampleDataApply() {
+        // Convert flat key-value rows back to nested object
+        const obj = {};
+        sampleDataRows.forEach(row => {
+            if (row.key.trim()) {
+                setNestedValue(obj, row.key.trim(), row.value);
+            }
+        });
+        sampleDataCache = obj;
+        document.getElementById('json-input').value = JSON.stringify(obj, null, 2);
+        parseJSON();
+        if (liveDataMode) renderElements();
+        toggleSampleDataPanel();
+    }
+
+    function sampleDataImportCsv() {
+        document.getElementById('csvFileInput').click();
+    }
+
+    function sampleDataParseCsv(input) {
+        const file = input.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const text = e.target.result;
+            const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+            if (lines.length < 2) { alert('CSV must have at least a header row and one data row.'); return; }
+            const headers = lines[0].split(',').map(h => h.trim());
+            sampleDataRows = [];
+            // Use the first data row
+            const values = lines[1].split(',').map(v => v.trim());
+            headers.forEach((h, i) => {
+                sampleDataRows.push({ key: h, value: values[i] || '' });
+            });
+            sampleDataBuildTable();
+        };
+        reader.readAsText(file);
+        input.value = '';
+    }
+
+    function sampleDataLoadFromJobHistory() {
+        if (!templateId) { alert('Save the template first to load from job history.'); return; }
+        fetch(`/templates/${templateId}/job-history`)
+            .then(r => r.json())
+            .then(data => {
+                if (!data.jobs || data.jobs.length === 0) { alert('No job history found.'); return; }
+                const job = data.jobs[0];
+                sampleDataCache = job.template_data || {};
+                document.getElementById('json-input').value = JSON.stringify(sampleDataCache, null, 2);
+                parseJSON();
+                sampleDataBuildTable();
+                alert('Loaded sample data from job ' + job.job_id.substring(0, 8));
+            })
+            .catch(() => alert('Failed to load job history.'));
+    }
+
+    function sampleDataSaveToServer() {
+        if (!templateId) { alert('Save the template first before saving default sample data.'); return; }
+        const data = getPreviewData();
+        fetch(`/templates/${templateId}/sample-data`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+            body: JSON.stringify({ sample_data: data })
+        })
+        .then(r => r.json())
+        .then(res => {
+            if (res.status === 'ok') alert('✅ Sample data saved as default for this template.');
+            else alert('❌ Failed to save.');
+        })
+        .catch(() => alert('❌ Network error.'));
+    }
+
+    function sampleDataReset() {
+        if (!confirm('Reset sample data to default values?')) return;
+        sampleDataCache = {};
+        document.getElementById('json-input').value = '';
+        document.getElementById('json-tree').innerHTML = '';
+        sampleDataRows = [];
+        sampleDataBuildTable();
+    }
+
+    // ── Multi-Page Preview (PDF.js) ───────────────────────────
+    async function openPreview() {
+        document.getElementById('previewOverlay').style.display = 'block';
+        document.getElementById('previewCanvasContainer').innerHTML = `
+            <div style="display:flex; align-items:center; justify-content:center; height:100%; color:var(--text-muted);">
+                <div style="text-align:center;"><div style="font-size:32px; margin-bottom:12px;">⏳</div><div style="font-size:14px;">Generating PDF preview...</div></div>
+            </div>
+        `;
+
+        const sampleData = getPreviewData();
+        const allElements = flattenSections();
+        const payload = {
+            paper_width_mm: parseFloat(document.getElementById('paper-w').value),
+            paper_height_mm: parseFloat(document.getElementById('paper-h').value),
+            background_image_path: document.getElementById('bg-path').value,
+            elements: { sections: sections, elements: allElements },
+            styles: globalStyles,
+            background_config: backgroundConfig,
+            sample_data: sampleData,
+            _token: '{{ csrf_token() }}'
+        };
+
+        try {
+            const url = templateId
+                ? `{{ route('admin.templates.preview-with-template', $template, false) }}`
+                : `{{ route('admin.templates.preview', [], false) }}`;
+            
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+                body: JSON.stringify(payload)
+            });
+
+            const pdfData = await response.arrayBuffer();
+            previewPdfData = pdfData;
+
+            // Load with PDF.js
+            pdfDoc = await pdfjsLib.getDocument({ data: pdfData }).promise;
+
+            // Update UI
+            document.getElementById('pageCount').textContent = 'of ' + pdfDoc.numPages;
+            document.getElementById('pageInput').max = pdfDoc.numPages;
+            previewCurrentPage = 1;
+
+            // Rebuild canvas container
+            document.getElementById('previewCanvasContainer').innerHTML = `
+                <div style="position:relative; display:inline-block;">
+                    <canvas id="previewCanvas" style="box-shadow:0 4px 30px rgba(0,0,0,0.5); background:white;"></canvas>
+                    <div id="previewLoading" style="display:none; position:absolute; inset:0; background:rgba(255,255,255,0.8); display:flex; align-items:center; justify-content:center; border-radius:4px;">
+                        <div style="text-align:center; color:#64748b;">
+                            <div style="font-size:24px; margin-bottom:8px;">⏳</div>
+                            <div style="font-size:13px; font-weight:500;">Rendering page...</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Render first page
+            previewRenderPage(1);
+        } catch (err) {
+            console.error('Preview error:', err);
+            document.getElementById('previewCanvasContainer').innerHTML = `
+                <div style="display:flex; align-items:center; justify-content:center; height:100%; color:var(--danger);">
+                    <div style="text-align:center;"><div style="font-size:32px; margin-bottom:12px;">❌</div><div style="font-size:14px;">Failed to generate preview: ${err.message}</div></div>
+                </div>
+            `;
+        }
+    }
+
+    async function previewRenderPage(pageNum) {
+        if (!pdfDoc) return;
+        previewCurrentPage = pageNum;
+        
+        const loadingEl = document.getElementById('previewLoading');
+        if (loadingEl) loadingEl.style.display = 'flex';
+
+        try {
+            const page = await pdfDoc.getPage(pageNum);
+            const scale = previewCurrentZoom;
+            const viewport = page.getViewport({ scale: scale });
+            
+            const canvas = document.getElementById('previewCanvas');
+            if (!canvas) return;
+            
+            canvas.width = viewport.width;
+            canvas.height = viewport.height;
+            
+            const ctx = canvas.getContext('2d');
+            await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+            
+            document.getElementById('pageInput').value = pageNum;
+        } catch (err) {
+            console.error('Render page error:', err);
+        } finally {
+            if (loadingEl) loadingEl.style.display = 'none';
+        }
+    }
+
+    function previewPrevPage() {
+        if (pdfDoc && previewCurrentPage > 1) {
+            previewRenderPage(previewCurrentPage - 1);
+        }
+    }
+
+    function previewNextPage() {
+        if (pdfDoc && previewCurrentPage < pdfDoc.numPages) {
+            previewRenderPage(previewCurrentPage + 1);
+        }
+    }
+
+    function previewChangeZoom(value) {
+        if (value === 'fit') {
+            // Fit width: calculate scale to fit canvas container
+            const container = document.getElementById('previewCanvasContainer');
+            if (container && pdfDoc) {
+                // We need page dimensions - use current page
+                previewRenderPage(previewCurrentPage);
+                // Set a reasonable zoom
+                previewCurrentZoom = 1;
+            }
+            return;
+        }
+        previewCurrentZoom = parseFloat(value);
+        if (pdfDoc) previewRenderPage(previewCurrentPage);
+    }
+
+    function previewDownloadPdf() {
+        if (!previewPdfData) return;
+        const blob = new Blob([previewPdfData], { type: 'application/pdf' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = (document.getElementById('tpl-name').value || 'template') + '-preview.pdf';
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+
+    function closePreviewOverlay() {
+        document.getElementById('previewOverlay').style.display = 'none';
+        pdfDoc = null;
+        previewPdfData = null;
+    }
+
+    // Page input change handler
+    document.addEventListener('DOMContentLoaded', () => {
+        const pageInput = document.getElementById('pageInput');
+        if (pageInput) {
+            pageInput.addEventListener('change', function() {
+                let val = parseInt(this.value);
+                if (pdfDoc) {
+                    val = Math.max(1, Math.min(val, pdfDoc.numPages));
+                    previewRenderPage(val);
+                }
+            });
+        }
+    });
+
+    // ── Utility helpers ──────────────────────────────────────
+    function flattenObject(obj, prefix = '') {
+        let result = {};
+        for (const [key, val] of Object.entries(obj)) {
+            const fullKey = prefix ? `${prefix}.${key}` : key;
+            if (val !== null && typeof val === 'object' && !Array.isArray(val)) {
+                Object.assign(result, flattenObject(val, fullKey));
+            } else if (Array.isArray(val) && val.length > 0 && typeof val[0] === 'object') {
+                // For arrays of objects, take the first element's keys
+                Object.assign(result, flattenObject(val[0], `${fullKey}[0]`));
+            } else {
+                result[fullKey] = val;
+            }
+        }
+        return result;
+    }
+
+    function setNestedValue(obj, path, value) {
+        const keys = path.split('.');
+        let current = obj;
+        for (let i = 0; i < keys.length - 1; i++) {
+            const key = keys[i];
+            // Handle array index
+            const arrMatch = key.match(/^(.+?)\[(\d+)\]$/);
+            if (arrMatch) {
+                const arrKey = arrMatch[1];
+                const idx = parseInt(arrMatch[2]);
+                if (!current[arrKey]) current[arrKey] = [];
+                if (!current[arrKey][idx]) current[arrKey][idx] = {};
+                current = current[arrKey][idx];
+            } else {
+                if (!current[key]) current[key] = {};
+                current = current[key];
+            }
+        }
+        const lastKey = keys[keys.length - 1];
+        current[lastKey] = value;
+    }
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return String(str).replace(/&/g, '&').replace(/"/g, '"').replace(/'/g, ''').replace(/</g, '<').replace(/>/g, '>');
+    }
+
+    function escapeJs(str) {
+        if (!str) return '';
+        return String(str)
+            .replace(/\\/g, '\\\\')
+            .replace(/'/g, "\\'")
+            .replace(/"/g, '"')
+            .replace(/\n/g, '\\n')
+            .replace(/\r/g, '\\r');
     }
     function showTestPrint() { document.getElementById('test-print-modal').style.display='flex'; }
-    function closeTestPrint() { document.getElementById('test-print-modal').style.display='none'; }
     function closeTestPrint() { document.getElementById('test-print-modal').style.display='none'; }
     function doTestPrint() {
         const agentId = document.getElementById('test-agent-id').value;
@@ -1406,16 +2697,15 @@
         if (!agentId) return alert('Please select an agent');
         if (!printerName) return alert('Please select a printer');
         
-        const sampleStr = document.getElementById('preview-json').value || '{}';
-        let sampleData = {};
-        try { sampleData = JSON.parse(sampleStr); } catch(e) { return alert('Invalid JSON in sample data'); }
+        let sampleData = getPreviewData();
 
+        const allElements = flattenSections();
         const payload = {
             template_data: {
                 paper_width_mm: parseFloat(document.getElementById('paper-w').value),
                 paper_height_mm: parseFloat(document.getElementById('paper-h').value),
                 background_image_path: document.getElementById('bg-path').value,
-                elements,
+                elements: { sections: sections, elements: allElements },
                 styles: globalStyles,
                 background_config: backgroundConfig
             },
@@ -1452,7 +2742,8 @@
 
     // ── Export / Import ──────────────────────────────────────
     function exportTemplate() {
-        const data={name:document.getElementById('tpl-name').value,paper_width_mm:parseFloat(document.getElementById('paper-w').value),paper_height_mm:parseFloat(document.getElementById('paper-h').value),elements,styles:globalStyles,background_config:backgroundConfig};
+        const allElements = flattenSections();
+        const data={name:document.getElementById('tpl-name').value,paper_width_mm:parseFloat(document.getElementById('paper-w').value),paper_height_mm:parseFloat(document.getElementById('paper-h').value),elements:{sections:sections,elements:allElements},styles:globalStyles,background_config:backgroundConfig};
         const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
         const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=data.name+'.json'; a.click();
     }
@@ -1464,12 +2755,25 @@
             const r=new FileReader(); r.onload=ev=>{
                 try{
                     const d=JSON.parse(ev.target.result);
-                    if(d.elements){pushHistory();elements=d.elements;renderElements();}
+                    if(d.sections) {
+                        pushHistory();
+                        sections = JSON.parse(JSON.stringify(d.sections));
+                        SECTION_ORDER.forEach(key => {
+                            if (!sections[key]) sections[key] = JSON.parse(JSON.stringify(SECTION_DEFAULTS[key]));
+                        });
+                        elements = sections.detail.elements || [];
+                    } else if(d.elements) {
+                        pushHistory();
+                        initSections(d.elements);
+                        elements = sections.detail.elements || [];
+                    }
                     if(d.styles){globalStyles=d.styles;renderStyles();}
                     if(d.name){document.getElementById('tpl-name').value=d.name;}
                     if(d.paper_width_mm) document.getElementById('paper-w').value=d.paper_width_mm;
                     if(d.paper_height_mm) document.getElementById('paper-h').value=d.paper_height_mm;
                     updateCanvasSize();
+                    renderElements();
+                    updateSectionsList();
                 }catch(err){alert('Invalid template file');}
             }; r.readAsText(f);
         });
@@ -1495,55 +2799,422 @@
     });
 
     init();
+</script>
 
-    function switchTab(tab) {
-        document.querySelectorAll('.tab-item').forEach(i => i.classList.remove('active'));
-        document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-        const t = document.querySelector(`.tab-item[onclick*="${tab}"]`);
-        if (t) t.classList.add('active');
-        document.getElementById('tab-' + tab).classList.add('active');
-        if (tab === 'layers') updateLayersList();
+<!-- ── Formula Editor Modal ────────────────────────────────────────── -->
+<div id="formulaEditorModal" class="hidden fixed inset-0 bg-black/50 z-[3000] flex items-center justify-center" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:3000; align-items:center; justify-content:center;" onclick="if(event.target===this)closeFormulaEditor()">
+    <div class="bg-white rounded-lg shadow-2xl w-[700px] max-h-[80vh] flex flex-col" style="background:var(--surface); border:1px solid var(--border); border-radius:12px; box-shadow:0 20px 60px rgba(0,0,0,0.5); width:720px; max-height:80vh; display:flex; flex-direction:column;" onclick="event.stopPropagation()">
+        <!-- Header -->
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:14px 18px; border-bottom:1px solid var(--border); background:var(--bg); border-radius:12px 12px 0 0;">
+            <h3 style="margin:0; font-size:15px; font-weight:600; color:var(--text); display:flex; align-items:center; gap:8px;">
+                <span style="background:linear-gradient(135deg,#a855f7,#7c3aed); color:white; padding:2px 8px; border-radius:4px; font-weight:700; font-size:13px;">fx</span>
+                Formula Editor
+            </h3>
+            <button onclick="closeFormulaEditor()" style="background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:18px; padding:4px;">✕</button>
+        </div>
+
+        <!-- Body -->
+        <div style="flex:1; overflow:hidden; display:flex; flex-direction:row; min-height:0;">
+            <!-- Left: Fields + Functions -->
+            <div style="width:220px; border-right:1px solid var(--border); overflow-y:auto; padding:12px; flex-shrink:0;">
+                <!-- Fields -->
+                <div style="margin-bottom:16px;">
+                    <div style="font-size:11px; font-weight:600; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px; display:flex; align-items:center; gap:4px;">
+                        <span>📋</span> Fields
+                        <button onclick="refreshSchemaFields()" style="margin-left:auto; background:none; border:none; color:var(--primary); cursor:pointer; font-size:10px; padding:0;">↻</button>
+                    </div>
+                    <div id="fieldList" style="display:flex; flex-direction:column; gap:2px;"></div>
+                </div>
+                <!-- Functions -->
+                <div>
+                    <div style="font-size:11px; font-weight:600; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px; display:flex; align-items:center; gap:4px;">
+                        <span>🔧</span> Functions
+                    </div>
+                    <div id="functionBrowser" style="display:flex; flex-direction:column; gap:2px;"></div>
+                </div>
+            </div>
+
+            <!-- Right: Expression + Preview -->
+            <div style="flex:1; display:flex; flex-direction:column; padding:14px; min-width:0;">
+                <!-- Expression input -->
+                <label style="font-size:11px; font-weight:600; color:var(--text-muted); margin-bottom:4px;">Expression</label>
+                <div style="position:relative;">
+                    <textarea id="formulaExpression"
+                        class="w-full border rounded p-2 text-sm font-mono"
+                        placeholder="Enter formula expression... (e.g., qty * price OR SUM(items.amount))"
+                        oninput="onFormulaInput()"
+                        style="width:100%; min-height:80px; background:var(--bg); border:1px solid var(--border); color:var(--text); font-family:monospace; font-size:13px; padding:10px; border-radius:6px; resize:vertical; outline:none; line-height:1.5;"></textarea>
+                </div>
+
+                <!-- Validation status -->
+                <div style="display:flex; align-items:center; gap:8px; margin-top:6px;">
+                    <button onclick="validateExpression()" style="background:var(--surface-hover); border:1px solid var(--border); color:var(--text); padding:3px 10px; border-radius:4px; font-size:11px; cursor:pointer; display:flex; align-items:center; gap:4px;">
+                        🔍 Validate
+                    </button>
+                    <span id="validationStatus" style="font-size:12px; font-weight:500; color:var(--text-muted);">Enter an expression</span>
+                </div>
+
+                <!-- Preview result -->
+                <div style="margin-top:8px;">
+                    <div style="font-size:11px; font-weight:600; color:var(--text-muted); margin-bottom:3px;">Preview with sample data</div>
+                    <div id="previewResult" style="background:var(--bg); border:1px solid var(--border); border-radius:6px; padding:8px 10px; font-family:monospace; font-size:13px; color:var(--text); min-height:28px; word-break:break-all;">
+                        Result: —
+                    </div>
+                </div>
+
+                <!-- Formula Library -->
+                <div style="margin-top:12px; flex-shrink:0;">
+                    <div style="font-size:11px; font-weight:600; color:var(--text-muted); margin-bottom:4px; display:flex; align-items:center; gap:4px;">
+                        <span>📚</span> Formula Library
+                        <button onclick="saveToFormulaLibrary()" style="margin-left:auto; background:none; border:1px dashed var(--border); color:var(--primary); padding:2px 8px; border-radius:4px; font-size:10px; cursor:pointer;">+ Save Current</button>
+                    </div>
+                    <div id="formulaLibrary" style="display:flex; flex-direction:column; gap:3px; max-height:100px; overflow-y:auto;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div style="display:flex; align-items:center; justify-content:flex-end; gap:8px; padding:12px 18px; border-top:1px solid var(--border); background:var(--bg); border-radius:0 0 12px 12px;">
+            <button onclick="closeFormulaEditor()" style="padding:7px 16px; font-size:12px; border:1px solid var(--border); border-radius:6px; background:var(--surface); color:var(--text); cursor:pointer;">Cancel</button>
+            <button onclick="saveFormula()" style="padding:7px 16px; font-size:12px; border:none; border-radius:6px; background:linear-gradient(135deg,#a855f7,#7c3aed); color:white; cursor:pointer; font-weight:600;">Save Formula</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ── Formula Editor State ────────────────────────────────────
+    let formulaEditorColumn = null;
+    let formulaEditorTableId = null;
+    let formulaLibrary = [];
+
+    // Load formula library from localStorage
+    try {
+        formulaLibrary = JSON.parse(localStorage.getItem('printHubFormulaLibrary') || '[]');
+    } catch(e) { formulaLibrary = []; }
+
+    // ── Open / Close Formula Editor ────────────────────────────
+    function openFormulaEditor(columnIndex, tableElId, currentExpression) {
+        formulaEditorColumn = columnIndex;
+        formulaEditorTableId = tableElId;
+        document.getElementById('formulaEditorModal').style.display = 'flex';
+        document.getElementById('formulaExpression').value = currentExpression || '';
+        document.getElementById('validationStatus').textContent = 'Enter an expression';
+        document.getElementById('validationStatus').style.color = 'var(--text-muted)';
+        document.getElementById('previewResult').textContent = 'Result: —';
+        loadFunctionBrowser();
+        loadSchemaFields();
+        renderFormulaLibrary();
+
+        // Focus the textarea
+        setTimeout(() => {
+            document.getElementById('formulaExpression').focus();
+        }, 100);
     }
 
-    function parseJSON() {
-        const input = document.getElementById('json-input').value;
+    function closeFormulaEditor() {
+        document.getElementById('formulaEditorModal').style.display = 'none';
+        formulaEditorColumn = null;
+        formulaEditorTableId = null;
+    }
+
+    // ── Function Browser ─────────────────────────────────────
+    function loadFunctionBrowser() {
+        fetch('/api/v1/formula/functions')
+            .then(r => r.json())
+            .then(functions => {
+                const container = document.getElementById('functionBrowser');
+                if (!container) return;
+
+                if (!functions || functions.length === 0) {
+                    container.innerHTML = '<div style="font-size:10px; color:var(--text-muted); padding:4px;">No functions available</div>';
+                    return;
+                }
+
+                const categories = {};
+                functions.forEach(f => {
+                    if (!categories[f.category]) categories[f.category] = [];
+                    categories[f.category].push(f);
+                });
+
+                const categoryIcons = {
+                    'Math': '🔢',
+                    'String': '📝',
+                    'Date': '📅',
+                    'Logical': '🔗',
+                    'Conversion': '🔄',
+                    'Other': '📦'
+                };
+
+                container.innerHTML = Object.entries(categories).map(([cat, funcs]) => `
+                    <div style="margin-bottom:2px;">
+                        <div style="font-size:10px; font-weight:600; color:var(--text-muted); padding:2px 4px; margin-bottom:1px; display:flex; align-items:center; gap:3px;">
+                            ${categoryIcons[cat] || '📦'} ${cat}
+                            <span style="color:var(--text-muted); font-weight:400; font-size:9px;">(${funcs.length})</span>
+                        </div>
+                        ${funcs.map(f => `
+                            <div style="display:flex; align-items:center; justify-content:space-between; padding:3px 8px; border-radius:4px; cursor:pointer; transition:background 0.15s;"
+                                 onmouseover="this.style.background='var(--surface-hover)'"
+                                 onmouseout="this.style.background='transparent'"
+                                 onclick="insertFunction('${f.name}')"
+                                 title="${f.description || ''}\n${f.syntax || ''}">
+                                <span style="font-size:11px; font-family:monospace; color:var(--primary); font-weight:500;">${f.name}</span>
+                                <span style="font-size:9px; color:var(--text-muted); opacity:0.6;" title="${f.description || ''}">ℹ️</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                `).join('');
+            })
+            .catch(err => {
+                console.error('Failed to load functions:', err);
+                const container = document.getElementById('functionBrowser');
+                if (container) container.innerHTML = '<div style="font-size:10px; color:var(--danger); padding:4px;">Failed to load functions</div>';
+            });
+    }
+
+    // ── Schema Fields ──────────────────────────────────────────
+    function loadSchemaFields() {
+        const fields = getSchemaFieldKeys();
+        const container = document.getElementById('fieldList');
+        if (!container) return;
+
+        if (!fields || fields.length === 0) {
+            container.innerHTML = '<div style="font-size:10px; color:var(--text-muted); padding:4px;">No fields available. Load a schema or sample data.</div>';
+            return;
+        }
+
+        container.innerHTML = fields.map(f => `
+            <div style="display:flex; align-items:center; justify-content:space-between; padding:3px 8px; border-radius:4px; cursor:pointer; transition:background 0.15s;"
+                 onmouseover="this.style.background='var(--surface-hover)'"
+                 onmouseout="this.style.background='transparent'"
+                 onclick="insertField('${f}')">
+                <span style="font-size:11px; font-family:monospace; color:var(--text);">${f}</span>
+                <span style="font-size:9px; color:var(--primary);">[Insert]</span>
+            </div>
+        `).join('');
+    }
+
+    function refreshSchemaFields() {
+        loadSchemaFields();
+    }
+
+    // ── Insert Functions / Fields ──────────────────────────────
+    function insertFunction(funcName) {
+        const input = document.getElementById('formulaExpression');
+        const cursorPos = input.selectionStart;
+        const text = input.value;
+        const insertion = funcName + '()';
+        input.value = text.slice(0, cursorPos) + insertion + text.slice(cursorPos);
+        input.focus();
+        // Place cursor inside parentheses
+        const newPos = cursorPos + funcName.length + 1;
+        input.selectionStart = input.selectionEnd = newPos;
+        onFormulaInput();
+    }
+
+    function insertField(fieldName) {
+        const input = document.getElementById('formulaExpression');
+        const cursorPos = input.selectionStart;
+        const text = input.value;
+        // Check if we need to add quotes for string fields or just the name
+        input.value = text.slice(0, cursorPos) + fieldName + text.slice(cursorPos);
+        input.focus();
+        input.selectionStart = input.selectionEnd = cursorPos + fieldName.length;
+        onFormulaInput();
+    }
+
+    // ── Expression Input Handling (debounced) ──────────────────
+    let formulaValidationTimeout = null;
+
+    function onFormulaInput() {
+        clearTimeout(formulaValidationTimeout);
+        formulaValidationTimeout = setTimeout(() => {
+            validateExpression();
+        }, 400);
+    }
+
+    // ── Validation ─────────────────────────────────────────────
+    async function validateExpression() {
+        const expr = document.getElementById('formulaExpression').value;
+        const status = document.getElementById('validationStatus');
+        const result = document.getElementById('previewResult');
+
+        if (!expr.trim()) {
+            status.textContent = 'Enter an expression';
+            status.style.color = 'var(--text-muted)';
+            result.textContent = 'Result: —';
+            return;
+        }
+
         try {
-            const data = JSON.parse(input);
-            const tree = document.getElementById('json-tree');
-            tree.innerHTML = ''; renderJSONNode(data, '', tree);
-        } catch(e) { alert('Invalid JSON'); }
-    }
+            const response = await fetch('/api/v1/formula/validate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ expression: expr })
+            });
+            const validation = await response.json();
 
-    function renderJSONNode(obj, path, container) {
-        Object.keys(obj).forEach(key => {
-            const fp = path ? `${path}.${key}` : key;
-            const val = obj[key]; const div = document.createElement('div'); div.style.paddingLeft = '10px';
-            if (typeof val === 'object' && val !== null) {
-                div.innerHTML = `<span style="color:var(--text-muted)">▸</span> ${key}`;
-                const sub = document.createElement('div'); renderJSONNode(val, fp, sub); div.appendChild(sub);
+            if (validation.valid) {
+                status.innerHTML = '✅ Valid';
+                status.style.color = '#22c55e';
+                // Try to evaluate with sample data
+                await evaluateExpression(expr);
             } else {
-                div.innerHTML = `<span class="badge-delphi" style="cursor:pointer" onclick="addFieldFromData('${fp}')">${key}</span>: <span style="color:var(--primary)">${val}</span>`;
+                status.innerHTML = '❌ ' + (validation.error || 'Syntax error');
+                status.style.color = '#ef4444';
+                result.textContent = 'Result: —';
             }
-            container.appendChild(div);
-        });
+        } catch (e) {
+            console.error('Validation failed:', e);
+            status.innerHTML = '❌ Network error';
+            status.style.color = '#ef4444';
+        }
     }
 
-    function addFieldFromData(path) {
-        const id = 'el_new_' + Date.now();
-        elements.push({ id, type: 'field', key: path, x: 50, y: 50, width: 60, height: 10, font_size: 10, bold: false, border: false, align: 'L' });
-        renderElements(); selectElements([id]);
+    async function evaluateExpression(expr) {
+        const result = document.getElementById('previewResult');
+        try {
+            // Get sample data from the designer's sample data cache
+            const sampleData = window.sampleDataCache || {};
+            // Also try to get from JSON input
+            if (Object.keys(sampleData).length === 0) {
+                try {
+                    const jsonInput = document.getElementById('json-input');
+                    if (jsonInput && jsonInput.value) {
+                        Object.assign(sampleData, JSON.parse(jsonInput.value));
+                    }
+                } catch(e) {}
+            }
+
+            const response = await fetch('/api/v1/formula/evaluate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    expression: expr,
+                    data: sampleData
+                })
+            });
+            const data = await response.json();
+
+            if (data.error) {
+                result.textContent = 'Evaluation error: ' + data.error;
+                result.style.color = '#ef4444';
+            } else {
+                let displayResult = data.result;
+                if (displayResult === null || displayResult === undefined) {
+                    displayResult = 'null';
+                } else if (typeof displayResult === 'boolean') {
+                    displayResult = displayResult ? 'true' : 'false';
+                } else if (typeof displayResult === 'object') {
+                    displayResult = JSON.stringify(displayResult);
+                }
+                result.textContent = 'Result: ' + String(displayResult);
+                result.style.color = 'var(--text)';
+            }
+        } catch (e) {
+            result.textContent = 'Evaluation error';
+            result.style.color = '#ef4444';
+        }
     }
 
-    function updateLayersList() {
-        const list = document.getElementById('layers-list'); list.innerHTML = '';
-        elements.forEach((el, idx) => {
-            const div = document.createElement('div'); div.className = 'prop-item' + (activeIds.includes(el.id) ? ' active' : '');
-            div.style.padding = '8px'; div.onclick = () => selectElements([el.id]);
-            div.innerHTML = `<div style="font-size:11px; flex:1">#${idx+1} ${el.key}</div>`;
-            list.appendChild(div);
-        });
+    // ── Save Formula ───────────────────────────────────────────
+    function saveFormula() {
+        const expr = document.getElementById('formulaExpression').value;
+        if (!expr.trim()) {
+            alert('Please enter an expression before saving.');
+            return;
+        }
+
+        // Find the table element and column
+        if (formulaEditorTableId) {
+            // Try to find in sections first, then flat elements
+            let tableEl = null;
+            if (window.sections) {
+                for (const key of (window.SECTION_ORDER || [])) {
+                    const sec = window.sections[key];
+                    if (sec && sec.elements) {
+                        tableEl = sec.elements.find(e => e.id === formulaEditorTableId);
+                        if (tableEl) break;
+                    }
+                }
+            }
+            if (!tableEl && window.elements) {
+                tableEl = window.elements.find(e => e.id === formulaEditorTableId);
+            }
+            if (tableEl && tableEl.columns && formulaEditorColumn !== null && formulaEditorColumn < tableEl.columns.length) {
+                tableEl.columns[formulaEditorColumn].expression = expr;
+                tableEl.columns[formulaEditorColumn].computed = true;
+            }
+        }
+
+        closeFormulaEditor();
+
+        // Update the inspector to reflect changes
+        if (typeof updateInspector === 'function') {
+            updateInspector();
+        }
+        if (typeof renderElements === 'function') {
+            renderElements();
+        }
     }
 
-    init();
+    // ── Formula Library ────────────────────────────────────────
+    function saveToFormulaLibrary() {
+        const expr = document.getElementById('formulaExpression').value;
+        if (!expr.trim()) {
+            alert('Please enter an expression to save.');
+            return;
+        }
+
+        const name = prompt('Formula name:', '');
+        if (!name || !name.trim()) return;
+
+        // Check for duplicates
+        const existing = formulaLibrary.findIndex(f => f.name === name.trim());
+        if (existing !== -1) {
+            if (!confirm('A formula named "' + name.trim() + '" already exists. Overwrite?')) return;
+            formulaLibrary[existing].expression = expr;
+        } else {
+            formulaLibrary.push({ name: name.trim(), expression: expr });
+        }
+
+        localStorage.setItem('printHubFormulaLibrary', JSON.stringify(formulaLibrary));
+        renderFormulaLibrary();
+    }
+
+    function loadFromLibrary(expression) {
+        document.getElementById('formulaExpression').value = expression;
+        validateExpression();
+    }
+
+    function deleteFromLibrary(index) {
+        if (!confirm('Delete this saved formula?')) return;
+        formulaLibrary.splice(index, 1);
+        localStorage.setItem('printHubFormulaLibrary', JSON.stringify(formulaLibrary));
+        renderFormulaLibrary();
+    }
+
+    function renderFormulaLibrary() {
+        const container = document.getElementById('formulaLibrary');
+        if (!container) return;
+
+        if (!formulaLibrary || formulaLibrary.length === 0) {
+            container.innerHTML = '<div style="font-size:10px; color:var(--text-muted); padding:4px;">No saved formulas yet</div>';
+            return;
+        }
+
+        container.innerHTML = formulaLibrary.map((f, i) => `
+            <div style="display:flex; align-items:stretch; gap:4px; border-radius:4px; overflow:hidden; border:1px solid var(--border);">
+                <div style="flex:1; padding:4px 8px; cursor:pointer; min-width:0;"
+                     onclick="loadFromLibrary('${escapeJs(f.expression)}')"
+                     title="${escapeHtml(f.expression)}">
+                    <div style="font-size:11px; font-weight:500; color:var(--text);">${escapeHtml(f.name)}</div>
+                    <div style="font-size:9px; color:var(--text-muted); font-family:monospace; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(f.expression)}</div>
+                </div>
+                <button onclick="deleteFromLibrary(${i})"
+                        style="background:none; border:none; border-left:1px solid var(--border); color:var(--danger); cursor:pointer; font-size:12px; padding:0 6px; flex-shrink:0;"
+                        title="Delete">✕</button>
+            </div>
+        `).join('');
+    }
 </script>
 @endsection

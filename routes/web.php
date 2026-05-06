@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\BranchController;
 use App\Http\Controllers\Admin\ClientAppController;
 use App\Http\Controllers\Admin\CompanyController;
 use App\Http\Controllers\Admin\DocumentController as AdminDocumentController;
+use App\Http\Controllers\Admin\FontController;
 use App\Http\Controllers\Admin\JobController;
 use App\Http\Controllers\Admin\ProfileController;
 use App\Http\Controllers\Admin\SessionController;
@@ -90,9 +91,23 @@ Route::middleware(['auth', 'session.activity'])->group(function () {
     Route::delete('/templates/{template}', [TemplateController::class, 'destroy'])->name('admin.templates.destroy');
     Route::post('/templates/upload-bg', [TemplateController::class, 'uploadBg'])->name('admin.templates.upload-bg');
     Route::post('/templates/preview', [TemplateController::class, 'preview'])->name('admin.templates.preview');
+    Route::match(['GET', 'POST'], '/templates/{template}/preview', [TemplateController::class, 'preview'])->name('admin.templates.preview-with-template');
     Route::post('/templates/test-print', [TemplateController::class, 'testPrint'])->name('admin.templates.test-print');
     Route::post('/templates/{template}/clone', [TemplateController::class, 'clone'])->name('admin.templates.clone');
     Route::get('/templates/{template}/job-history', [TemplateController::class, 'jobHistory'])->name('admin.templates.job-history');
+    Route::post('/templates/{template}/sample-data', [TemplateController::class, 'saveSampleData'])->name('admin.templates.sample-data.save');
+    Route::get('/templates/{template}/sample-data', [TemplateController::class, 'getSampleData'])->name('admin.templates.sample-data.get');
+
+    // Template Version History
+    Route::get('/templates/{template}/versions', [TemplateController::class, 'versions'])->name('templates.versions');
+    Route::post('/templates/{template}/versions', [TemplateController::class, 'createVersion'])->name('templates.versions.create');
+    Route::post('/templates/{template}/versions/{version}/restore', [TemplateController::class, 'restoreVersion'])->name('templates.versions.restore');
+    Route::get('/templates/{template}/versions/{v1}/diff/{v2}', [TemplateController::class, 'diffVersions'])->name('templates.versions.diff');
+
+    // Custom Fonts Management
+    Route::resource('fonts', FontController::class)->except(['show', 'edit']);
+    Route::get('/fonts/{font}/download', [FontController::class, 'download'])->name('fonts.download');
+    Route::get('/fonts/{font}/preview', [FontController::class, 'preview'])->name('fonts.preview');
 
     // Job History
     Route::get('/jobs', [JobController::class, 'index'])->name('admin.jobs');
