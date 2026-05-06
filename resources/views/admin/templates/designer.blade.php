@@ -89,8 +89,8 @@
     .ruler-top { top: 0; left: 40px; right: 0; height: 25px; border-bottom: 1px solid var(--border); }
     .ruler-left { top: 40px; left: 0; bottom: 0; width: 25px; border-right: 1px solid var(--border); }
 
-    #canvas-wrapper { position: relative; background: var(--surface); box-shadow: 0 0 50px rgba(0,0,0,0.5); transform-origin: top left; }
-    #canvas { position: relative; background: white; overflow: hidden; }
+    #canvas-wrapper { position: relative; background: var(--surface); box-shadow: 0 0 50px rgba(0,0,0,0.5); transform-origin: top left; border: 1px solid #475569; }
+    #canvas { position: relative; background: white; overflow: hidden; border: 2px solid red !important; }
     #canvas-bg-img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain; opacity: 0.4; pointer-events: none; }
     
     .design-element {
@@ -259,6 +259,10 @@
         <div class="designer-workspace" id="designer-workspace">
             <div id="ruler-top" class="ruler ruler-top"></div>
             <div id="ruler-left" class="ruler ruler-left"></div>
+            
+            <div id="debug-hud" style="position:absolute; top:30px; left:30px; background:rgba(0,0,0,0.8); color:#00ff00; font-family:monospace; font-size:10px; padding:8px; border-radius:4px; z-index:1000; pointer-events:none; border:1px solid #00ff00;">
+                <div>HUD INITIALIZING...</div>
+            </div>
             
             <div id="canvas-wrapper">
                 <div id="canvas">
@@ -1135,6 +1139,37 @@
                 }
             });
         }, 100);
+
+        // Persistent HUD Update
+        setInterval(() => {
+            const hud = document.getElementById('debug-hud');
+            if (!hud) return;
+            const c = document.getElementById('canvas');
+            const cw = document.getElementById('canvas-wrapper');
+            const ws = document.getElementById('designer-workspace');
+            
+            let html = '<div style="color:#fbbf24; font-weight:bold; margin-bottom:4px;">DESIGNER DIAGNOSTICS</div>';
+            if (c) {
+                const rect = c.getBoundingClientRect();
+                const style = getComputedStyle(c);
+                html += `<div>CANVAS: ${rect.width.toFixed(0)}x${rect.height.toFixed(0)}</div>`;
+                html += `<div>VIS: ${style.visibility} | DISP: ${style.display}</div>`;
+                html += `<div>BANDS: ${c.querySelectorAll('.section-band').length} | ELS: ${c.querySelectorAll('.design-element').length}</div>`;
+            } else html += '<div style="color:red">CANVAS NOT FOUND</div>';
+            
+            if (cw) {
+                const rect = cw.getBoundingClientRect();
+                html += `<div>WRAPPER: ${rect.width.toFixed(0)}x${rect.height.toFixed(0)}</div>`;
+            }
+            
+            if (ws) {
+                const rect = ws.getBoundingClientRect();
+                html += `<div>WORKSPACE: ${rect.width.toFixed(0)}x${rect.height.toFixed(0)}</div>`;
+            }
+            
+            html += `<div style="margin-top:4px;">ZOOM: ${(zoomLevel*100).toFixed(0)}% | SCALE: ${BASE_SCALE}</div>`;
+            hud.innerHTML = html;
+        }, 500);
 
         loadSelectedSchema();
         fetchAndPopulateFonts();
