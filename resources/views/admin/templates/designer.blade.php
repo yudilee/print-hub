@@ -261,7 +261,7 @@
             <div id="ruler-left" class="ruler ruler-left"></div>
             
             <div id="debug-hud" style="position:absolute; top:30px; left:30px; background:rgba(0,0,0,0.8); color:#00ff00; font-family:monospace; font-size:10px; padding:8px; border-radius:4px; z-index:1000; pointer-events:none; border:1px solid #00ff00;">
-                <div>HUD INITIALIZING...</div>
+                <div>HUD INITIALIZING (V2)...</div>
             </div>
             
             <div id="canvas-wrapper">
@@ -506,6 +506,10 @@
 <script>
     const availableSchemas = @json($schemas ?? []);
     const templateId = "{{ $template->id ?? '' }}";
+    const BASE_SCALE = 4;
+    let zoomLevel = 1.0;
+    let elements = @json($template->elements ?? []);
+    let globalStyles = @json($template->styles ?? []);
 
     // ── Global Error Handler for HUD ──────────────────────────
     window.onerror = function(msg, url, line, col, error) {
@@ -582,10 +586,7 @@
         } catch(e) {}
         return [];
     }
-    const BASE_SCALE = 4;
-    let zoomLevel = 1.0;
-    let elements = @json($template->elements ?? []);
-    let globalStyles = @json($template->styles ?? []);
+    // Variables moved to top
 
     // ── Sections ─────────────────────────────────────────────
     const SECTION_ORDER = ['pageHeader', 'reportHeader', 'detail', 'reportFooter', 'pageFooter'];
