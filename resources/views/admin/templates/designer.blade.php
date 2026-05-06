@@ -2822,7 +2822,7 @@
 
     function escapeHtml(str) {
         if (!str) return '';
-        return String(str).replace(/&/g, '&').replace(/"/g, '"').replace(/'/g, ''').replace(/</g, '<').replace(/>/g, '>');
+        return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
 
     function escapeJs(str) {
