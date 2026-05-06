@@ -1091,19 +1091,19 @@
         updateCanvasSize(); renderElements(); renderStyles();
         console.log('[Designer] init() complete - canvas rendered');
 
-        // DIAGNOSTIC: Check all parent container dimensions
+        // DIAGNOSTIC: Check all parent container dimensions + add visual outlines
         setTimeout(() => {
-            const chain = [
-                { id: 'canvas', desc: '#canvas' },
-                { id: 'canvas-wrapper', desc: '#canvas-wrapper' },
-                { id: 'designer-workspace', desc: '.designer-workspace' },
-            ];
-            chain.forEach(item => {
-                const el = document.getElementById(item.id);
+            const elements = {
+                'canvas': '#canvas',
+                'canvas-wrapper': '#canvas-wrapper',
+                'designer-workspace': '.designer-workspace',
+            };
+            Object.entries(elements).forEach(([id, desc]) => {
+                const el = document.getElementById(id);
                 if (el) {
                     const rect = el.getBoundingClientRect();
                     const style = getComputedStyle(el);
-                    console.log(`[DIAG] ${item.desc}:`, {
+                    console.log(`[DIAG] ${desc}:`, {
                         boundingRect: `${rect.width.toFixed(1)}x${rect.height.toFixed(1)}`,
                         offset: `${el.offsetWidth}x${el.offsetHeight}`,
                         display: style.display,
@@ -1111,27 +1111,29 @@
                         overflow: style.overflow,
                         inlineW: el.style.width,
                         inlineH: el.style.height,
+                        vis: style.visibility,
                     });
+                    // Add visual outline to see it
+                    el.style.outline = '3px solid red';
+                    el.style.outlineOffset = '2px';
                 } else {
-                    console.log(`[DIAG] ${item.desc}: NOT FOUND`);
+                    console.log(`[DIAG] ${desc}: NOT FOUND`);
                 }
             });
-            // Also check designer-main-wrapper and designer-main
-            const wrapper = document.querySelector('.designer-main-wrapper');
-            const main = document.querySelector('.designer-main');
-            const container = document.querySelector('.designer-container');
-            if (wrapper) {
-                const r = wrapper.getBoundingClientRect();
-                console.log(`[DIAG] .designer-main-wrapper: ${r.width.toFixed(1)}x${r.height.toFixed(1)} display:${getComputedStyle(wrapper).display}`);
-            }
-            if (main) {
-                const r = main.getBoundingClientRect();
-                console.log(`[DIAG] .designer-main: ${r.width.toFixed(1)}x${r.height.toFixed(1)} display:${getComputedStyle(main).display}`);
-            }
-            if (container) {
-                const r = container.getBoundingClientRect();
-                console.log(`[DIAG] .designer-container: ${r.width.toFixed(1)}x${r.height.toFixed(1)} display:${getComputedStyle(container).display}`);
-            }
+            // Also check higher-level parents
+            const selectors = [
+                { sel: '.designer-main-wrapper', label: '.designer-main-wrapper' },
+                { sel: '.designer-main', label: '.designer-main' },
+                { sel: '.designer-container', label: '.designer-container' },
+            ];
+            selectors.forEach(({sel, label}) => {
+                const el = document.querySelector(sel);
+                if (el) {
+                    const r = el.getBoundingClientRect();
+                    console.log(`[DIAG] ${label}: ${r.width.toFixed(1)}x${r.height.toFixed(1)} display:${getComputedStyle(el).display} pos:${getComputedStyle(el).position}`);
+                    el.style.outline = '2px solid blue';
+                }
+            });
         }, 100);
 
         loadSelectedSchema();
