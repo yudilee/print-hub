@@ -278,11 +278,14 @@ document.getElementById('edit-modal').addEventListener('click', function(e) {
 });
 
 // ── Capabilities Modal ──────────────────────────────────────
-let agentsData = @json($agents->map(fn($a) => [
+@php
+$mappedAgents = $agents->map(fn($a) => [
     'id' => $a->id,
     'name' => $a->name,
     'capabilities' => $a->capabilities,
-]));
+]);
+@endphp
+let agentsData = @json($mappedAgents);
 
 function openCapsModal(agentId) {
     const agent = agentsData.find(a => a.id === agentId);
