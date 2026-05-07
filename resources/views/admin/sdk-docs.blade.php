@@ -97,6 +97,102 @@
                 </div>
             </div>
 
+            <h3 id="integration-concepts">API, SDK & Webhooks — How They Fit Together</h3>
+            <p>Print Hub exposes three integration mechanisms. Understanding when to use each one is key to building a robust integration:</p>
+
+            <table>
+                <thead>
+                    <tr><th>Concept</th><th>What It Is</th><th>When to Use</th><th>Documentation</th></tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>🔌 REST API</strong></td>
+                        <td>Raw HTTP endpoints — send JSON requests, get JSON responses. Every feature is accessible via <code>curl</code> or any HTTP client.</td>
+                        <td>You want full control, are using a language without an SDK, or need to debug the integration.</td>
+                        <td><a href="#endpoints">§4 API Endpoints</a></td>
+                    </tr>
+                    <tr>
+                        <td><strong>📦 SDK Client</strong></td>
+                        <td>Pre-written library that wraps the REST API into native method calls. Handles authentication, request formatting, error handling, and retries for you.</td>
+                        <td>You're using PHP, Python, or Node.js and want to integrate in minutes with minimal boilerplate.</td>
+                        <td><a href="#sdk-php">§9 PHP SDK</a> · <a href="#sdk-python">§10 Python SDK</a> · <a href="#sdk-nodejs">§11 Node.js SDK</a></td>
+                    </tr>
+                    <tr>
+                        <td><strong>📡 Webhooks</strong></td>
+                        <td>Push notifications — Print Hub calls <em>your</em> server when a print job status changes. No polling needed.</td>
+                        <td>You need real-time job status updates (completed, failed, approved, rejected) without polling the API.</td>
+                        <td><a href="#webhooks">§7 Webhooks</a></td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h4>How They Work Together</h4>
+            <p>A typical integration uses <strong>two of the three</strong>:</p>
+            <div class="arch-diagram" style="margin:1rem 0;">
+                <div class="arch-node">
+                    <div class="arch-box client" style="max-width:180px;">🖥️ Your App</div>
+                    <div class="arch-arrow" style="font-size:0.8rem;">↓ SDK method call</div>
+                </div>
+                <div class="arch-node">
+                    <div class="arch-box hub" style="max-width:180px;">📡 Print Hub</div>
+                    <div style="display:flex;gap:1rem;justify-content:center;margin-top:0.5rem;">
+                        <span style="font-size:0.75rem;color:var(--text-muted);">→ Webhook POST →</span>
+                        <span style="font-size:0.75rem;color:var(--text-muted);">← HTTP 200 OK ←</span>
+                    </div>
+                </div>
+                <div class="arch-node">
+                    <div class="arch-box client" style="max-width:180px;">🖥️ Your App<br><small>(webhook handler)</small></div>
+                </div>
+            </div>
+            <ol>
+                <li><strong>Submit jobs</strong> via the SDK (or raw API) — your app calls <code>$client->printWithTemplate(...)</code> which sends a POST to Print Hub.</li>
+                <li><strong>Receive updates</strong> via webhooks — Print Hub POSTs status changes to your <code>webhook_url</code> endpoint when the job completes or fails.</li>
+                <li><strong>Fall back to polling</strong> if needed — use <code>GET /jobs/{job_id}</code> (via SDK or raw API) to check status if a webhook delivery fails.</li>
+            </ol>
+
+            <div class="tip-box info">
+                <strong>💡 Tip:</strong> Start with the SDK for submitting jobs — it handles authentication, error handling, and request formatting automatically. Add webhooks later for real-time status updates without polling.
+            </div>
+
+            <h4>Quick Comparison: Raw API vs SDK</h4>
+            <p>Here's the same print job submission using the raw REST API vs the PHP SDK:</p>
+
+            <div style="display:flex;gap:1rem;flex-wrap:wrap;">
+                <div style="flex:1;min-width:280px;">
+                    <strong style="font-size:0.9rem;">🔌 Raw API (cURL)</strong>
+                    <div class="code-block-wrapper">
+                        <button class="copy-btn" onclick="copyCode(this)" title="Copy to clipboard">📋</button>
+                        <pre class="code-block"><code>curl -X POST {{ config('app.url') }}/api/v1/print \
+    -H "X-API-Key: your-api-key" \
+    -H "Content-Type: application/json" \
+    -d '{
+        "template": "invoice_sewa",
+        "data": { "customer": "PT ABC" },
+        "branch_code": "SDP-SBY",
+        "copies": 2
+    }'</code></pre>
+                    </div>
+                </div>
+                <div style="flex:1;min-width:280px;">
+                    <strong style="font-size:0.9rem;">📦 PHP SDK</strong>
+                    <div class="code-block-wrapper">
+                        <button class="copy-btn" onclick="copyCode(this)" title="Copy to clipboard">📋</button>
+                        <pre class="code-block"><code>$client = new PrintHubClient(
+    apiKey: 'your-api-key',
+    baseUrl: '{{ config('app.url') }}'
+);
+
+$result = $client->printWithTemplate(
+    template: 'invoice_sewa',
+    data: ['customer' => 'PT ABC'],
+    branchCode: 'SDP-SBY',
+    copies: 2
+);</code></pre>
+                    </div>
+                </div>
+            </div>
+            <p>The SDK eliminates boilerplate — no manual headers, no JSON encoding, no error parsing. See <a href="#sdk-php">§9 SDK — PHP</a> for the full reference.</p>
+
             <h3>Authentication</h3>
             <p>Authentication uses a two-tier model:</p>
             <table>
@@ -3380,6 +3476,23 @@ python app.py --config /path/to/config.json</code></pre>
     position: sticky;
     top: 2rem;
     align-self: flex-start;
+    max-height: calc(100vh - 4rem);
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+}
+
+.docs-sidebar::-webkit-scrollbar {
+    width: 6px;
+}
+
+.docs-sidebar::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.docs-sidebar::-webkit-scrollbar-thumb {
+    background-color: var(--border);
+    border-radius: 3px;
 }
 
 .docs-content {

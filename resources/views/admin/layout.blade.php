@@ -74,7 +74,17 @@
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
         ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
-        .main { margin-left: 240px; flex: 1; padding: 2rem; }
+        .main { margin-left: 240px; flex: 1; padding: 2rem; transition: margin-left 0.25s ease; }
+
+        body.sidebar-collapsed .sidebar {
+            transform: translateX(-240px);
+        }
+        body.sidebar-collapsed .main {
+            margin-left: 0;
+        }
+        body.sidebar-collapsed .hamburger {
+            display: block;
+        }
 
         .sidebar-brand {
             padding: 0 1.5rem 1.5rem;
@@ -327,6 +337,7 @@
 
         /* Responsive */
         @media (max-width: 768px) {
+            .desktop-only-toggle { display: none !important; }
             .sidebar { transform: translateX(-100%); }
             .sidebar.open { transform: translateX(0); }
             .sidebar-overlay.open { display: block; }
@@ -363,14 +374,25 @@
     @yield('head')
 </head>
 <body>
+    <script>
+        (function() {
+            const collapsed = localStorage.getItem('ph-sidebar-collapsed');
+            if (collapsed === '1' && window.innerWidth > 768) {
+                document.body.classList.add('sidebar-collapsed');
+            }
+        })();
+    </script>
     <button class="hamburger" onclick="toggleSidebar()" aria-label="Toggle menu" title="Menu">☰</button>
     <div class="sidebar-overlay" onclick="toggleSidebar()"></div>
 
     <div class="layout">
         <aside class="sidebar" id="sidebar">
-            <div class="sidebar-brand">
-                <h1>Print Hub</h1>
-                <small>Central Management</small>
+            <div class="sidebar-brand" style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <h1>Print Hub</h1>
+                    <small>Central Management</small>
+                </div>
+                <button type="button" onclick="toggleSidebar()" style="background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 0.9rem; padding: 4px; display: flex; align-items: center; justify-content: center; border-radius: 4px; transition: all 0.2s;" class="desktop-only-toggle" title="Collapse Menu">◀</button>
             </div>
             <nav>
                 <a href="{{ route('admin.dashboard') }}" class="nav-link {{ request()->routeIs('admin.dashboard') ? 'active' : '' }}">
@@ -532,8 +554,13 @@
     <script>
         // Sidebar toggle for mobile
         function toggleSidebar() {
-            document.getElementById('sidebar').classList.toggle('open');
-            document.querySelector('.sidebar-overlay').classList.toggle('open');
+            if (window.innerWidth <= 768) {
+                document.getElementById('sidebar').classList.toggle('open');
+                document.querySelector('.sidebar-overlay').classList.toggle('open');
+            } else {
+                const isCollapsed = document.body.classList.toggle('sidebar-collapsed');
+                localStorage.setItem('ph-sidebar-collapsed', isCollapsed ? '1' : '0');
+            }
         }
         document.querySelectorAll('.sidebar .nav-link').forEach(link => {
             link.addEventListener('click', () => {
