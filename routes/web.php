@@ -8,11 +8,14 @@ use App\Http\Controllers\Admin\CompanyController;
 use App\Http\Controllers\Admin\DocumentController as AdminDocumentController;
 use App\Http\Controllers\Admin\FontController;
 use App\Http\Controllers\Admin\JobController;
+use App\Http\Controllers\Admin\NotificationController;
+use App\Http\Controllers\Admin\PrinterConfigController;
 use App\Http\Controllers\Admin\ProfileController;
 use App\Http\Controllers\Admin\SessionController;
 use App\Http\Controllers\Admin\TemplateController;
 use App\Http\Controllers\Admin\ActivityLogController;
 use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\Admin\WebhookController;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\AuthController;
 use Illuminate\Http\Request;
@@ -74,6 +77,13 @@ Route::middleware(['auth', 'session.activity'])->group(function () {
     Route::post('/agents/{agent}/regenerate-key', [AgentController::class, 'regenerateKey'])->name('admin.agents.regenerate-key');
     Route::delete('/agents/{agent}', [AgentController::class, 'destroy'])->name('admin.agents.destroy');
 
+    // Printer Configs (Item 8.1)
+    Route::get('/printer-configs', [PrinterConfigController::class, 'index'])->name('admin.printer-configs');
+    Route::post('/printer-configs', [PrinterConfigController::class, 'store'])->name('admin.printer-configs.store');
+    Route::get('/printer-configs/{printerConfig}/edit', [PrinterConfigController::class, 'edit'])->name('admin.printer-configs.edit');
+    Route::put('/printer-configs/{printerConfig}', [PrinterConfigController::class, 'update'])->name('admin.printer-configs.update');
+    Route::delete('/printer-configs/{printerConfig}', [PrinterConfigController::class, 'destroy'])->name('admin.printer-configs.destroy');
+
     // Profiles
     Route::get('/profiles', [ProfileController::class, 'index'])->name('admin.profiles');
     Route::post('/profiles', [ProfileController::class, 'store'])->name('admin.profiles.store');
@@ -124,9 +134,15 @@ Route::middleware(['auth', 'session.activity'])->group(function () {
 
     // Job History
     Route::get('/jobs', [JobController::class, 'index'])->name('admin.jobs');
+    Route::get('/jobs/export', [JobController::class, 'exportCsv'])->name('admin.jobs.export');
     Route::get('/jobs/{job}/download', [JobController::class, 'download'])->name('admin.jobs.download');
     Route::post('/jobs/{job}/status', [JobController::class, 'updateStatus'])->name('admin.jobs.status');
     Route::post('/jobs/{job}/retry', [JobController::class, 'retry'])->name('admin.jobs.retry');
+    Route::post('/jobs/retry-all-failed', [JobController::class, 'retryAllFailed'])->name('admin.jobs.retry-all-failed');
+    Route::get('/jobs/{job}/dependencies', [JobController::class, 'dependencies'])->name('admin.jobs.dependencies');
+    Route::get('/jobs/search-parents', [JobController::class, 'searchParentJobs'])->name('admin.jobs.search-parents');
+    Route::post('/jobs/validate-dependency', [JobController::class, 'validateDependency'])->name('admin.jobs.validate-dependency');
+    Route::post('/jobs/{job}/update-dependency', [JobController::class, 'updateDependency'])->name('admin.jobs.update-dependency');
 
     // Client Apps
     Route::get('/clients', [ClientAppController::class, 'index'])->name('admin.clients');
@@ -166,13 +182,24 @@ Route::middleware(['auth', 'session.activity'])->group(function () {
     // Sessions
     Route::get('/sessions', [SessionController::class, 'index'])->name('admin.sessions');
     Route::delete('/sessions/{id}', [SessionController::class, 'destroy'])->name('admin.sessions.destroy');
+    Route::post('/sessions/force-logout-all', [SessionController::class, 'forceLogoutAll'])->name('admin.sessions.force-logout-all');
+    Route::post('/sessions/force-logout-user/{user}', [SessionController::class, 'forceLogoutUser'])->name('admin.sessions.force-logout-user');
 
     // Activity Log
     Route::get('/activity-logs', [ActivityLogController::class, 'index'])->name('admin.activity-logs');
+    Route::get('/activity-logs/export', [ActivityLogController::class, 'exportCsv'])->name('admin.activity-logs.export');
+
+    // Notifications (Item 18.1)
+    Route::get('/notifications', [NotificationController::class, 'index'])->name('admin.notifications');
+    Route::post('/notifications/{notification}/read', [NotificationController::class, 'markAsRead'])->name('admin.notifications.mark-read');
+    Route::post('/notifications/mark-all-read', [NotificationController::class, 'markAllAsRead'])->name('admin.notifications.mark-all-read');
+    Route::get('/notifications/unread-count', [NotificationController::class, 'unreadCount'])->name('admin.notifications.unread-count');
 
     // Documents (Feature 2)
     Route::get('/documents', [AdminDocumentController::class, 'index'])->name('admin.documents');
     Route::post('/documents/upload', [AdminDocumentController::class, 'upload'])->name('admin.documents.upload');
+    Route::post('/documents/purge-expired', [AdminDocumentController::class, 'purgeExpired'])->name('admin.documents.purge-expired');
+    Route::get('/documents/{id}/versions', [AdminDocumentController::class, 'versions'])->name('admin.documents.versions');
     Route::delete('/documents/{id}', [AdminDocumentController::class, 'destroy'])->name('admin.documents.destroy');
 
     // Monitoring Dashboard (Feature 5)
@@ -208,8 +235,20 @@ Route::middleware(['auth', 'session.activity'])->group(function () {
 
     // IP Whitelist settings page (super-admin only)
     Route::middleware('role:super-admin')->group(function () {
-        Route::get('/ip-whitelist', function () {
-            return view('admin.ip-whitelist');
-        })->name('admin.ip-whitelist');
+        Route::get('/ip-whitelist', [\App\Http\Controllers\Admin\IpWhitelistController::class, 'index'])->name('admin.ip-whitelist');
+        Route::post('/ip-whitelist/client-app/{clientApp}', [\App\Http\Controllers\Admin\IpWhitelistController::class, 'updateClientApp'])->name('admin.ip-whitelist.client-app');
+        Route::post('/ip-whitelist/agent/{agent}', [\App\Http\Controllers\Admin\IpWhitelistController::class, 'updateAgent'])->name('admin.ip-whitelist.agent');
     });
+
+    // System Settings (Item 10.1)
+    Route::get('/settings', [\App\Http\Controllers\Admin\SettingsController::class, 'index'])->name('admin.settings');
+    Route::put('/settings', [\App\Http\Controllers\Admin\SettingsController::class, 'update'])->name('admin.settings.update');
+
+    // Webhook Settings
+    Route::get('/settings/webhooks', [WebhookController::class, 'index'])->name('admin.webhooks.index');
+    Route::put('/settings/webhooks/{clientApp}', [WebhookController::class, 'update'])->name('admin.webhooks.update');
+    Route::get('/settings/webhooks/{clientApp}/deliveries', [WebhookController::class, 'deliveries'])->name('admin.webhooks.deliveries');
+    Route::post('/settings/webhooks/deliveries/{delivery}/retry', [WebhookController::class, 'retryDelivery'])->name('admin.webhooks.deliveries.retry');
+    Route::post('/settings/webhooks/{clientApp}/deliveries/bulk-retry', [WebhookController::class, 'bulkRetry'])->name('admin.webhooks.deliveries.bulk-retry');
+    Route::get('/settings/webhooks/{clientApp}/deliveries/export-csv', [WebhookController::class, 'exportDeliveriesCsv'])->name('admin.webhooks.deliveries.export-csv');
 });

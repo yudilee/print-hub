@@ -395,10 +395,15 @@
                     <x-icon name="font" size="18"/> Fonts
                 </a>
 
-                <div class="nav-section">Documents</div>
+                <div class="nav-section">Printers</div>
                 <a href="{{ route('admin.pools') }}" class="nav-link {{ request()->routeIs('admin.pools*') ? 'active' : '' }}">
                     <x-icon name="pool" size="18"/> Printer Pools
                 </a>
+                <a href="{{ route('admin.printer-configs') }}" class="nav-link {{ request()->routeIs('admin.printer-configs') ? 'active' : '' }}">
+                    <x-icon name="settings" size="18"/> Printer Configs
+                </a>
+
+                <div class="nav-section">Documents</div>
                 <a href="{{ route('admin.documents') }}" class="nav-link {{ request()->routeIs('admin.documents') ? 'active' : '' }}">
                     <x-icon name="document" size="18"/> Documents
                 </a>
@@ -443,8 +448,14 @@
 
                 @if(auth()->user()?->isSuperAdmin())
                 <div class="nav-section">System</div>
+                <a href="{{ route('admin.settings') }}" class="nav-link {{ request()->routeIs('admin.settings') ? 'active' : '' }}">
+                    <x-icon name="settings" size="18"/> System Settings
+                </a>
+                <a href="{{ route('admin.webhooks.index') }}" class="nav-link {{ request()->routeIs('admin.webhooks*') ? 'active' : '' }}">
+                    <x-icon name="webhook" size="18"/> Webhooks
+                </a>
                 <a href="{{ route('admin.sso-settings') }}" class="nav-link {{ request()->routeIs('admin.sso-settings') ? 'active' : '' }}">
-                    <x-icon name="settings" size="18"/> SSO Settings
+                    <x-icon name="sso" size="18"/> SSO Settings
                 </a>
                 <a href="{{ route('admin.ip-whitelist') }}" class="nav-link {{ request()->routeIs('admin.ip-whitelist') ? 'active' : '' }}">
                     <x-icon name="shield" size="18"/> IP Whitelist
@@ -465,6 +476,11 @@
                 </div>
                 @auth
                 <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem;">
+                    {{-- Notification Bell --}}
+                    <a href="{{ route('admin.notifications') }}" style="position: relative; text-decoration: none; color: var(--text-muted);" title="Notifications">
+                        <span style="font-size: 1.3rem;">🔔</span>
+                        <span id="notification-badge" style="display: none; position: absolute; top: -4px; right: -6px; background: var(--danger); color: white; font-size: 0.6rem; font-weight: 700; padding: 1px 5px; border-radius: 10px; min-width: 16px; text-align: center;"></span>
+                    </a>
                     <div style="width: 32px; height: 32px; border-radius: 50%; background: var(--primary); display: flex; align-items: center; justify-content: center; font-weight: 600; color: white;">
                         {{ substr(auth()->user()->name, 0, 1) }}
                     </div>
@@ -604,6 +620,30 @@
                 if (!confirm(this.getAttribute('data-confirm'))) e.preventDefault();
             });
         });
+
+        // Notification badge polling
+        (function() {
+            const badge = document.getElementById('notification-badge');
+            if (!badge) return;
+
+            function updateBadge() {
+                fetch('{{ route('admin.notifications.unread-count') }}')
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.count > 0) {
+                            badge.style.display = 'inline';
+                            badge.textContent = data.count > 99 ? '99+' : data.count;
+                        } else {
+                            badge.style.display = 'none';
+                        }
+                    })
+                    .catch(() => {});
+            }
+
+            updateBadge();
+            // Poll every 30 seconds
+            setInterval(updateBadge, 30000);
+        })();
     </script>
 </body>
 </html>

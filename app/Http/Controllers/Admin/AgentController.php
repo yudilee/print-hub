@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Branch;
 use App\Models\PrintAgent;
+use App\Models\Setting;
 use App\Traits\LogsActivity;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -17,7 +18,8 @@ class AgentController extends Controller
     {
         $agents = PrintAgent::with(['branch.company'])->withCount('jobs')->latest()->get();
         $branches = Branch::with('company')->active()->orderBy('name')->get();
-        return view('admin.agents', compact('agents', 'branches'));
+        $keyRotationDays = Setting::getValue('key_rotation_days', 90);
+        return view('admin.agents', compact('agents', 'branches', 'keyRotationDays'));
     }
 
     public function store(Request $request)

@@ -20,6 +20,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'auth.api-key'   => \App\Http\Middleware\AuthenticateApiKey::class,
             'force.tls'      => \App\Http\Middleware\ForceTls::class,
             'ip.whitelist'   => \App\Http\Middleware\IpWhitelist::class,
+            'throttle.api-key' => \App\Http\Middleware\ThrottleApiKeys::class,
         ]);
 
         // Apply TLS enforcement to web routes in production

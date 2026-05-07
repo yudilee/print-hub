@@ -97,8 +97,10 @@
                             @php $keyAge = $client->last_key_rotated_at ? $client->last_key_rotated_at->diffInDays(now()) : null; @endphp
                             @if(is_null($keyAge))
                                 <span style="color: var(--text-muted); font-style: italic;">N/A</span>
-                            @elseif($keyAge > 90)
-                                <span style="background:rgba(245,158,11,0.15); color:var(--warning); padding:2px 8px; border-radius:10px; font-size:0.75rem; font-weight:500;">{{ $keyAge }} days</span>
+                            @elseif($keyAge > ($keyRotationDays ?? 90))
+                                <span style="background:rgba(245,158,11,0.15); color:var(--warning); padding:2px 8px; border-radius:10px; font-size:0.75rem; font-weight:500;" title="Key hasn't been rotated in {{ $keyAge }} days (policy: {{ $keyRotationDays ?? 90 }} days)">
+                                    ⚠️ {{ $keyAge }} days
+                                </span>
                             @else
                                 {{ $keyAge }} days
                             @endif

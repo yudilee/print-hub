@@ -24,6 +24,7 @@ class PoolController extends Controller
      */
     public function edit(?PrinterPool $pool = null)
     {
+        $pool = $pool ?? new PrinterPool();
         if ($pool->exists) {
             $pool->load('printers');
         }

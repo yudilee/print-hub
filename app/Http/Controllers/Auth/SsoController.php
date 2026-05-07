@@ -4,12 +4,20 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\GroupPolicyEnforcer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 
 class SsoController extends Controller
 {
+    private GroupPolicyEnforcer $policyEnforcer;
+
+    public function __construct(?GroupPolicyEnforcer $policyEnforcer = null)
+    {
+        $this->policyEnforcer = $policyEnforcer ?? app(GroupPolicyEnforcer::class);
+    }
+
     /**
      * Redirect the user to the Identity Provider's SSO URL.
      *
@@ -26,6 +34,20 @@ class SsoController extends Controller
     {
         if (! config('sso.enabled')) {
             abort(404, 'SSO is not enabled.');
+        }
+
+        // Enforce allowed auth providers: check that the configured SSO provider
+        // is in the group policy whitelist before redirecting.
+        $provider = config('sso.provider', 'saml2');
+        $check = $this->policyEnforcer->enforceAllowedAuthProviders($provider);
+        if (! $check['allowed']) {
+            Log::warning('SSO login blocked by group policy', [
+                'provider' => $provider,
+                'reason'   => $check['error'],
+            ]);
+            return redirect()->route('login')->withErrors([
+                'sso' => $check['error'],
+            ]);
         }
 
         // ── Placeholder: Replace with actual SAML2 redirect ──

@@ -196,27 +196,30 @@ class MonitoringController extends Controller
 
         if ($period === '7d') {
             $start = $now->copy()->subDays(7);
-            $groupFormat = "Y-m-d";
+            $pgFormat = "YYYY-MM-DD";
+            $phpFormat = "Y-m-d";
             $labelFormat = "D";
         } elseif ($period === '30d') {
             $start = $now->copy()->subDays(30);
-            $groupFormat = "Y-m-d";
+            $pgFormat = "YYYY-MM-DD";
+            $phpFormat = "Y-m-d";
             $labelFormat = "M j";
         } else {
             // Default 24h
             $start = $now->copy()->subHours(24);
-            $groupFormat = "Y-m-d H:00";
+            $pgFormat = "YYYY-MM-DD HH24:00";
+            $phpFormat = "Y-m-d H:00";
             $labelFormat = "H:00";
         }
 
         $jobs = PrintJob::where('created_at', '>=', $start)
-            ->selectRaw("DATE_FORMAT(created_at, '{$groupFormat}') as time_group, COUNT(*) as count")
+            ->selectRaw("TO_CHAR(created_at, '{$pgFormat}') as time_group, COUNT(*) as count")
             ->groupBy('time_group')
             ->orderBy('time_group')
             ->get();
 
-        $timeline = $jobs->map(function ($row) use ($start, $now, $groupFormat, $labelFormat) {
-            $dt = \DateTime::createFromFormat($groupFormat, $row->time_group);
+        $timeline = $jobs->map(function ($row) use ($start, $now, $phpFormat, $labelFormat) {
+            $dt = \DateTime::createFromFormat($phpFormat, $row->time_group);
             return [
                 'label' => $dt ? $dt->format($labelFormat) : $row->time_group,
                 'count' => (int) $row->count,

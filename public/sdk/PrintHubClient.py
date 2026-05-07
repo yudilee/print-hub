@@ -192,6 +192,18 @@ class PrintHubClient:
         reference_id: str = "",
         branch_code: Optional[str] = None,
         options: Optional[Dict[str, Any]] = None,
+        parameters: Optional[Dict[str, Any]] = None,
+        pool_id: Optional[int] = None,
+        document_id: Optional[int] = None,
+        webhook_url: Optional[str] = None,
+        agent_id: Optional[int] = None,
+        printer: Optional[str] = None,
+        branch_id: Optional[int] = None,
+        priority: Optional[int] = None,
+        scheduled_at: Optional[str] = None,
+        recurrence: Optional[str] = None,
+        recurrence_end_at: Optional[str] = None,
+        recurrence_count: Optional[int] = None,
     ) -> Dict[str, Any]:
         """Submit a template-based print job.
 
@@ -201,6 +213,18 @@ class PrintHubClient:
             reference_id: Your internal reference ID for the job.
             branch_code: Target branch (defaults to the configured branch).
             options: Print options dict (copies, duplex, color_mode, etc.).
+            parameters: Runtime parameter values keyed by parameter name.
+            pool_id: Printer pool ID for automatic printer selection.
+            document_id: Attach an existing uploaded document.
+            webhook_url: URL to receive job status callbacks.
+            agent_id: Specific agent ID to route the job to.
+            printer: Specific printer name override.
+            branch_id: Branch ID override (alternative to branch_code).
+            priority: Job priority (higher = more urgent).
+            scheduled_at: ISO 8601 datetime for scheduled printing.
+            recurrence: Recurrence pattern: daily, weekly, monthly, none.
+            recurrence_end_at: ISO 8601 datetime to stop recurring.
+            recurrence_count: Max number of recurring executions.
 
         Returns:
             dict with keys: status, job_id, agent, printer, etc.
@@ -215,30 +239,74 @@ class PrintHubClient:
             body["branch_code"] = branch_code or self._default_branch_code
         if options:
             body["options"] = options
+        if parameters:
+            body["parameters"] = parameters
+        if pool_id is not None:
+            body["pool_id"] = pool_id
+        if document_id is not None:
+            body["document_id"] = document_id
+        if webhook_url is not None:
+            body["webhook_url"] = webhook_url
+        if agent_id is not None:
+            body["agent_id"] = agent_id
+        if printer is not None:
+            body["printer"] = printer
+        if branch_id is not None:
+            body["branch_id"] = branch_id
+        if priority is not None:
+            body["priority"] = priority
+        if scheduled_at is not None:
+            body["scheduled_at"] = scheduled_at
+        if recurrence is not None:
+            body["recurrence"] = recurrence
+        if recurrence_end_at is not None:
+            body["recurrence_end_at"] = recurrence_end_at
+        if recurrence_count is not None:
+            body["recurrence_count"] = recurrence_count
         return self._post("/api/v1/print", body)
 
     def print_raw_pdf(
         self,
-        base64_pdf: str,
+        document_base64: str,
         reference_id: str = "",
         branch_code: Optional[str] = None,
         options: Optional[Dict[str, Any]] = None,
-        printer_name: Optional[str] = None,
+        printer: Optional[str] = None,
+        pool_id: Optional[int] = None,
+        document_id: Optional[int] = None,
+        webhook_url: Optional[str] = None,
+        agent_id: Optional[int] = None,
+        branch_id: Optional[int] = None,
+        priority: Optional[int] = None,
+        scheduled_at: Optional[str] = None,
+        recurrence: Optional[str] = None,
+        recurrence_end_at: Optional[str] = None,
+        recurrence_count: Optional[int] = None,
     ) -> Dict[str, Any]:
         """Print a raw base64-encoded PDF without using a template.
 
         Args:
-            base64_pdf: Base64-encoded PDF content.
+            document_base64: Base64-encoded PDF content.
             reference_id: Your internal reference ID.
             branch_code: Target branch.
             options: Print options dict.
-            printer_name: Target printer name (required if no template).
+            printer: Target printer name override.
+            pool_id: Printer pool ID for automatic printer selection.
+            document_id: Attach an existing uploaded document.
+            webhook_url: URL to receive job status callbacks.
+            agent_id: Specific agent ID to route the job to.
+            branch_id: Branch ID override (alternative to branch_code).
+            priority: Job priority (higher = more urgent).
+            scheduled_at: ISO 8601 datetime for scheduled printing.
+            recurrence: Recurrence pattern: daily, weekly, monthly, none.
+            recurrence_end_at: ISO 8601 datetime to stop recurring.
+            recurrence_count: Max number of recurring executions.
 
         Returns:
             dict with job status info.
         """
         body: Dict[str, Any] = {
-            "base64_pdf": base64_pdf,
+            "document_base64": document_base64,
         }
         if reference_id:
             body["reference_id"] = reference_id
@@ -246,8 +314,28 @@ class PrintHubClient:
             body["branch_code"] = branch_code or self._default_branch_code
         if options:
             body["options"] = options
-        if printer_name:
-            body["printer_name"] = printer_name
+        if printer is not None:
+            body["printer"] = printer
+        if pool_id is not None:
+            body["pool_id"] = pool_id
+        if document_id is not None:
+            body["document_id"] = document_id
+        if webhook_url is not None:
+            body["webhook_url"] = webhook_url
+        if agent_id is not None:
+            body["agent_id"] = agent_id
+        if branch_id is not None:
+            body["branch_id"] = branch_id
+        if priority is not None:
+            body["priority"] = priority
+        if scheduled_at is not None:
+            body["scheduled_at"] = scheduled_at
+        if recurrence is not None:
+            body["recurrence"] = recurrence
+        if recurrence_end_at is not None:
+            body["recurrence_end_at"] = recurrence_end_at
+        if recurrence_count is not None:
+            body["recurrence_count"] = recurrence_count
         return self._post("/api/v1/print", body)
 
     def print_batch(
@@ -406,6 +494,208 @@ class PrintHubClient:
         if last_exc:
             raise last_exc
         raise PrintHubError("Max retries exceeded")
+
+    # ------------------------------------------------------------------
+    # Schema Management — Extended
+    # ------------------------------------------------------------------
+
+    def schema_version_diff(self, schema_name: str, from_version: int, to_version: int) -> Dict[str, Any]:
+        """Get the diff between two versions of a schema."""
+        return self._get(
+            f"/api/v1/schemas/{urllib.parse.quote(schema_name, safe='')}/diff",
+            params={"from": from_version, "to": to_version},
+        )
+
+    def validate_template_data(self, template_name: str, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Validate data against a template's schema (server-side).
+
+        Returns:
+            dict with keys: valid (bool), errors (list).
+        """
+        return self._post(
+            f"/api/v1/templates/{urllib.parse.quote(template_name, safe='')}/validate",
+            {"data": data},
+        )
+
+    # ------------------------------------------------------------------
+    # Document Management
+    # ------------------------------------------------------------------
+
+    def upload_document(self, filename: str, file_data: str, mime_type: Optional[str] = None) -> Dict[str, Any]:
+        """Upload a document to Print Hub for later use in print jobs.
+
+        Args:
+            filename: Original filename.
+            file_data: Base64-encoded file content.
+            mime_type: MIME type (e.g. application/pdf).
+
+        Returns:
+            dict with keys: id, filename, mime_type, size, url, created_at.
+        """
+        body: Dict[str, Any] = {
+            "filename": filename,
+            "file_data": file_data,
+        }
+        if mime_type:
+            body["mime_type"] = mime_type
+        return self._post("/api/v1/documents/upload", body)
+
+    def list_documents(self) -> Dict[str, Any]:
+        """List all uploaded documents.
+
+        Returns:
+            dict with keys: data (list), meta (pagination).
+        """
+        return self._get("/api/v1/documents")
+
+    def get_document(self, doc_id: int) -> Dict[str, Any]:
+        """Get details of a specific document."""
+        return self._get(f"/api/v1/documents/{doc_id}")
+
+    def preview_document(self, doc_id: int) -> bytes:
+        """Preview a document (rendered as PDF).
+
+        Returns:
+            Raw PDF binary content.
+        """
+        resp = self._session.get(
+            f"{self._base_url}/api/v1/documents/{doc_id}/preview",
+            timeout=self._timeout,
+        )
+        if resp.status_code != 200:
+            raise PrintHubError(
+                f"Document preview failed (HTTP {resp.status_code}): {resp.text}",
+                status_code=resp.status_code,
+            )
+        return resp.content
+
+    def download_document(self, doc_id: int) -> bytes:
+        """Download a document's raw file content.
+
+        Returns:
+            Raw file binary content.
+        """
+        resp = self._session.get(
+            f"{self._base_url}/api/v1/documents/{doc_id}/download",
+            timeout=self._timeout,
+        )
+        if resp.status_code != 200:
+            raise PrintHubError(
+                f"Document download failed (HTTP {resp.status_code}): {resp.text}",
+                status_code=resp.status_code,
+            )
+        return resp.content
+
+    def delete_document(self, doc_id: int) -> Dict[str, Any]:
+        """Delete a document."""
+        return self._delete(f"/api/v1/documents/{doc_id}")
+
+    # ------------------------------------------------------------------
+    # Connector Registry
+    # ------------------------------------------------------------------
+
+    def register_connector(self, name: str, connector_type: str, config: Dict[str, Any],
+                           icon: Optional[str] = None) -> Dict[str, Any]:
+        """Register a new data-source connector."""
+        body: Dict[str, Any] = {
+            "name": name,
+            "type": connector_type,
+            "config": config,
+        }
+        if icon:
+            body["icon"] = icon
+        return self._post("/api/v1/connectors", body)
+
+    def list_connectors(self) -> Dict[str, Any]:
+        """List all connectors registered for this client app."""
+        return self._get("/api/v1/connectors")
+
+    def update_connector(self, connector_id: str, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Update an existing connector."""
+        return self._request("PUT", f"/api/v1/connectors/{connector_id}", json=data)
+
+    def test_connector(self, connector_id: str) -> Dict[str, Any]:
+        """Test a connector connection."""
+        return self._post(f"/api/v1/connectors/{connector_id}/test", {})
+
+    def delete_connector(self, connector_id: str) -> Dict[str, Any]:
+        """Delete a connector."""
+        return self._delete(f"/api/v1/connectors/{connector_id}")
+
+    # ------------------------------------------------------------------
+    # Approvals
+    # ------------------------------------------------------------------
+
+    def get_pending_approvals(self) -> Dict[str, Any]:
+        """List all print jobs pending approval.
+
+        Returns:
+            dict with keys: data (list), meta (pagination).
+        """
+        return self._get("/api/v1/approvals/pending")
+
+    def approve_job(self, job_id: str) -> Dict[str, Any]:
+        """Approve a pending print job."""
+        return self._post(f"/api/v1/approvals/{urllib.parse.quote(job_id, safe='')}/approve", {})
+
+    def reject_job(self, job_id: str) -> Dict[str, Any]:
+        """Reject a pending print job."""
+        return self._post(f"/api/v1/approvals/{urllib.parse.quote(job_id, safe='')}/reject", {})
+
+    # ------------------------------------------------------------------
+    # Agent Version
+    # ------------------------------------------------------------------
+
+    def get_agent_version(self) -> Dict[str, Any]:
+        """Get the latest available TrayPrint agent version.
+
+        Returns:
+            dict with keys: version, download_url, release_notes, published_at.
+        """
+        return self._get("/api/v1/agents/version")
+
+    # ------------------------------------------------------------------
+    # Fonts
+    # ------------------------------------------------------------------
+
+    def get_fonts(self) -> Dict[str, Any]:
+        """List all available fonts.
+
+        Returns:
+            dict with keys: data (list), meta (pagination).
+        """
+        return self._get("/api/v1/fonts")
+
+    # ------------------------------------------------------------------
+    # Formula Editor
+    # ------------------------------------------------------------------
+
+    def get_formula_functions(self) -> Dict[str, Any]:
+        """List all available formula functions.
+
+        Returns:
+            dict with keys: functions (list).
+        """
+        return self._get("/api/v1/formula/functions")
+
+    def validate_formula(self, expression: str) -> Dict[str, Any]:
+        """Validate a formula expression.
+
+        Returns:
+            dict with keys: valid (bool), errors (list), tokens (list).
+        """
+        return self._post("/api/v1/formula/validate", {"expression": expression})
+
+    def evaluate_formula(self, expression: str, context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """Evaluate a formula expression with given context.
+
+        Returns:
+            dict with keys: result, success (bool), error (optional).
+        """
+        body: Dict[str, Any] = {"expression": expression}
+        if context:
+            body["context"] = context
+        return self._post("/api/v1/formula/evaluate", body)
 
     @staticmethod
     def _handle_error_response(resp: requests.Response) -> None:

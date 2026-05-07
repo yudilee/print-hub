@@ -105,6 +105,8 @@ class PrintJobOrchestrator
         ?string $recurrenceEndAt = null,
         ?int $recurrenceCount = null,
         ?int $poolId = null,
+        ?int $dependsOnJobId = null,
+        ?string $dependencyType = null,
     ): PrintJob {
         $jobId = pathinfo($filePath, PATHINFO_FILENAME);
 
@@ -128,6 +130,8 @@ class PrintJobOrchestrator
             'recurrence_end_at' => $recurrenceEndAt,
             'recurrence_count'  => $recurrenceCount,
             'pool_id'          => $poolId,
+            'depends_on_job_id' => $dependsOnJobId,
+            'dependency_type'   => $dependencyType,
         ];
 
         // Check approval rules before creating the job
@@ -147,6 +151,55 @@ class PrintJobOrchestrator
         $this->dispatchQueueUpdated();
 
         return $job;
+    }
+
+    /**
+     * Check whether a job's dependencies have been satisfied so it can be dispatched.
+     *
+     * @param PrintJob $job The job to check.
+     * @return array{ready: bool, reason: string|null}
+     */
+    public function checkDependencies(PrintJob $job): array
+    {
+        if (!$job->depends_on_job_id) {
+            return ['ready' => true, 'reason' => null];
+        }
+
+        $dependency = PrintJob::find($job->depends_on_job_id);
+
+        if (!$dependency) {
+            return ['ready' => false, 'reason' => 'Dependency job no longer exists.'];
+        }
+
+        switch ($job->dependency_type) {
+            case 'after':
+                // Ready once the dependency has any terminal status
+                if (in_array($dependency->status, ['success', 'failed'])) {
+                    return ['ready' => true, 'reason' => null];
+                }
+                return ['ready' => false, 'reason' => "Dependency job {$dependency->job_id} is still {$dependency->status}."];
+
+            case 'after_success':
+                if ($dependency->status === 'success') {
+                    return ['ready' => true, 'reason' => null];
+                }
+                if ($dependency->status === 'failed') {
+                    return ['ready' => false, 'reason' => "Dependency job {$dependency->job_id} failed."];
+                }
+                return ['ready' => false, 'reason' => "Dependency job {$dependency->job_id} is still {$dependency->status}."];
+
+            case 'after_failure':
+                if ($dependency->status === 'failed') {
+                    return ['ready' => true, 'reason' => null];
+                }
+                if ($dependency->status === 'success') {
+                    return ['ready' => false, 'reason' => "Dependency job {$dependency->job_id} succeeded, not a failure."];
+                }
+                return ['ready' => false, 'reason' => "Dependency job {$dependency->job_id} is still {$dependency->status}."];
+
+            default:
+                return ['ready' => false, 'reason' => "Unknown dependency type: {$job->dependency_type}."];
+        }
     }
 
     /**

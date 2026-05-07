@@ -13,12 +13,13 @@ FROM php:8.2-apache
 RUN apt-get update && apt-get install -y \
     libzip-dev \
     libsqlite3-dev \
+    libpq-dev \
     libonig-dev \
     libxml2-dev \
     zip \
     unzip \
     git \
-    && docker-php-ext-install -j$(nproc) pdo pdo_sqlite mbstring xml zip bcmath \
+    && docker-php-ext-install -j$(nproc) pdo pdo_pgsql pdo_sqlite mbstring xml zip bcmath \
     && a2enmod rewrite
 
 # Install Composer

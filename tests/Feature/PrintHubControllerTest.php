@@ -22,9 +22,11 @@ class PrintHubControllerTest extends TestCase
     {
         $rawKey = Str::random(32);
 
+        // Use sha256 hash because PrintAgent::findByKey() first tries
+        // a sha256 lookup against the agent_key column.
         $agent = PrintAgent::create([
             'name' => 'Test Agent',
-            'agent_key' => PrintAgent::hashKey($rawKey),
+            'agent_key' => hash('sha256', $rawKey),
             'ip_address' => '127.0.0.1',
             'is_active' => true,
         ]);
@@ -45,7 +47,7 @@ class PrintHubControllerTest extends TestCase
 
         $agent = PrintAgent::create([
             'name' => 'Test Agent',
-            'agent_key' => PrintAgent::hashKey($rawKey),
+            'agent_key' => hash('sha256', $rawKey),
             'ip_address' => '127.0.0.1',
             'is_active' => true,
         ]);

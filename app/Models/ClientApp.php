@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Hash;
 
 /**
  * ClientApp represents a registered third-party application authorized to use the Print Hub API.
@@ -10,12 +11,15 @@ use Illuminate\Database\Eloquent\Model;
  * Each client app is issued a unique API key (X-API-Key header) that is hashed before storage.
  * The raw key is shown only once at creation time. Allowed origins restrict CORS for agent-side
  * access control.
+ *
+ * Key hashing uses bcrypt (via Hash::make) for new keys. Legacy sha256
+ * hashes are supported through dual-auth lookup in findByKey().
  */
 class ClientApp extends Model
 {
     protected $fillable = [
         'name', 'api_key', 'is_active', 'last_used_at', 'allowed_origins', 'last_key_rotated_at',
-        'webhook_events', 'webhook_retry_count', 'webhook_timeout', 'webhook_secret',
+        'webhook_events', 'webhook_retry_count', 'webhook_timeout', 'webhook_secret', 'key_hash_bcrypt',
     ];
 
     protected $hidden = ['api_key'];
@@ -40,19 +44,43 @@ class ClientApp extends Model
     }
 
     /**
-     * Hash a raw API key for storage.
+     * Hash a raw API key for storage using bcrypt.
+     *
+     * Used when creating or rotating keys. The resulting hash is stored
+     * in both `api_key` (for backward compat) and `key_hash_bcrypt`.
      */
     public static function hashKey(string $rawKey): string
     {
-        return hash('sha256', $rawKey);
+        return Hash::make($rawKey);
     }
 
     /**
      * Look up a ClientApp by its raw API key.
+     *
+     * Supports dual authentication:
+     * 1. First checks the legacy sha256 hash against `api_key`
+     * 2. If that matches and `key_hash_bcrypt` is null, upgrades the hash
+     * 3. Falls back to checking `key_hash_bcrypt` with Hash::check
      */
     public static function findByKey(string $rawKey): ?self
     {
-        return static::where('api_key', static::hashKey($rawKey))->first();
+        $sha256 = hash('sha256', $rawKey);
+
+        // Try legacy sha256 lookup first
+        $app = static::where('api_key', $sha256)->first();
+        if ($app) {
+            // Upgrade to bcrypt if not already done
+            if (is_null($app->key_hash_bcrypt)) {
+                $app->updateQuietly(['key_hash_bcrypt' => static::hashKey($rawKey)]);
+            }
+            return $app;
+        }
+
+        // Fall back to bcrypt lookup
+        $app = static::whereNotNull('key_hash_bcrypt')->get()
+            ->first(fn ($a) => Hash::check($rawKey, $a->key_hash_bcrypt));
+
+        return $app;
     }
 
     // ── Relationships ────────────────────────────────────────

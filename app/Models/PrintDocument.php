@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Storage;
 
@@ -25,12 +26,19 @@ class PrintDocument extends Model
         'disk',
         'storage_path',
         'metadata',
+        'retain_until',
+        'auto_delete',
+        'version',
+        'previous_version_id',
     ];
 
     protected $casts = [
-        'file_size'  => 'integer',
-        'page_count' => 'integer',
-        'metadata'   => 'array',
+        'file_size'    => 'integer',
+        'page_count'   => 'integer',
+        'metadata'     => 'array',
+        'retain_until' => 'datetime',
+        'auto_delete'  => 'boolean',
+        'version'      => 'integer',
     ];
 
     protected $appends = [
@@ -43,6 +51,22 @@ class PrintDocument extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * The previous version of this document.
+     */
+    public function previousVersion(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'previous_version_id');
+    }
+
+    /**
+     * All subsequent versions of this document.
+     */
+    public function subsequentVersions(): HasMany
+    {
+        return $this->hasMany(self::class, 'previous_version_id');
     }
 
     // ── Accessors ────────────────────────────────────────────

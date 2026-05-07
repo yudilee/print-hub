@@ -9,14 +9,16 @@ use Illuminate\Support\Facades\Route;
 // ─────────────────────────────────────────────
 // Print Agent API  (authenticated by agent_key Bearer token)
 // ─────────────────────────────────────────────
-Route::prefix('print-hub')->middleware('throttle:120,1')->group(function () {
-    Route::get('/profiles',      [PrintHubController::class, 'getProfiles']);
-    Route::get('/queue',         [PrintHubController::class, 'getQueue']);
-    Route::post('/jobs',         [PrintHubController::class, 'reportJob']);
-    Route::post('/status',       [PrintHubController::class, 'updateStatus']);
-    Route::get('/cors-origins',  [PrintHubController::class, 'getCorsOrigins']);
-    Route::post('/heartbeat',    [PrintHubController::class, 'heartbeat']);
-    Route::get('/agent/version', [PrintHubController::class, 'getAgentVersion']);
+Route::prefix('print-hub')->middleware(['throttle:120,1', 'throttle.api-key'])->group(function () {
+    Route::get('/profiles',                    [PrintHubController::class, 'getProfiles']);
+    Route::get('/queue',                       [PrintHubController::class, 'getQueue']);
+    Route::post('/jobs',                       [PrintHubController::class, 'reportJob']);
+    Route::post('/status',                     [PrintHubController::class, 'updateStatus']);
+    Route::get('/cors-origins',                [PrintHubController::class, 'getCorsOrigins']);
+    Route::post('/heartbeat',                  [PrintHubController::class, 'heartbeat']);
+    Route::get('/agent/version',               [PrintHubController::class, 'getAgentVersion']);
+    Route::get('/jobs/{job_id}/download',       [PrintHubController::class, 'downloadJob'])->name('agent.job.download');
+    Route::post('/diagnostics/crash',           [PrintHubController::class, 'reportCrash']);
 });
 
 // ─────────────────────────────────────────────
@@ -53,7 +55,7 @@ Route::prefix('v1')->group(function () {
 // ─────────────────────────────────────────────
 // Client Apps API  (authenticated by X-API-Key header)
 // ─────────────────────────────────────────────
-Route::prefix('v1')->middleware(['throttle:60,1', 'auth.api-key'])->group(function () {
+Route::prefix('v1')->middleware(['throttle:60,1', 'auth.api-key', 'throttle.api-key'])->group(function () {
     // Test Connection
     Route::get('/test', [ClientAppController::class, 'testConnection']);
 

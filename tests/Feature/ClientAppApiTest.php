@@ -25,15 +25,17 @@ class ClientAppApiTest extends TestCase
         $this->rawApiKey = '550e8400-e29b-41d4-a716-446655440000';
         $this->rawAgentKey = 'test-agent-key-32-chars-long!!';
 
+        // Use sha256 hash because ClientApp::findByKey() and PrintAgent::findByKey()
+        // first try a sha256 lookup against the api_key/agent_key column.
         $this->clientApp = ClientApp::create([
             'name'       => 'Test App',
-            'api_key'    => ClientApp::hashKey($this->rawApiKey),
+            'api_key'    => hash('sha256', $this->rawApiKey),
             'is_active'  => true,
         ]);
 
         $this->agent = PrintAgent::create([
             'name'         => 'Test Agent',
-            'agent_key'    => PrintAgent::hashKey($this->rawAgentKey),
+            'agent_key'    => hash('sha256', $this->rawAgentKey),
             'is_active'    => true,
             'ip_address'   => '127.0.0.1',
             'last_seen_at' => now(),

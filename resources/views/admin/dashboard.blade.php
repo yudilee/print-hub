@@ -70,6 +70,10 @@
         <div class="stat-value" style="color: var(--success);" id="stat-online-agents">{{ $stats['online_agents'] }}</div>
         <div class="stat-label">Online Now</div>
     </div>
+    <div class="stat-card" onclick="location.href='{{ route('admin.agents') }}'" style="cursor: pointer;">
+        <div class="stat-value" style="color: var(--danger);" id="stat-offline-agents">{{ $stats['offline_agents'] ?? 0 }}</div>
+        <div class="stat-label">Offline Agents</div>
+    </div>
     <div class="stat-card">
         <div class="stat-value" style="color: var(--primary);" id="stat-total-profiles">{{ $stats['total_profiles'] }}</div>
         <div class="stat-label">Virtual Queues</div>
@@ -154,6 +158,113 @@
         </div>
     @endif
 </div>
+
+{{-- Agent Uptime Section (Item 3.1) --}}
+<div class="card" style="margin-bottom: 1.5rem;">
+    <div class="card-header">
+        <h2>🖥️ Agent Uptime</h2>
+        <a href="{{ route('admin.agents') }}" class="btn btn-primary btn-sm">Manage Agents</a>
+    </div>
+    <div style="overflow-x: auto;">
+        <table>
+            <thead>
+                <tr>
+                    <th>Agent</th>
+                    <th>Status</th>
+                    <th>Uptime</th>
+                    <th>Last Seen</th>
+                    <th>Branch</th>
+                </tr>
+            </thead>
+            <tbody>
+                @forelse($agentsWithUptime ?? $agents as $agent)
+                <tr>
+                    <td><strong>{{ $agent->name }}</strong></td>
+                    <td>
+                        @if($agent->isOnline())
+                            <span class="badge badge-success"><span class="dot dot-green"></span> Online</span>
+                        @else
+                            <span class="badge badge-danger"><span class="dot dot-red"></span> Offline</span>
+                        @endif
+                    </td>
+                    <td style="font-size: 0.85rem;">
+                        @if($agent->isOnline())
+                            <span style="color: var(--success);">🟢 {{ $agent->uptime_duration ?? 'Just now' }}</span>
+                        @else
+                            <span style="color: var(--text-muted);">—</span>
+                        @endif
+                    </td>
+                    <td style="color: var(--text-muted); font-size: 0.8rem;">
+                        {{ $agent->last_seen_at ? $agent->last_seen_at->diffForHumans() : 'Never' }}
+                    </td>
+                    <td style="font-size: 0.8rem; color: var(--text-muted);">
+                        {{ $agent->branch->name ?? '—' }}
+                    </td>
+                </tr>
+                @empty
+                <tr><td colspan="5" style="color: var(--text-muted); text-align: center;">No agents registered</td></tr>
+                @endforelse
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{{-- SLA Breach Indicators (Item 3.2) --}}
+@if($slaBreachJobs->count() > 0)
+<div class="card" style="margin-bottom: 1.5rem; border-color: var(--danger);">
+    <div class="card-header" style="border-bottom-color: rgba(239,68,68,0.2);">
+        <h2>⚠️ SLA Breach — Overdue Jobs</h2>
+        <span class="badge badge-danger">{{ $slaBreachJobs->count() }} overdue</span>
+    </div>
+    <div style="overflow-x: auto;">
+        <table>
+            <thead>
+                <tr>
+                    <th>Job ID</th>
+                    <th>Template</th>
+                    <th>Agent</th>
+                    <th>Status</th>
+                    <th>Created</th>
+                    <th>Time Since</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach($slaBreachJobs as $job)
+                @php
+                    $hoursOverdue = $job->created_at->diffInHours(now());
+                    $severity = $hoursOverdue >= 4 ? 'danger' : ($hoursOverdue >= 2 ? 'warning' : 'info');
+                @endphp
+                <tr style="border-left: 3px solid var(--{{ $severity }});">
+                    <td style="font-family: monospace; font-size: 0.8rem;">#{{ $job->id }}</td>
+                    <td style="font-size: 0.85rem;">
+                        {{ $job->template_name ?? $job->printer_name ?? '—' }}
+                        @if($job->reference_id)
+                            <div style="font-size: 0.7rem; color: var(--text-muted);">ref: {{ $job->reference_id }}</div>
+                        @endif
+                    </td>
+                    <td style="font-size: 0.85rem; color: var(--text-muted);">{{ $job->agent->name ?? '—' }}</td>
+                    <td>
+                        <span class="badge badge-{{ $severity === 'danger' ? 'danger' : ($severity === 'warning' ? 'warning' : 'info') }}">
+                            ⏳ {{ ucfirst($job->status) }}
+                        </span>
+                    </td>
+                    <td style="font-size: 0.8rem; color: var(--text-muted);">{{ $job->created_at->format('M j, H:i') }}</td>
+                    <td>
+                        <span class="badge badge-{{ $severity === 'danger' ? 'danger' : ($severity === 'warning' ? 'warning' : 'info') }}">
+                            {{ $job->created_at->diffForHumans(now(), true) }}
+                        </span>
+                    </td>
+                </tr>
+                @endforeach
+            </tbody>
+        </table>
+    </div>
+    <div style="padding: 0.5rem 1rem 0.75rem; font-size: 0.75rem; color: var(--text-muted); border-top: 1px solid var(--border);">
+        ⓘ Jobs in <strong>pending</strong> or <strong>queued</strong> status for more than 1 hour.
+        <a href="{{ route('admin.jobs', ['status' => 'pending']) }}" style="color: var(--primary);">View all pending jobs →</a>
+    </div>
+</div>
+@endif
 
 {{-- Main Content Grid --}}
 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;" id="dashboard-grid">
@@ -312,7 +423,7 @@
                 const doc    = parser.parseFromString(html, 'text/html');
 
                 // Refresh stat values
-                ['stat-total-agents','stat-online-agents','stat-total-profiles',
+                ['stat-total-agents','stat-online-agents','stat-offline-agents','stat-total-profiles',
                  'stat-today-jobs','stat-pending-jobs','stat-failed-jobs','stat-success-rate'].forEach(id => {
                     const el    = document.getElementById(id);
                     const newEl = doc.getElementById(id);

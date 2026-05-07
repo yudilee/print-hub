@@ -223,37 +223,83 @@ export class PrintHubClient {
   /**
    * Submit a template-based print job.
    * @param {Object} opts
-   * @param {string} opts.template    - Template name
-   * @param {Object} opts.data        - Field values
-   * @param {string} [opts.referenceId] - Your reference ID
-   * @param {string} [opts.branchCode]  - Target branch
-   * @param {Object} [opts.options]     - Print options
-   * @param {Object} [opts.parameters] - Runtime parameter values keyed by name
+   * @param {string} opts.template         - Template name
+   * @param {Object} opts.data             - Field values
+   * @param {string} [opts.referenceId]    - Your reference ID
+   * @param {string} [opts.branchCode]     - Target branch
+   * @param {Object} [opts.options]        - Print options
+   * @param {Object} [opts.parameters]     - Runtime parameter values keyed by name
+   * @param {number} [opts.poolId]         - Printer pool ID
+   * @param {number} [opts.documentId]     - Attach an existing uploaded document
+   * @param {string} [opts.webhookUrl]     - Job status callback URL
+   * @param {number} [opts.agentId]        - Specific agent ID
+   * @param {string} [opts.printer]        - Specific printer name
+   * @param {number} [opts.branchId]       - Branch ID override
+   * @param {number} [opts.priority]       - Job priority
+   * @param {string} [opts.scheduledAt]    - ISO 8601 scheduled datetime
+   * @param {string} [opts.recurrence]     - Recurrence pattern
+   * @param {string} [opts.recurrenceEndAt]- Recurrence end datetime
+   * @param {number} [opts.recurrenceCount]- Max recurring executions
    */
-  async printWithTemplate({ template, data, referenceId = '', branchCode, options, parameters } = {}) {
+  async printWithTemplate({ template, data, referenceId = '', branchCode, options, parameters,
+    poolId, documentId, webhookUrl, agentId, printer, branchId, priority,
+    scheduledAt, recurrence, recurrenceEndAt, recurrenceCount } = {}) {
     const body = { template, data };
     if (referenceId) body.reference_id = referenceId;
     if (branchCode || this._defaultBranchCode) body.branch_code = branchCode || this._defaultBranchCode;
     if (options) body.options = options;
     if (parameters) body.parameters = parameters;
+    if (poolId != null) body.pool_id = poolId;
+    if (documentId != null) body.document_id = documentId;
+    if (webhookUrl != null) body.webhook_url = webhookUrl;
+    if (agentId != null) body.agent_id = agentId;
+    if (printer != null) body.printer = printer;
+    if (branchId != null) body.branch_id = branchId;
+    if (priority != null) body.priority = priority;
+    if (scheduledAt != null) body.scheduled_at = scheduledAt;
+    if (recurrence != null) body.recurrence = recurrence;
+    if (recurrenceEndAt != null) body.recurrence_end_at = recurrenceEndAt;
+    if (recurrenceCount != null) body.recurrence_count = recurrenceCount;
     return this._post('/api/v1/print', body);
   }
 
   /**
    * Print a raw base64-encoded PDF without using a template.
    * @param {Object} opts
-   * @param {string} opts.base64Pdf   - Base64-encoded PDF content
+   * @param {string} opts.documentBase64  - Base64-encoded PDF content
    * @param {string} [opts.referenceId]
    * @param {string} [opts.branchCode]
    * @param {Object} [opts.options]
-   * @param {string} [opts.printerName]
+   * @param {string} [opts.printer]
+   * @param {number} [opts.poolId]
+   * @param {number} [opts.documentId]
+   * @param {string} [opts.webhookUrl]
+   * @param {number} [opts.agentId]
+   * @param {number} [opts.branchId]
+   * @param {number} [opts.priority]
+   * @param {string} [opts.scheduledAt]
+   * @param {string} [opts.recurrence]
+   * @param {string} [opts.recurrenceEndAt]
+   * @param {number} [opts.recurrenceCount]
    */
-  async printRawPdf({ base64Pdf, referenceId = '', branchCode, options, printerName } = {}) {
-    const body = { base64_pdf: base64Pdf };
+  async printRawPdf({ documentBase64, referenceId = '', branchCode, options, printer,
+    poolId, documentId, webhookUrl, agentId, branchId, priority,
+    scheduledAt, recurrence, recurrenceEndAt, recurrenceCount } = {}) {
+    const body = { document_base64: documentBase64 };
     if (referenceId) body.reference_id = referenceId;
     if (branchCode || this._defaultBranchCode) body.branch_code = branchCode || this._defaultBranchCode;
     if (options) body.options = options;
-    if (printerName) body.printer_name = printerName;
+    if (printer != null) body.printer = printer;
+    if (poolId != null) body.pool_id = poolId;
+    if (documentId != null) body.document_id = documentId;
+    if (webhookUrl != null) body.webhook_url = webhookUrl;
+    if (agentId != null) body.agent_id = agentId;
+    if (branchId != null) body.branch_id = branchId;
+    if (priority != null) body.priority = priority;
+    if (scheduledAt != null) body.scheduled_at = scheduledAt;
+    if (recurrence != null) body.recurrence = recurrence;
+    if (recurrenceEndAt != null) body.recurrence_end_at = recurrenceEndAt;
+    if (recurrenceCount != null) body.recurrence_count = recurrenceCount;
     return this._post('/api/v1/print', body);
   }
 
@@ -438,6 +484,134 @@ export class PrintHubClient {
       throw new PrintHubValidationError(message, errors);
     }
     throw new PrintHubError(message);
+  }
+
+  // -----------------------------------------------------------------------
+  // Schema Management — Extended
+  // -----------------------------------------------------------------------
+
+  /** Get the diff between two versions of a schema. */
+  async schemaVersionDiff(schemaName, fromVersion, toVersion) {
+    return this._get(`/api/v1/schemas/${encodeURIComponent(schemaName)}/diff`, { from: fromVersion, to: toVersion });
+  }
+
+  /** Validate data against a template's schema (server-side). */
+  async validateTemplateData(templateName, data) {
+    return this._post(`/api/v1/templates/${encodeURIComponent(templateName)}/validate`, { data });
+  }
+
+  // -----------------------------------------------------------------------
+  // Document Management
+  // -----------------------------------------------------------------------
+
+  /** Upload a document to Print Hub for later use in print jobs. */
+  async uploadDocument(filename, fileData, mimeType = null) {
+    const body = { filename, file_data: fileData };
+    if (mimeType) body.mime_type = mimeType;
+    return this._post('/api/v1/documents/upload', body);
+  }
+
+  /** List all uploaded documents. */
+  async listDocuments() {
+    return this._get('/api/v1/documents');
+  }
+
+  /** Get details of a specific document. */
+  async getDocument(docId) {
+    return this._get(`/api/v1/documents/${docId}`);
+  }
+
+  /** Preview a document (rendered as PDF). */
+  async previewDocument(docId) {
+    const url = `${this._baseUrl}/api/v1/documents/${docId}/preview`;
+    const resp = await fetch(url, {
+      method: 'GET',
+      headers: this._headers(),
+      signal: this._signal(),
+    });
+    if (!resp.ok) {
+      const body = await resp.json().catch(() => ({}));
+      this._handleError(resp.status, body);
+    }
+    const arrayBuffer = await resp.arrayBuffer();
+    return Buffer.from(arrayBuffer);
+  }
+
+  /** Download a document's raw file content. */
+  async downloadDocument(docId) {
+    const url = `${this._baseUrl}/api/v1/documents/${docId}/download`;
+    const resp = await fetch(url, {
+      method: 'GET',
+      headers: this._headers(),
+      signal: this._signal(),
+    });
+    if (!resp.ok) {
+      const body = await resp.json().catch(() => ({}));
+      this._handleError(resp.status, body);
+    }
+    const arrayBuffer = await resp.arrayBuffer();
+    return Buffer.from(arrayBuffer);
+  }
+
+  /** Delete a document. */
+  async deleteDocument(docId) {
+    return this._delete(`/api/v1/documents/${docId}`);
+  }
+
+  // -----------------------------------------------------------------------
+  // Approvals
+  // -----------------------------------------------------------------------
+
+  /** List all print jobs pending approval. */
+  async getPendingApprovals() {
+    return this._get('/api/v1/approvals/pending');
+  }
+
+  /** Approve a pending print job. */
+  async approveJob(jobId) {
+    return this._post(`/api/v1/approvals/${encodeURIComponent(jobId)}/approve`, {});
+  }
+
+  /** Reject a pending print job. */
+  async rejectJob(jobId) {
+    return this._post(`/api/v1/approvals/${encodeURIComponent(jobId)}/reject`, {});
+  }
+
+  // -----------------------------------------------------------------------
+  // Agent Version
+  // -----------------------------------------------------------------------
+
+  /** Get the latest available TrayPrint agent version. */
+  async getAgentVersion() {
+    return this._get('/api/v1/agents/version');
+  }
+
+  // -----------------------------------------------------------------------
+  // Fonts
+  // -----------------------------------------------------------------------
+
+  /** List all available fonts. */
+  async getFonts() {
+    return this._get('/api/v1/fonts');
+  }
+
+  // -----------------------------------------------------------------------
+  // Formula Editor
+  // -----------------------------------------------------------------------
+
+  /** List all available formula functions. */
+  async getFormulaFunctions() {
+    return this._get('/api/v1/formula/functions');
+  }
+
+  /** Validate a formula expression. */
+  async validateFormula(expression) {
+    return this._post('/api/v1/formula/validate', { expression });
+  }
+
+  /** Evaluate a formula expression with given context. */
+  async evaluateFormula(expression, context = {}) {
+    return this._post('/api/v1/formula/evaluate', { expression, context });
   }
 }
 

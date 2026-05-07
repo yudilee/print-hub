@@ -4,9 +4,22 @@
 @section('content')
 <x-breadcrumb :items="[['label' => 'Dashboard', 'url' => route('admin.dashboard')], ['label' => 'Jobs']]" />
 
-<div class="page-header">
-    <h1>Print Job History</h1>
-    <p>All print jobs reported by agents across your organization</p>
+<div class="page-header" style="display: flex; justify-content: space-between; align-items: center;">
+    <div>
+        <h1>Print Job History</h1>
+        <p>All print jobs reported by agents across your organization</p>
+    </div>
+    <div style="display: flex; gap: 8px;">
+        <form action="{{ route('admin.jobs.retry-all-failed') }}" method="POST" onsubmit="return confirm('Retry ALL failed jobs? This will re-queue every failed job for processing.')" style="display: inline;">
+            @csrf
+            <button type="submit" class="btn btn-warning btn-sm" title="Re-queue all failed jobs">
+                🔄 Retry All Failed
+            </button>
+        </form>
+        <a href="{{ route('admin.jobs.export', request()->query()) }}" class="btn btn-primary btn-sm">
+            ⬇ Export CSV
+        </a>
+    </div>
 </div>
 
 {{-- Filters --}}
@@ -21,6 +34,13 @@
             <option value="queued" {{ request('status') === 'queued' ? 'selected' : '' }}>📋 Queued</option>
             <option value="scheduled" {{ request('status') === 'scheduled' ? 'selected' : '' }}>📅 Scheduled</option>
         </select>
+        <select name="priority">
+            <option value="">All Priorities</option>
+            <option value="1" {{ request('priority') == 1 ? 'selected' : '' }}>🔴 Low</option>
+            <option value="2" {{ request('priority') == 2 ? 'selected' : '' }}>🟡 Normal</option>
+            <option value="3" {{ request('priority') == 3 ? 'selected' : '' }}>🟠 High</option>
+            <option value="4" {{ request('priority') == 4 ? 'selected' : '' }}>🔴 Urgent</option>
+        </select>
         <select name="scheduled_filter">
             <option value="">All Jobs</option>
             <option value="scheduled" {{ request('scheduled_filter') === 'scheduled' ? 'selected' : '' }}>📅 Scheduled Only</option>
@@ -32,13 +52,19 @@
                 <option value="{{ $agent->id }}" {{ request('agent_id') == $agent->id ? 'selected' : '' }}>{{ $agent->name }}</option>
             @endforeach
         </select>
+        <select name="branch_id">
+            <option value="">All Branches</option>
+            @foreach($branches as $branch)
+                <option value="{{ $branch->id }}" {{ request('branch_id') == $branch->id ? 'selected' : '' }}>{{ $branch->name }}</option>
+            @endforeach
+        </select>
         <input type="date" name="date_from" x-model="dateFrom" value="{{ request('date_from') }}"
                style="padding: 6px 10px; font-size: 0.8rem; background: var(--bg); border: 1px solid var(--border); color: var(--text); border-radius: 6px;">
         <span style="color: var(--text-muted); font-size: 0.75rem;">to</span>
         <input type="date" name="date_to" x-model="dateTo" value="{{ request('date_to') }}"
                style="padding: 6px 10px; font-size: 0.8rem; background: var(--bg); border: 1px solid var(--border); color: var(--text); border-radius: 6px;">
         <button class="btn btn-primary btn-sm">Filter</button>
-        <a href="{{ route('admin.jobs') }}" class="btn btn-sm" style="color: var(--text-muted);">Reset</a>
+        <a href="{{ route('admin.jobs') }}" class="btn btn-sm" style="color: var(--text-muted);">Clear Filters</a>
     </form>
     <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;" x-data="{ quickFilter: '' }">
         <button @click="quickFilter = ''; $el.closest('.filter-bar').querySelector('[name=status]').value = ''"
@@ -66,11 +92,13 @@
                 <th>Printer</th>
                 <th>Type</th>
                 <th>Status</th>
+                <th>Dependencies</th>
                 <th>Scheduled At</th>
                 <th>Recurrence</th>
                 <th>Options</th>
                 <th>Error</th>
                 <th>Time</th>
+                <th>Actions</th>
             </tr>
         </thead>
         <tbody>
@@ -90,7 +118,7 @@
                         <span class="badge badge-success">✓ Success</span>
                     @elseif($job->status === 'failed')
                         <span class="badge badge-danger">✗ Failed</span>
-                        <form action="{{ route('admin.jobs.retry', $job) }}" method="POST" style="display:inline; margin-left: 5px;">
+                        <form action="{{ route('admin.jobs.retry', $job) }}" method="POST" style="display:inline; margin-left: 5px;" onsubmit="return confirm('Retry this job? A new job will be created and queued for processing.')">
                             @csrf
                             <button type="submit" class="btn btn-sm" style="padding: 2px 5px; font-size: 0.65rem; background: var(--primary); color: white; border: none; border-radius: 3px; cursor: pointer;" title="Retry this job">
                                 Retry
@@ -107,6 +135,28 @@
                                 Mark Success
                             </button>
                         </form>
+                    @endif
+                </td>
+                <td style="font-size: 0.75rem;">
+                    @if($job->depends_on_job_id)
+                        <div style="display:flex; flex-direction:column; gap:2px;">
+                            <span style="color:var(--text-muted);">Depends on:</span>
+                            <a href="{{ route('admin.jobs', ['job_id' => $job->depends_on_job_id]) }}"
+                               style="font-family:monospace; font-size:0.7rem; color:var(--primary); text-decoration:underline;">
+                                {{ $job->dependsOn?->job_id ?? '#' . $job->depends_on_job_id }}
+                            </a>
+                            @if($job->dependency_type)
+                                <span style="font-size:0.65rem; color:var(--text-muted);">
+                                    ({{ str_replace('_', ' ', $job->dependency_type) }})
+                                </span>
+                            @endif
+                        </div>
+                    @elseif($job->dependents_count > 0)
+                        <span style="color:var(--text-muted); font-size:0.7rem;">
+                            {{ $job->dependents_count }} dependent(s)
+                        </span>
+                    @else
+                        <span style="color:var(--text-muted);">—</span>
                     @endif
                 </td>
                 <td style="font-size: 0.8rem; white-space: nowrap;">
@@ -137,9 +187,16 @@
                 <td style="color: var(--text-muted); font-size: 0.8rem; white-space: nowrap;">
                     {{ $job->created_at->format('d M H:i') }}
                 </td>
+                <td>
+                    <button class="btn btn-sm btn-secondary" style="padding: 2px 6px; font-size: 0.65rem;"
+                            onclick="openDependencyModal('{{ $job->job_id }}')"
+                            title="View/Edit Dependencies">
+                        🔗 Deps
+                    </button>
+                </td>
             </tr>
             @empty
-            <tr><td colspan="10">
+            <tr><td colspan="12">
                 <x-empty-state icon="📋" title="No jobs found" description="Jobs will appear here when print tasks are submitted through agents or the API." />
             </td></tr>
             @endforelse
@@ -171,7 +228,347 @@
     @endif
 </div>
 
+{{-- Dependency Detail Modal --}}
+<div id="dependency-modal" class="modal-overlay" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center;">
+    <div style="background:var(--bg); border-radius:12px; max-width:700px; width:90%; max-height:85vh; overflow-y:auto; padding:24px; box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+            <h3 style="margin:0;">Job Dependencies</h3>
+            <button onclick="closeDependencyModal()" style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:var(--text-muted);">&times;</button>
+        </div>
+
+        <div id="dependency-loading" style="text-align:center; padding:20px; color:var(--text-muted);">Loading...</div>
+
+        <div id="dependency-content" style="display:none;">
+            {{-- Current Job Info --}}
+            <div id="dep-current-job" style="margin-bottom:16px; padding:12px; background:var(--bg-secondary); border-radius:8px;">
+                <strong>Job:</strong> <code class="mono" id="dep-job-id"></code>
+                <span id="dep-job-status" class="badge" style="margin-left:8px;"></span>
+                <span id="dep-dependency-type" style="margin-left:8px; font-size:0.8rem; color:var(--text-muted);"></span>
+            </div>
+
+            {{-- Dependency Chain Visualization --}}
+            <div style="margin-bottom:20px;">
+                <h4 style="margin:0 0 8px 0; font-size:0.9rem;">Dependency Chain</h4>
+                <div id="dep-chain-tree" style="font-family:monospace; font-size:0.8rem; background:var(--bg-secondary); padding:12px; border-radius:8px; min-height:40px; white-space:pre-wrap;"></div>
+            </div>
+
+            {{-- Parent Chain --}}
+            <div style="margin-bottom:16px;">
+                <h4 style="margin:0 0 8px 0; font-size:0.9rem;">⬆ Parent Chain (what this job depends on)</h4>
+                <div id="dep-parent-chain" style="font-size:0.8rem;">
+                    <span style="color:var(--text-muted);">No parent dependencies.</span>
+                </div>
+            </div>
+
+            {{-- Child Chain --}}
+            <div style="margin-bottom:20px;">
+                <h4 style="margin:0 0 8px 0; font-size:0.9rem;">⬇ Child Chain (jobs that depend on this)</h4>
+                <div id="dep-child-chain" style="font-size:0.8rem;">
+                    <span style="color:var(--text-muted);">No dependent jobs.</span>
+                </div>
+            </div>
+
+            {{-- Edit Dependency Form --}}
+            <div style="border-top:1px solid var(--border); padding-top:16px;">
+                <h4 style="margin:0 0 12px 0; font-size:0.9rem;">✏ Set / Edit Dependency</h4>
+                <form id="dep-edit-form" method="POST" onsubmit="return submitDependencyEdit(event)">
+                    @csrf
+                    <input type="hidden" id="dep-edit-job-id" name="job_id" value="">
+
+                    <div style="margin-bottom:12px;">
+                        <label style="display:block; margin-bottom:4px; font-size:0.8rem; color:var(--text-muted);">Parent Job (search by ID or template name)</label>
+                        <select id="dep-parent-select" name="depends_on_job_id" style="width:100%; padding:8px; border-radius:6px; border:1px solid var(--border); background:var(--bg); color:var(--text);">
+                            <option value="">— No dependency —</option>
+                        </select>
+                        <div style="font-size:0.7rem; color:var(--text-muted); margin-top:4px;">
+                            Type to search for a job. Jobs that would create a circular dependency are excluded.
+                        </div>
+                    </div>
+
+                    <div style="margin-bottom:12px;" id="dep-type-group">
+                        <label style="display:block; margin-bottom:4px; font-size:0.8rem; color:var(--text-muted);">Dependency Type</label>
+                        <div style="display:flex; gap:12px;">
+                            <label style="font-size:0.8rem; cursor:pointer;">
+                                <input type="radio" name="dependency_type" value="after" checked> After (any completion)
+                            </label>
+                            <label style="font-size:0.8rem; cursor:pointer;">
+                                <input type="radio" name="dependency_type" value="after_success"> After Success
+                            </label>
+                            <label style="font-size:0.8rem; cursor:pointer;">
+                                <input type="radio" name="dependency_type" value="after_failure"> After Failure
+                            </label>
+                        </div>
+                    </div>
+
+                    <div style="display:flex; gap:8px; justify-content:flex-end;">
+                        <button type="button" class="btn btn-sm btn-secondary" onclick="closeDependencyModal()">Cancel</button>
+                        <button type="submit" class="btn btn-sm btn-primary">Save Dependency</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script type="module">
+    // ── Dependency Modal ──────────────────────────────────────
+    window.openDependencyModal = function (jobId) {
+        const modal = document.getElementById('dependency-modal');
+        const loading = document.getElementById('dependency-loading');
+        const content = document.getElementById('dependency-content');
+
+        modal.style.display = 'flex';
+        loading.style.display = 'block';
+        content.style.display = 'none';
+
+        // Reset form
+        document.getElementById('dep-edit-job-id').value = jobId;
+        document.getElementById('dep-parent-select').value = '';
+        document.querySelector('input[name="dependency_type"][value="after"]').checked = true;
+
+        // Fetch dependency data
+        fetch(`/jobs/${jobId}/dependencies`)
+            .then(r => r.json())
+            .then(data => {
+                loading.style.display = 'none';
+                content.style.display = 'block';
+
+                if (!data.success) {
+                    document.getElementById('dep-chain-tree').textContent = 'Failed to load dependencies.';
+                    return;
+                }
+
+                const job = data.job;
+
+                // Current job info
+                document.getElementById('dep-job-id').textContent = job.job_id;
+                const statusBadge = document.getElementById('dep-job-status');
+                statusBadge.textContent = job.status;
+                statusBadge.className = 'badge badge-' + (job.status === 'success' ? 'success' : job.status === 'failed' ? 'danger' : 'warning');
+
+                const depTypeEl = document.getElementById('dep-dependency-type');
+                if (job.depends_on_job_id) {
+                    depTypeEl.textContent = '(' + (job.dependency_type || 'after').replace(/_/g, ' ') + ')';
+                } else {
+                    depTypeEl.textContent = '(no dependency)';
+                }
+
+                // Build chain tree visualization
+                const parentChain = data.parent_chain || [];
+                const childChain = data.child_chain || [];
+                let treeLines = [];
+
+                // Draw the tree
+                if (parentChain.length > 0) {
+                    // Reverse parent chain so root is at top
+                    const reversed = [...parentChain].reverse();
+                    reversed.forEach((p, i) => {
+                        const prefix = i === reversed.length - 1 ? '⬆ ' : '   ';
+                        const arrow = i < reversed.length - 1 ? '│  ' : '   ';
+                        const statusIcon = p.status === 'success' ? '✓' : p.status === 'failed' ? '✗' : p.status === 'circular' ? '⚠' : '○';
+                        treeLines.push(prefix + ' ' + statusIcon + ' ' + p.job_id + ' (' + p.status + ')');
+                        if (i < reversed.length - 1) {
+                            treeLines.push(arrow + '│');
+                        }
+                    });
+                    treeLines.push('   │');
+                    treeLines.push('   ▼');
+                }
+                treeLines.push('◉ ' + job.job_id + ' (' + job.status + ')');
+                if (childChain.length > 0) {
+                    treeLines.push('   ▼');
+                    childChain.forEach((c, i) => {
+                        const prefix = i < childChain.length - 1 ? '├─ ' : '└─ ';
+                        const statusIcon = c.status === 'success' ? '✓' : c.status === 'failed' ? '✗' : c.status === 'circular' ? '⚠' : '○';
+                        treeLines.push('   ' + prefix + statusIcon + ' ' + c.job_id + ' (' + c.status + ')');
+                    });
+                }
+
+                document.getElementById('dep-chain-tree').textContent = treeLines.join('\n');
+
+                // Parent chain list
+                const parentEl = document.getElementById('dep-parent-chain');
+                if (parentChain.length > 0) {
+                    parentEl.innerHTML = parentChain.map(p => {
+                        const statusClass = p.status === 'success' ? 'badge-success' : p.status === 'failed' ? 'badge-danger' : p.status === 'circular' ? 'badge-warning' : 'badge-info';
+                        return `<div style="padding:4px 0; display:flex; align-items:center; gap:8px;">
+                            <span class="badge ${statusClass}" style="font-size:0.65rem;">${p.status}</span>
+                            <a href="{{ route('admin.jobs') }}?job_id=${p.job_id}" style="font-family:monospace; color:var(--primary); text-decoration:underline;">${p.job_id}</a>
+                        </div>`;
+                    }).join('');
+                } else {
+                    parentEl.innerHTML = '<span style="color:var(--text-muted);">No parent dependencies.</span>';
+                }
+
+                // Child chain list
+                const childEl = document.getElementById('dep-child-chain');
+                if (childChain.length > 0) {
+                    childEl.innerHTML = childChain.map(c => {
+                        const statusClass = c.status === 'success' ? 'badge-success' : c.status === 'failed' ? 'badge-danger' : c.status === 'circular' ? 'badge-warning' : 'badge-info';
+                        return `<div style="padding:4px 0; display:flex; align-items:center; gap:8px;">
+                            <span class="badge ${statusClass}" style="font-size:0.65rem;">${c.status}</span>
+                            <a href="{{ route('admin.jobs') }}?job_id=${c.job_id}" style="font-family:monospace; color:var(--primary); text-decoration:underline;">${c.job_id}</a>
+                        </div>`;
+                    }).join('');
+                } else {
+                    childEl.innerHTML = '<span style="color:var(--text-muted);">No dependent jobs.</span>';
+                }
+
+                // Initialize parent job search (Select2-like)
+                initParentSearch(jobId, job.depends_on_job_id);
+            })
+            .catch(err => {
+                loading.textContent = 'Error loading dependencies: ' + err.message;
+            });
+    };
+
+    window.closeDependencyModal = function () {
+        document.getElementById('dependency-modal').style.display = 'none';
+    };
+
+    // Close modal on overlay click
+    document.addEventListener('click', function (e) {
+        const modal = document.getElementById('dependency-modal');
+        if (e.target === modal) {
+            closeDependencyModal();
+        }
+    });
+
+    // ── Parent Job Search ─────────────────────────────────────
+    function initParentSearch(currentJobId, currentDependsOn) {
+        const select = document.getElementById('dep-parent-select');
+
+        // Clear existing options (keep the first empty one)
+        while (select.options.length > 1) {
+            select.remove(1);
+        }
+
+        // Fetch initial results
+        fetch(`/jobs/search-parents?q=&exclude_job_id=${currentJobId}`)
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    data.results.forEach(job => {
+                        const opt = document.createElement('option');
+                        opt.value = job.id;
+                        opt.textContent = job.text;
+                        if (job.id === currentDependsOn) {
+                            opt.selected = true;
+                        }
+                        select.appendChild(opt);
+                    });
+                }
+            });
+
+        // Re-fetch on input (simple search-as-you-type)
+        let searchTimeout;
+        const searchInput = document.createElement('input');
+        searchInput.type = 'text';
+        searchInput.placeholder = 'Search jobs...';
+        searchInput.style.cssText = 'width:100%; padding:8px; border-radius:6px; border:1px solid var(--border); background:var(--bg); color:var(--text); margin-bottom:8px; box-sizing:border-box;';
+
+        select.parentNode.insertBefore(searchInput, select);
+
+        searchInput.addEventListener('input', function () {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                const q = this.value;
+                fetch(`/jobs/search-parents?q=${encodeURIComponent(q)}&exclude_job_id=${currentJobId}`)
+                    .then(r => r.json())
+                    .then(data => {
+                        // Clear existing options (keep the first empty one)
+                        while (select.options.length > 1) {
+                            select.remove(1);
+                        }
+                        if (data.success) {
+                            data.results.forEach(job => {
+                                const opt = document.createElement('option');
+                                opt.value = job.id;
+                                opt.textContent = job.text;
+                                if (job.id === currentDependsOn) {
+                                    opt.selected = true;
+                                }
+                                select.appendChild(opt);
+                            });
+                        }
+                    });
+            }, 300);
+        });
+    }
+
+    // ── Submit Dependency Edit ────────────────────────────────
+    window.submitDependencyEdit = function (event) {
+        event.preventDefault();
+        const form = event.target;
+        const jobId = document.getElementById('dep-edit-job-id').value;
+        const dependsOnJobId = document.getElementById('dep-parent-select').value;
+        const dependencyType = document.querySelector('input[name="dependency_type"]:checked').value;
+
+        // Validate: if setting a dependency, check for circular reference first
+        if (dependsOnJobId) {
+            fetch('{{ route("admin.jobs.validate-dependency") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('input[name="_token"]').value,
+                },
+                body: JSON.stringify({
+                    job_id: jobId,
+                    depends_on_job_id: dependsOnJobId,
+                }),
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (!data.valid) {
+                    alert(data.error || 'Circular dependency detected!');
+                    return;
+                }
+                // Proceed with update
+                submitDependencyUpdate(jobId, dependsOnJobId, dependencyType);
+            })
+            .catch(() => {
+                // If validation endpoint fails, proceed anyway
+                submitDependencyUpdate(jobId, dependsOnJobId, dependencyType);
+            });
+        } else {
+            // Removing dependency
+            submitDependencyUpdate(jobId, '', '');
+        }
+
+        return false;
+    };
+
+    function submitDependencyUpdate(jobId, dependsOnJobId, dependencyType) {
+        const form = document.getElementById('dep-edit-form');
+        const formData = new FormData();
+        formData.append('_token', document.querySelector('input[name="_token"]').value);
+        formData.append('depends_on_job_id', dependsOnJobId);
+        formData.append('dependency_type', dependencyType);
+
+        fetch(`/jobs/${jobId}/update-dependency`, {
+            method: 'POST',
+            body: formData,
+        })
+        .then(r => {
+            if (r.redirected) {
+                window.location.reload();
+            } else {
+                return r.json();
+            }
+        })
+        .then(data => {
+            if (data && !data.success) {
+                alert('Failed to update dependency: ' + (data.error || 'Unknown error'));
+            } else {
+                window.location.reload();
+            }
+        })
+        .catch(err => {
+            alert('Error updating dependency: ' + err.message);
+        });
+    }
+
+    // ── Real-time Status Updates ──────────────────────────────
     if (window.Echo) {
         window.Echo.channel('print-jobs')
             .listen('.job.status.updated', (e) => {
@@ -179,7 +576,7 @@
                 if (row) {
                     const statusTd = document.getElementById('job-status-' + e.job_id);
                     const errorTd = document.getElementById('job-error-' + e.job_id);
-                    
+
                     if (e.status === 'success') {
                         statusTd.innerHTML = '<span class="badge badge-success">✓ Success</span>';
                         row.style.backgroundColor = 'rgba(34, 197, 94, 0.1)';

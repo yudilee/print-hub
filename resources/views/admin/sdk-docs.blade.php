@@ -28,6 +28,11 @@
                 <a href="#ep-schemas" class="toc-link sub" data-section="ep-schemas">Data Schemas</a>
                 <a href="#ep-printing" class="toc-link sub" data-section="ep-printing">Printing</a>
                 <a href="#ep-jobs" class="toc-link sub" data-section="ep-jobs">Job Management</a>
+                <a href="#ep-documents" class="toc-link sub" data-section="ep-documents">Document Management</a>
+                <a href="#ep-approvals" class="toc-link sub" data-section="ep-approvals">Approvals</a>
+                <a href="#ep-connectors" class="toc-link sub" data-section="ep-connectors">Connectors</a>
+                <a href="#ep-agent-system" class="toc-link sub" data-section="ep-agent-system">Agent & System</a>
+                <a href="#ep-formula" class="toc-link sub" data-section="ep-formula">Formula Editor</a>
                 <a href="#print-flow" class="toc-link" data-section="print-flow">5. Print Job Flow</a>
                 <a href="#template-guide" class="toc-link" data-section="template-guide">6. Template Designer Guide</a>
                 <a href="#webhooks" class="toc-link" data-section="webhooks">7. Webhooks</a>
@@ -38,6 +43,7 @@
                 <a href="#openapi" class="toc-link" data-section="openapi">12. OpenAPI / Swagger</a>
                 <a href="#postman" class="toc-link" data-section="postman">13. Postman Collection</a>
                 <a href="#rate-limiting" class="toc-link" data-section="rate-limiting">14. Rate Limiting</a>
+                <a href="#trayprint" class="toc-link" data-section="trayprint">15. TrayPrint Agent</a>
             </nav>
             <div class="toc-download">
                 <a href="{{ asset('sdk/PrintHubClient.php') }}" class="btn btn-primary" style="width:100%;justify-content:center;text-decoration:none;margin-bottom:0.25rem;" download>
@@ -838,6 +844,7 @@ console.log(data);</code></pre>
                                 <tr><td><code>template</code></td><td>string</td><td>See note*</td><td>Template name for template-based printing</td></tr>
                                 <tr><td><code>data</code></td><td>object</td><td>See note*</td><td>Key-value data for template fields</td></tr>
                                 <tr><td><code>document_base64</code></td><td>string</td><td>See note*</td><td>Base64-encoded PDF for raw document printing</td></tr>
+                                <tr><td><code>document_id</code></td><td>integer</td><td>No</td><td>ID of a previously uploaded document to print</td></tr>
                                 <tr><td><code>type</code></td><td>string</td><td>No</td><td>Document type (e.g. <code>pdf</code>, <code>raw</code>)</td></tr>
                                 <tr><td><code>branch_code</code></td><td>string</td><td>No</td><td>Target branch code for routing</td></tr>
                                 <tr><td><code>branch_id</code></td><td>integer</td><td>No</td><td>Target branch ID (alternative to branch_code)</td></tr>
@@ -845,9 +852,16 @@ console.log(data);</code></pre>
                                 <tr><td><code>profile</code></td><td>string</td><td>No</td><td>Alias for <code>queue</code></td></tr>
                                 <tr><td><code>agent_id</code></td><td>integer</td><td>No</td><td>Pin to a specific agent ID</td></tr>
                                 <tr><td><code>printer</code></td><td>string</td><td>No</td><td>Override printer name</td></tr>
+                                <tr><td><code>pool_id</code></td><td>integer</td><td>No</td><td>Printer pool ID for automatic printer selection</td></tr>
                                 <tr><td><code>reference_id</code></td><td>string</td><td>No</td><td>Your app's reference ID for tracking</td></tr>
                                 <tr><td><code>webhook_url</code></td><td>string (URL)</td><td>No</td><td>URL to receive async status update</td></tr>
                                 <tr><td><code>skip_validation</code></td><td>boolean</td><td>No</td><td>Skip schema validation (default: <code>false</code>)</td></tr>
+                                <tr><td><code>parameters</code></td><td>object</td><td>No</td><td>Additional template parameters (key-value pairs)</td></tr>
+                                <tr><td><code>priority</code></td><td>integer</td><td>No</td><td>Job priority (higher = processed first, default: 0)</td></tr>
+                                <tr><td><code>scheduled_at</code></td><td>string</td><td>No</td><td>Schedule for future printing (format: <code>Y-m-d H:i:s</code>)</td></tr>
+                                <tr><td><code>recurrence</code></td><td>string</td><td>No</td><td>Recurrence pattern: <code>none</code>, <code>daily</code>, <code>weekly</code>, <code>monthly</code></td></tr>
+                                <tr><td><code>recurrence_end_at</code></td><td>string</td><td>No</td><td>End date for recurring schedule (<code>Y-m-d H:i:s</code>)</td></tr>
+                                <tr><td><code>recurrence_count</code></td><td>integer</td><td>No</td><td>Max occurrences for recurring schedule</td></tr>
                                 <tr><td><code>options</code></td><td>object</td><td>No</td><td>Printer options (copies, tray_source, etc.)</td></tr>
                             </tbody>
                         </table>
@@ -1163,6 +1177,473 @@ console.log(data);</code></pre>
                             <li><code>404</code> — <code>JOB_NOT_FOUND</code></li>
                             <li><code>409</code> — <code>JOB_NOT_CANCELLABLE</code> (job is processing/success/failed)</li>
                         </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        {{-- ================================================================= --}}
+        {{-- 4.7 Document Management --}}
+        {{-- ================================================================= --}}
+        <section class="card doc-section" id="ep-documents">
+            <div class="card-header"><h3>Document Management</h3></div>
+
+            <p>Print Hub supports uploading and managing documents that can be attached to print jobs. Documents are stored as base64-encoded files and can be previewed, downloaded, or deleted.</p>
+
+            <div class="endpoint-group">
+                <h3 onclick="toggleSection(this)"><span class="expandable-arrow">▸</span> Upload Document</h3>
+                <div class="expandable-content">
+                    <div class="endpoint-block">
+                        <div class="endpoint-header">
+                            <span class="method method-post">POST</span>
+                            <span class="endpoint-url">/api/v1/documents/upload</span>
+                            <span class="endpoint-tag">Document Management</span>
+                        </div>
+                        <p>Upload a document (base64-encoded) for later use in print jobs.</p>
+
+                        <h4>Request Body</h4>
+                        <table>
+                            <thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
+                            <tbody>
+                                <tr><td><code>filename</code></td><td>string</td><td>Yes</td><td>Document filename (e.g. <code>logo.png</code>)</td></tr>
+                                <tr><td><code>file_data</code></td><td>string</td><td>Yes</td><td>Base64-encoded file content</td></tr>
+                                <tr><td><code>mime_type</code></td><td>string</td><td>No</td><td>MIME type (auto-detected if omitted)</td></tr>
+                            </tbody>
+                        </table>
+
+                        <h4>Response</h4>
+                        <div class="code-block-wrapper">
+                            <button class="copy-btn" onclick="copyCode(this)" title="Copy to clipboard">📋</button>
+                            <pre class="code-block"><code>{
+    "success": true,
+    "data": {
+        "id": 1,
+        "filename": "logo.png",
+        "mime_type": "image/png",
+        "file_size": 102400,
+        "created_at": "2026-05-04T12:00:00Z"
+    }
+}</code></pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="endpoint-group">
+                <h3 onclick="toggleSection(this)"><span class="expandable-arrow">▸</span> List Documents</h3>
+                <div class="expandable-content">
+                    <div class="endpoint-block">
+                        <div class="endpoint-header">
+                            <span class="method method-get">GET</span>
+                            <span class="endpoint-url">/api/v1/documents</span>
+                            <span class="endpoint-tag">Document Management</span>
+                        </div>
+                        <p>List all uploaded documents.</p>
+
+                        <h4>Response</h4>
+                        <div class="code-block-wrapper">
+                            <button class="copy-btn" onclick="copyCode(this)" title="Copy to clipboard">📋</button>
+                            <pre class="code-block"><code>{
+    "success": true,
+    "data": [
+        {
+            "id": 1,
+            "filename": "logo.png",
+            "mime_type": "image/png",
+            "file_size": 102400,
+            "created_at": "2026-05-04T12:00:00Z"
+        }
+    ]
+}</code></pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="endpoint-group">
+                <h3 onclick="toggleSection(this)"><span class="expandable-arrow">▸</span> Get Document</h3>
+                <div class="expandable-content">
+                    <div class="endpoint-block">
+                        <div class="endpoint-header">
+                            <span class="method method-get">GET</span>
+                            <span class="endpoint-url">/api/v1/documents/{id}</span>
+                            <span class="endpoint-tag">Document Management</span>
+                        </div>
+                        <p>Get details of a specific document.</p>
+
+                        <h4>Parameters</h4>
+                        <table>
+                            <thead><tr><th>Parameter</th><th>Type</th><th>Location</th><th>Description</th></tr></thead>
+                            <tbody>
+                                <tr><td><code>id</code></td><td>integer</td><td>URL</td><td>Document ID</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="endpoint-group">
+                <h3 onclick="toggleSection(this)"><span class="expandable-arrow">▸</span> Preview Document</h3>
+                <div class="expandable-content">
+                    <div class="endpoint-block">
+                        <div class="endpoint-header">
+                            <span class="method method-get">GET</span>
+                            <span class="endpoint-url">/api/v1/documents/{id}/preview</span>
+                            <span class="endpoint-tag">Document Management</span>
+                        </div>
+                        <p>Preview a document rendered as PDF. Returns raw PDF binary.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="endpoint-group">
+                <h3 onclick="toggleSection(this)"><span class="expandable-arrow">▸</span> Download Document</h3>
+                <div class="expandable-content">
+                    <div class="endpoint-block">
+                        <div class="endpoint-header">
+                            <span class="method method-get">GET</span>
+                            <span class="endpoint-url">/api/v1/documents/{id}/download</span>
+                            <span class="endpoint-tag">Document Management</span>
+                        </div>
+                        <p>Download a document's raw file content.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="endpoint-group">
+                <h3 onclick="toggleSection(this)"><span class="expandable-arrow">▸</span> Delete Document</h3>
+                <div class="expandable-content">
+                    <div class="endpoint-block">
+                        <div class="endpoint-header">
+                            <span class="method method-delete">DELETE</span>
+                            <span class="endpoint-url">/api/v1/documents/{id}</span>
+                            <span class="endpoint-tag">Document Management</span>
+                        </div>
+                        <p>Delete a document.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        {{-- ================================================================= --}}
+        {{-- 4.8 Approvals --}}
+        {{-- ================================================================= --}}
+        <section class="card doc-section" id="ep-approvals">
+            <div class="card-header"><h3>Approvals</h3></div>
+
+            <p>Print jobs can be configured to require approval before being sent to a printer. Use the approvals endpoints to list pending jobs and approve or reject them.</p>
+
+            <div class="endpoint-group">
+                <h3 onclick="toggleSection(this)"><span class="expandable-arrow">▸</span> List Pending Approvals</h3>
+                <div class="expandable-content">
+                    <div class="endpoint-block">
+                        <div class="endpoint-header">
+                            <span class="method method-get">GET</span>
+                            <span class="endpoint-url">/api/v1/approvals/pending</span>
+                            <span class="endpoint-tag">Approvals</span>
+                        </div>
+                        <p>List all print jobs that are pending approval.</p>
+
+                        <h4>Response</h4>
+                        <div class="code-block-wrapper">
+                            <button class="copy-btn" onclick="copyCode(this)" title="Copy to clipboard">📋</button>
+                            <pre class="code-block"><code>{
+    "success": true,
+    "data": [
+        {
+            "id": "550e8400-e29b-41d4-a716-446655440000",
+            "template_name": "invoice_sewa",
+            "reference_id": "INV-001",
+            "status": "pending_approval",
+            "submitted_by": "Client App Name",
+            "created_at": "2026-05-04T12:00:00Z"
+        }
+    ]
+}</code></pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="endpoint-group">
+                <h3 onclick="toggleSection(this)"><span class="expandable-arrow">▸</span> Approve Job</h3>
+                <div class="expandable-content">
+                    <div class="endpoint-block">
+                        <div class="endpoint-header">
+                            <span class="method method-post">POST</span>
+                            <span class="endpoint-url">/api/v1/approvals/{id}/approve</span>
+                            <span class="endpoint-tag">Approvals</span>
+                        </div>
+                        <p>Approve a pending print job, allowing it to proceed to the printer.</p>
+
+                        <h4>Parameters</h4>
+                        <table>
+                            <thead><tr><th>Parameter</th><th>Type</th><th>Location</th><th>Description</th></tr></thead>
+                            <tbody>
+                                <tr><td><code>id</code></td><td>string (UUID)</td><td>URL</td><td>The job UUID to approve</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="endpoint-group">
+                <h3 onclick="toggleSection(this)"><span class="expandable-arrow">▸</span> Reject Job</h3>
+                <div class="expandable-content">
+                    <div class="endpoint-block">
+                        <div class="endpoint-header">
+                            <span class="method method-post">POST</span>
+                            <span class="endpoint-url">/api/v1/approvals/{id}/reject</span>
+                            <span class="endpoint-tag">Approvals</span>
+                        </div>
+                        <p>Reject a pending print job.</p>
+
+                        <h4>Parameters</h4>
+                        <table>
+                            <thead><tr><th>Parameter</th><th>Type</th><th>Location</th><th>Description</th></tr></thead>
+                            <tbody>
+                                <tr><td><code>id</code></td><td>string (UUID)</td><td>URL</td><td>The job UUID to reject</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        {{-- ================================================================= --}}
+        {{-- 4.9 Connectors --}}
+        {{-- ================================================================= --}}
+        <section class="card doc-section" id="ep-connectors">
+            <div class="card-header"><h3>Connectors</h3></div>
+
+            <p>Connectors allow client apps to register external data sources (APIs, webhooks, Odoo, custom) that can provide live data for print previews and template rendering.</p>
+
+            <div class="endpoint-group">
+                <h3 onclick="toggleSection(this)"><span class="expandable-arrow">▸</span> Register Connector</h3>
+                <div class="expandable-content">
+                    <div class="endpoint-block">
+                        <div class="endpoint-header">
+                            <span class="method method-post">POST</span>
+                            <span class="endpoint-url">/api/v1/connectors</span>
+                            <span class="endpoint-tag">Connectors</span>
+                        </div>
+                        <p>Register a new data-source connector.</p>
+
+                        <h4>Request Body</h4>
+                        <table>
+                            <thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
+                            <tbody>
+                                <tr><td><code>name</code></td><td>string</td><td>Yes</td><td>Human-readable name (e.g. "SDP Finance ERP")</td></tr>
+                                <tr><td><code>type</code></td><td>string</td><td>Yes</td><td>One of: <code>api</code>, <code>webhook</code>, <code>odoo</code>, <code>custom</code></td></tr>
+                                <tr><td><code>config</code></td><td>object</td><td>Yes</td><td>Configuration: endpoint URL, auth type, headers, etc.</td></tr>
+                                <tr><td><code>icon</code></td><td>string|null</td><td>No</td><td>Optional emoji or icon URL</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="endpoint-group">
+                <h3 onclick="toggleSection(this)"><span class="expandable-arrow">▸</span> List Connectors</h3>
+                <div class="expandable-content">
+                    <div class="endpoint-block">
+                        <div class="endpoint-header">
+                            <span class="method method-get">GET</span>
+                            <span class="endpoint-url">/api/v1/connectors</span>
+                            <span class="endpoint-tag">Connectors</span>
+                        </div>
+                        <p>List all connectors registered for this client app.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="endpoint-group">
+                <h3 onclick="toggleSection(this)"><span class="expandable-arrow">▸</span> Update Connector</h3>
+                <div class="expandable-content">
+                    <div class="endpoint-block">
+                        <div class="endpoint-header">
+                            <span class="method method-put">PUT</span>
+                            <span class="endpoint-url">/api/v1/connectors/{id}</span>
+                            <span class="endpoint-tag">Connectors</span>
+                        </div>
+                        <p>Update an existing connector's fields (name, type, config, icon, is_active).</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="endpoint-group">
+                <h3 onclick="toggleSection(this)"><span class="expandable-arrow">▸</span> Test Connector</h3>
+                <div class="expandable-content">
+                    <div class="endpoint-block">
+                        <div class="endpoint-header">
+                            <span class="method method-post">POST</span>
+                            <span class="endpoint-url">/api/v1/connectors/{id}/test</span>
+                            <span class="endpoint-tag">Connectors</span>
+                        </div>
+                        <p>Test a connector by sending a HEAD request to its configured URL.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="endpoint-group">
+                <h3 onclick="toggleSection(this)"><span class="expandable-arrow">▸</span> Delete Connector</h3>
+                <div class="expandable-content">
+                    <div class="endpoint-block">
+                        <div class="endpoint-header">
+                            <span class="method method-delete">DELETE</span>
+                            <span class="endpoint-url">/api/v1/connectors/{id}</span>
+                            <span class="endpoint-tag">Connectors</span>
+                        </div>
+                        <p>Delete a connector.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        {{-- ================================================================= --}}
+        {{-- 4.10 Agent & System --}}
+        {{-- ================================================================= --}}
+        <section class="card doc-section" id="ep-agent-system">
+            <div class="card-header"><h3>Agent & System</h3></div>
+
+            <p>Endpoints for querying agent version information and available system fonts.</p>
+
+            <div class="endpoint-group">
+                <h3 onclick="toggleSection(this)"><span class="expandable-arrow">▸</span> Get Agent Version</h3>
+                <div class="expandable-content">
+                    <div class="endpoint-block">
+                        <div class="endpoint-header">
+                            <span class="method method-get">GET</span>
+                            <span class="endpoint-url">/api/v1/agents/version</span>
+                            <span class="endpoint-tag">Agent & System</span>
+                        </div>
+                        <p>Get the latest available TrayPrint agent version.</p>
+
+                        <h4>Response</h4>
+                        <div class="code-block-wrapper">
+                            <button class="copy-btn" onclick="copyCode(this)" title="Copy to clipboard">📋</button>
+                            <pre class="code-block"><code>{
+    "success": true,
+    "data": {
+        "version": "2.1.0",
+        "release_date": "2026-04-15",
+        "download_url": "https://..."
+    }
+}</code></pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="endpoint-group">
+                <h3 onclick="toggleSection(this)"><span class="expandable-arrow">▸</span> List Fonts</h3>
+                <div class="expandable-content">
+                    <div class="endpoint-block">
+                        <div class="endpoint-header">
+                            <span class="method method-get">GET</span>
+                            <span class="endpoint-url">/api/v1/fonts</span>
+                            <span class="endpoint-tag">Agent & System</span>
+                        </div>
+                        <p>List all available fonts that can be used in template designs.</p>
+
+                        <h4>Response</h4>
+                        <div class="code-block-wrapper">
+                            <button class="copy-btn" onclick="copyCode(this)" title="Copy to clipboard">📋</button>
+                            <pre class="code-block"><code>{
+    "success": true,
+    "data": [
+        {
+            "id": 1,
+            "name": "Arial",
+            "family": "Arial, sans-serif",
+            "category": "sans-serif"
+        }
+    ]
+}</code></pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        {{-- ================================================================= --}}
+        {{-- 4.11 Formula Editor --}}
+        {{-- ================================================================= --}}
+        <section class="card doc-section" id="ep-formula">
+            <div class="card-header"><h3>Formula Editor</h3></div>
+
+            <p>Print Hub includes a formula engine for dynamic template content. Use these endpoints to list available functions, validate expressions, and evaluate formulas with context data.</p>
+
+            <div class="endpoint-group">
+                <h3 onclick="toggleSection(this)"><span class="expandable-arrow">▸</span> List Formula Functions</h3>
+                <div class="expandable-content">
+                    <div class="endpoint-block">
+                        <div class="endpoint-header">
+                            <span class="method method-get">GET</span>
+                            <span class="endpoint-url">/api/v1/formula/functions</span>
+                            <span class="endpoint-tag">Formula Editor</span>
+                        </div>
+                        <p>List all available formula functions with their signatures and descriptions.</p>
+
+                        <h4>Response</h4>
+                        <div class="code-block-wrapper">
+                            <button class="copy-btn" onclick="copyCode(this)" title="Copy to clipboard">📋</button>
+                            <pre class="code-block"><code>{
+    "success": true,
+    "data": [
+        {
+            "name": "UPPER",
+            "description": "Convert text to uppercase",
+            "signature": "UPPER(text: string): string"
+        }
+    ]
+}</code></pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="endpoint-group">
+                <h3 onclick="toggleSection(this)"><span class="expandable-arrow">▸</span> Validate Formula</h3>
+                <div class="expandable-content">
+                    <div class="endpoint-block">
+                        <div class="endpoint-header">
+                            <span class="method method-post">POST</span>
+                            <span class="endpoint-url">/api/v1/formula/validate</span>
+                            <span class="endpoint-tag">Formula Editor</span>
+                        </div>
+                        <p>Validate a formula expression for syntax correctness.</p>
+
+                        <h4>Request Body</h4>
+                        <table>
+                            <thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
+                            <tbody>
+                                <tr><td><code>expression</code></td><td>string</td><td>Yes</td><td>The formula expression to validate</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="endpoint-group">
+                <h3 onclick="toggleSection(this)"><span class="expandable-arrow">▸</span> Evaluate Formula</h3>
+                <div class="expandable-content">
+                    <div class="endpoint-block">
+                        <div class="endpoint-header">
+                            <span class="method method-post">POST</span>
+                            <span class="endpoint-url">/api/v1/formula/evaluate</span>
+                            <span class="endpoint-tag">Formula Editor</span>
+                        </div>
+                        <p>Evaluate a formula expression with given context variables.</p>
+
+                        <h4>Request Body</h4>
+                        <table>
+                            <thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
+                            <tbody>
+                                <tr><td><code>expression</code></td><td>string</td><td>Yes</td><td>The formula expression to evaluate</td></tr>
+                                <tr><td><code>context</code></td><td>object</td><td>No</td><td>Context variables available to the formula</td></tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
@@ -1622,8 +2103,8 @@ if (!empty($errors)) {
             </div>
 
             <div class="method-block">
-                <div class="method-sig"><code>printWithTemplate(string $template, array $data, string $referenceId = '', string $queue = '', ?string $branchCode = null, array $options = []): array</code></div>
-                <p>The primary method for template-based printing. Automatically validates data against the template schema before submitting.</p>
+                <div class="method-sig"><code>printWithTemplate(string $template, array $data, string $referenceId = '', string $queue = '', ?string $branchCode = null, array $options = [], array $parameters = [], ?int $poolId = null, ?int $documentId = null, ?string $webhookUrl = null, ?int $agentId = null, ?string $printer = null, ?int $branchId = null, ?int $priority = null, ?string $scheduledAt = null, ?string $recurrence = null, ?string $recurrenceEndAt = null, ?int $recurrenceCount = null): array</code></div>
+                <p>The primary method for template-based printing. Automatically validates data against the template schema before submitting. Supports printer pool selection, scheduling, webhook notifications, and agent pinning.</p>
                 <div class="code-block-wrapper">
                     <button class="copy-btn" onclick="copyCode(this)" title="Copy to clipboard">📋</button>
                     <pre class="code-block"><code>$result = $printHub->printWithTemplate(
@@ -1631,7 +2112,10 @@ if (!empty($errors)) {
     data:        ['no_invoice' => 'INV-001', 'customer' => 'PT ABC', 'total' => 150000],
     referenceId: 'INV-001',
     branchCode:  'SDP-SBY',
-    options:     ['copies' => 2, 'color_mode' => 'monochrome']
+    options:     ['copies' => 2, 'color_mode' => 'monochrome'],
+    poolId:      1,
+    webhookUrl:  'https://myapp.com/webhook/print-status',
+    priority:    5,
 );
 // ['status' => 'queued', 'job_id' => '...', 'agent' => 'PC-SBY-01', ...]</code></pre>
                 </div>
@@ -1687,17 +2171,17 @@ $resultB = $printHub->printWithTemplate(
             </div>
 
             <div class="method-block">
-                <div class="method-sig"><code>printRawPdf(string $base64Pdf, string $referenceId = '', string $queue = '', ?string $branchCode = null, array $options = []): array</code></div>
+                <div class="method-sig"><code>printRawPdf(string $documentBase64, string $referenceId = '', string $queue = '', ?string $branchCode = null, array $options = [], ?int $poolId = null, ?int $documentId = null, ?string $webhookUrl = null, ?int $agentId = null, ?string $printer = null, ?int $branchId = null, ?int $priority = null, ?string $scheduledAt = null, ?string $recurrence = null, ?string $recurrenceEndAt = null, ?int $recurrenceCount = null): array</code></div>
                 <p>Print a raw base64-encoded PDF document without using a template.</p>
                 <div class="code-block-wrapper">
                     <button class="copy-btn" onclick="copyCode(this)" title="Copy to clipboard">📋</button>
                     <pre class="code-block"><code>$pdfBase64 = base64_encode(file_get_contents('report.pdf'));
-$result = $printHub->printRawPdf($pdfBase64, referenceId: 'RPT-001');</code></pre>
+$result = $printHub->printRawPdf($pdfBase64, referenceId: 'RPT-001', poolId: 1);</code></pre>
                 </div>
             </div>
 
             <div class="method-block">
-                <div class="method-sig"><code>printAsync(string $template, array $data, ...): PromiseInterface</code></div>
+                <div class="method-sig"><code>printAsync(string $template, array $data, string $referenceId = '', string $queue = '', ?string $branchCode = null, array $options = [], array $parameters = [], ?int $poolId = null, ?int $documentId = null, ?string $webhookUrl = null, ?int $agentId = null, ?string $printer = null, ?int $branchId = null, ?int $priority = null, ?string $scheduledAt = null, ?string $recurrence = null, ?string $recurrenceEndAt = null, ?int $recurrenceCount = null): PromiseInterface</code></div>
                 <p>Same as <code>printWithTemplate</code> but returns a Guzzle Promise for non-blocking execution.</p>
                 <div class="code-block-wrapper">
                     <button class="copy-btn" onclick="copyCode(this)" title="Copy to clipboard">📋</button>
@@ -1753,6 +2237,101 @@ file_put_contents('preview.pdf', $pdfBytes);</code></pre>
     echo "Timeout: " . $e->getMessage();
 }</code></pre>
                 </div>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>listSchemas(): array</code></div>
+                <p>List all registered data schemas with pagination.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>schemaVersions(string $name): array</code></div>
+                <p>Get version history for a specific schema.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>schemaVersionDiff(string $name, int $fromVersion, int $toVersion): array</code></div>
+                <p>Get the diff between two versions of a schema.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>validateTemplateData(string $templateName, array $data): array</code></div>
+                <p>Validate data against a template's schema server-side.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>health(): array</code></div>
+                <p>Get system health information (online agents, pending jobs).</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>uploadDocument(string $filename, string $base64Data, ?string $mimeType = null): array</code></div>
+                <p>Upload a document for later use in print jobs.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>listDocuments(): array</code></div>
+                <p>List all uploaded documents.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>getDocument(int $id): array</code></div>
+                <p>Get document metadata by ID.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>previewDocument(int $id): string</code></div>
+                <p>Get a preview (thumbnail) of a document. Returns raw PDF binary.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>downloadDocument(int $id): string</code></div>
+                <p>Download the original document file. Returns raw binary content.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>deleteDocument(int $id): array</code></div>
+                <p>Delete an uploaded document.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>getPendingApprovals(): array</code></div>
+                <p>Get all print jobs pending approval.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>approveJob(string $jobId): array</code></div>
+                <p>Approve a pending print job.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>rejectJob(string $jobId): array</code></div>
+                <p>Reject a pending print job.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>getAgentVersion(): array</code></div>
+                <p>Get the latest available TrayPrint agent version.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>getFonts(): array</code></div>
+                <p>List all available fonts for template design.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>getFormulaFunctions(): array</code></div>
+                <p>Get all available formula functions for computed columns.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>validateFormula(string $expression): array</code></div>
+                <p>Validate a formula expression syntax.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>evaluateFormula(string $expression, array $context = []): array</code></div>
+                <p>Evaluate a formula expression with sample context data.</p>
             </div>
 
             <h3>Exception Classes</h3>
@@ -1938,8 +2517,8 @@ client.set_branch("SDP-SBY")</code></pre>
             </div>
 
             <div class="method-block">
-                <div class="method-sig"><code>print_with_template(template, data, reference_id='', branch_code=None, options=None) → dict</code></div>
-                <p>The primary method for template-based printing.</p>
+                <div class="method-sig"><code>print_with_template(template, data, reference_id='', branch_code=None, options=None, parameters=None, pool_id=None, document_id=None, webhook_url=None, agent_id=None, printer=None, branch_id=None, priority=None, scheduled_at=None, recurrence=None, recurrence_end_at=None, recurrence_count=None) → dict</code></div>
+                <p>The primary method for template-based printing. Supports printer pool selection, scheduling, webhook notifications, and agent pinning.</p>
                 <div class="code-block-wrapper">
                     <button class="copy-btn" onclick="copyCode(this)" title="Copy to clipboard">📋</button>
                     <pre class="code-block"><code>result = client.print_with_template(
@@ -1948,13 +2527,15 @@ client.set_branch("SDP-SBY")</code></pre>
     reference_id="INV-001",
     branch_code="SDP-SBY",
     options={"copies": 2, "color_mode": "monochrome"},
+    pool_id=1,
+    webhook_url="https://myapp.com/webhook/print-status",
 )
 print(f"Job queued: {result['job_id']}")</code></pre>
                 </div>
             </div>
 
             <div class="method-block">
-                <div class="method-sig"><code>print_raw_pdf(base64_pdf, reference_id='', branch_code=None, options=None, printer_name=None) → dict</code></div>
+                <div class="method-sig"><code>print_raw_pdf(document_base64, reference_id='', branch_code=None, options=None, printer=None, pool_id=None, document_id=None, webhook_url=None, agent_id=None, branch_id=None, priority=None, scheduled_at=None, recurrence=None, recurrence_end_at=None, recurrence_count=None) → dict</code></div>
                 <p>Print a raw base64-encoded PDF without using a template.</p>
             </div>
 
@@ -1981,6 +2562,111 @@ print(f"Job queued: {result['job_id']}")</code></pre>
             <div class="method-block">
                 <div class="method-sig"><code>wait_for_job(job_id, timeout_seconds=30, poll_interval_ms=500) → dict</code></div>
                 <p>Poll until a job reaches a terminal status.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>schema_version_diff(schema_name, from_version, to_version) → dict</code></div>
+                <p>Get the diff between two versions of a schema.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>validate_template_data(template_name, data) → dict</code></div>
+                <p>Validate data against a template's schema server-side.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>upload_document(filename, file_data, mime_type=None) → dict</code></div>
+                <p>Upload a document for later use in print jobs.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>list_documents() → dict</code></div>
+                <p>List all uploaded documents.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>get_document(doc_id) → dict</code></div>
+                <p>Get document metadata by ID.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>preview_document(doc_id) → bytes</code></div>
+                <p>Get a preview (thumbnail) of a document. Returns raw PDF binary.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>download_document(doc_id) → bytes</code></div>
+                <p>Download the original document file. Returns raw binary content.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>delete_document(doc_id) → dict</code></div>
+                <p>Delete an uploaded document.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>register_connector(name, connector_type, config, icon=None) → dict</code></div>
+                <p>Register a new data-source connector.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>list_connectors() → list</code></div>
+                <p>List all registered connectors.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>update_connector(connector_id, data) → dict</code></div>
+                <p>Update an existing connector's configuration.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>test_connector(connector_id) → dict</code></div>
+                <p>Test a connector's connection.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>delete_connector(connector_id) → dict</code></div>
+                <p>Delete a connector.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>get_pending_approvals() → dict</code></div>
+                <p>Get all print jobs pending approval.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>approve_job(job_id) → dict</code></div>
+                <p>Approve a pending print job.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>reject_job(job_id) → dict</code></div>
+                <p>Reject a pending print job.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>get_agent_version() → dict</code></div>
+                <p>Get the latest available TrayPrint agent version.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>get_fonts() → list</code></div>
+                <p>List all available fonts for template design.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>get_formula_functions() → list</code></div>
+                <p>Get all available formula functions for computed columns.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>validate_formula(expression) → dict</code></div>
+                <p>Validate a formula expression syntax.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>evaluate_formula(expression, context=None) → dict</code></div>
+                <p>Evaluate a formula expression with sample context data.</p>
             </div>
 
             <h3>Exception Classes</h3>
@@ -2143,8 +2829,8 @@ client.setBranch('SDP-SBY');</code></pre>
             </div>
 
             <div class="method-block">
-                <div class="method-sig"><code>printWithTemplate({ template, data, referenceId, branchCode, options }) → Promise<object></code></div>
-                <p>The primary method for template-based printing.</p>
+                <div class="method-sig"><code>printWithTemplate({ template, data, referenceId, branchCode, options, parameters, poolId, documentId, webhookUrl, agentId, printer, branchId, priority, scheduledAt, recurrence, recurrenceEndAt, recurrenceCount }) → Promise<object></code></div>
+                <p>The primary method for template-based printing. Supports scheduling, printer pools, document attachment, approval workflow, and recurrence.</p>
                 <div class="code-block-wrapper">
                     <button class="copy-btn" onclick="copyCode(this)" title="Copy to clipboard">📋</button>
                     <pre class="code-block"><code>const result = await client.printWithTemplate({
@@ -2153,14 +2839,20 @@ client.setBranch('SDP-SBY');</code></pre>
     referenceId: 'INV-001',
     branchCode: 'SDP-SBY',
     options: { copies: 2, color_mode: 'monochrome' },
+    parameters: { company_name: 'PT ABC' },
+    poolId: 1,
+    priority: 5,
+    scheduledAt: '2026-05-10T08:00:00Z',
+    recurrence: 'daily',
+    recurrenceCount: 5,
 });
 console.log(`Job queued: ${result.job_id}`);</code></pre>
                 </div>
             </div>
 
             <div class="method-block">
-                <div class="method-sig"><code>printRawPdf({ base64Pdf, referenceId, branchCode, options, printerName }) → Promise<object></code></div>
-                <p>Print a raw base64-encoded PDF without using a template.</p>
+                <div class="method-sig"><code>printRawPdf({ documentBase64, referenceId, branchCode, options, printer, poolId, documentId, webhookUrl, agentId, branchId, priority, scheduledAt, recurrence, recurrenceEndAt, recurrenceCount }) → Promise<object></code></div>
+                <p>Print a raw base64-encoded PDF without using a template. Supports the same scheduling, pool, and priority options as <code>printWithTemplate</code>.</p>
             </div>
 
             <div class="method-block">
@@ -2169,8 +2861,8 @@ console.log(`Job queued: ${result.job_id}`);</code></pre>
             </div>
 
             <div class="method-block">
-                <div class="method-sig"><code>preview(template, data, options) → Promise<Buffer></code></div>
-                <p>Generate a PDF preview. Returns a Buffer with the PDF content.</p>
+                <div class="method-sig"><code>preview(template, data, options, parameters) → Promise<Buffer></code></div>
+                <p>Generate a PDF preview. Returns a Buffer with the PDF content. Accepts optional runtime parameters.</p>
             </div>
 
             <div class="method-block">
@@ -2186,6 +2878,111 @@ console.log(`Job queued: ${result.job_id}`);</code></pre>
             <div class="method-block">
                 <div class="method-sig"><code>waitForJob(jobId, timeoutSeconds=30, pollIntervalMs=500) → Promise<object></code></div>
                 <p>Poll until a job reaches a terminal status.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>schemaVersionDiff(schemaName, fromVersion, toVersion) → Promise<object></code></div>
+                <p>Get the diff between two versions of a data schema.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>validateTemplateData(templateName, data) → Promise<object></code></div>
+                <p>Validate data against a template's schema on the server side.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>uploadDocument(filename, fileData, mimeType?) → Promise<object></code></div>
+                <p>Upload a document (base64-encoded) to Print Hub for later use in print jobs.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>listDocuments() → Promise<object></code></div>
+                <p>List all uploaded documents.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>getDocument(docId) → Promise<object></code></div>
+                <p>Get details of a specific document.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>previewDocument(docId) → Promise<Buffer></code></div>
+                <p>Preview a document (rendered as PDF). Returns a Buffer.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>downloadDocument(docId) → Promise<Buffer></code></div>
+                <p>Download a document's raw file content. Returns a Buffer.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>deleteDocument(docId) → Promise<object></code></div>
+                <p>Delete a document.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>registerConnector(name, type, config, icon?) → Promise<object></code></div>
+                <p>Register a new data-source connector.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>listConnectors() → Promise<array></code></div>
+                <p>List all connectors registered for this client app.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>updateConnector(id, data) → Promise<object></code></div>
+                <p>Update an existing connector.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>testConnector(id) → Promise<object></code></div>
+                <p>Test a connector by sending a HEAD request to its configured URL.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>deleteConnector(id) → Promise<object></code></div>
+                <p>Delete a connector.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>getPendingApprovals() → Promise<object></code></div>
+                <p>List all print jobs pending approval.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>approveJob(jobId) → Promise<object></code></div>
+                <p>Approve a pending print job.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>rejectJob(jobId) → Promise<object></code></div>
+                <p>Reject a pending print job.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>getAgentVersion() → Promise<object></code></div>
+                <p>Get the latest available TrayPrint agent version.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>getFonts() → Promise<object></code></div>
+                <p>List all available fonts.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>getFormulaFunctions() → Promise<object></code></div>
+                <p>List all available formula functions.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>validateFormula(expression) → Promise<object></code></div>
+                <p>Validate a formula expression.</p>
+            </div>
+
+            <div class="method-block">
+                <div class="method-sig"><code>evaluateFormula(expression, context) → Promise<object></code></div>
+                <p>Evaluate a formula expression with given context variables.</p>
             </div>
 
             <h3>Error Handling</h3>
@@ -2263,11 +3060,15 @@ npx @openapitools/openapi-generator-cli generate \
                 <tbody>
                     <tr><td>Connection & Health</td><td><code>GET /test</code>, <code>GET /health</code></td></tr>
                     <tr><td>Discovery</td><td><code>GET /branches</code>, <code>GET /agents/online</code>, <code>GET /queues</code></td></tr>
-                    <tr><td>Templates</td><td><code>GET /templates</code>, <code>GET /templates/{name}</code>, <code>GET /templates/{name}/schema</code></td></tr>
-                    <tr><td>Data Schemas</td><td><code>POST /schema</code>, <code>GET /schemas</code>, <code>GET /schema/{name}/versions</code></td></tr>
+                    <tr><td>Templates</td><td><code>GET /templates</code>, <code>GET /templates/{name}</code>, <code>GET /templates/{name}/schema</code>, <code>POST /templates/{name}/validate</code></td></tr>
+                    <tr><td>Data Schemas</td><td><code>POST /schema</code>, <code>GET /schemas</code>, <code>GET /schema/{name}/versions</code>, <code>GET /schemas/{name}/diff</code></td></tr>
                     <tr><td>Printing</td><td><code>POST /print</code>, <code>POST /print/batch</code>, <code>POST /preview</code></td></tr>
                     <tr><td>Job Management</td><td><code>GET /jobs/{job_id}</code>, <code>DELETE /jobs/{job_id}</code></td></tr>
                     <tr><td>Document Management</td><td><code>POST /documents/upload</code>, <code>GET /documents</code>, <code>GET /documents/{id}</code>, <code>GET /documents/{id}/preview</code>, <code>GET /documents/{id}/download</code>, <code>DELETE /documents/{id}</code></td></tr>
+                    <tr><td>Approvals</td><td><code>GET /approvals/pending</code>, <code>POST /approvals/{id}/approve</code>, <code>POST /approvals/{id}/reject</code></td></tr>
+                    <tr><td>Connectors</td><td><code>GET /connectors</code>, <code>POST /connectors</code>, <code>PUT /connectors/{id}</code>, <code>POST /connectors/{id}/test</code>, <code>DELETE /connectors/{id}</code></td></tr>
+                    <tr><td>Agent & System</td><td><code>GET /agents/version</code>, <code>GET /fonts</code></td></tr>
+                    <tr><td>Formula Editor</td><td><code>GET /formula/functions</code>, <code>POST /formula/validate</code>, <code>POST /formula/evaluate</code></td></tr>
                 </tbody>
             </table>
 
@@ -2352,6 +3153,213 @@ Retry-After: 42</code></pre>
             </div>
         </section>
 
+        {{-- ================================================================= --}}
+        {{-- 15. TRAYPRINT AGENT --}}
+        {{-- ================================================================= --}}
+        <section class="card doc-section" id="trayprint">
+            <div class="card-header"><h2>15. TrayPrint Agent</h2></div>
+
+            <p><strong>TrayPrint</strong> is a cross-platform print agent service that runs on Windows, Linux, and macOS workstations. It connects to Print Hub via WebSocket (Laravel Reverb) and HTTP polling, receives print jobs, and sends them to local printers. TrayPrint runs as a system tray application with a settings dialog, or can operate silently as a background service.</p>
+
+            <h3>Architecture</h3>
+            <div class="arch-diagram">
+                <div class="arch-node">
+                    <div class="arch-box hub">📡 Print Hub<br><small>Laravel server</small></div>
+                    <div class="arch-arrow">→ WebSocket / HTTP →</div>
+                </div>
+                <div class="arch-node">
+                    <div class="arch-box agent">🖨️ TrayPrint Agent<br><small>Python/PySide6</small></div>
+                    <div class="arch-arrow">→ USB / Network →</div>
+                </div>
+                <div class="arch-node">
+                    <div class="arch-box printer">📄 Printer</div>
+                </div>
+            </div>
+
+            <p>TrayPrint communicates with Print Hub using two channels:</p>
+            <ul>
+                <li><strong>WebSocket</strong> (Laravel Reverb) — Real-time job notifications, status updates, and live queue changes</li>
+                <li><strong>HTTP REST API</strong> — Job status reporting, printer capability discovery, heartbeat/ping, and file downloads</li>
+            </ul>
+
+            <h3>Installation</h3>
+
+            <h4>Windows (Recommended — MSI Installer)</h4>
+            <p>Download the latest MSI installer from the Print Hub admin panel (<strong>Agents → Download Installer</strong>). The MSI installs TrayPrint and optionally registers a Windows Scheduled Task for automatic startup at boot.</p>
+
+            <div class="code-block-wrapper">
+                <button class="copy-btn" onclick="copyCode(this)" title="Copy to clipboard">📋</button>
+                <pre class="code-block"><code># Silent install with auto-start task
+msiexec /i TrayPrint-1.0.0.msi /qn INSTALL_TASK=1
+
+# Install with custom config path
+msiexec /i TrayPrint-1.0.0.msi /qn CONFIG_PATH="C:\PrintHub\config.json"</code></pre>
+            </div>
+
+            <h4>Linux / macOS</h4>
+            <p>Clone the repository and run TrayPrint directly:</p>
+            <div class="code-block-wrapper">
+                <button class="copy-btn" onclick="copyCode(this)" title="Copy to clipboard">📋</button>
+                <pre class="code-block"><code>git clone https://github.com/your-org/trayprint.git
+cd trayprint
+pip install -r requirements.txt
+python app.py --config /path/to/config.json</code></pre>
+            </div>
+
+            <h3>Configuration</h3>
+            <p>TrayPrint reads a <code>config.json</code> file on startup. The default location is alongside the executable, or you can specify a custom path with <code>--config</code>.</p>
+
+            <div class="code-block-wrapper">
+                <button class="copy-btn" onclick="copyCode(this)" title="Copy to clipboard">📋</button>
+                <pre class="code-block"><code>{
+    "hub_url": "https://print-hub.example.com",
+    "agent_key": "ag_xxxxxxxxxxxx",
+    "branch_code": "SDP-SBY",
+    "poll_interval": 5,
+    "reconnect_delay": 10,
+    "log_level": "INFO",
+    "temp_dir": "C:\\PrintHub\\temp",
+    "watchdog_enabled": true,
+    "watchdog_interval": 30,
+    "auto_update": true,
+    "update_check_interval": 3600,
+    "printer_discovery": true,
+    "capabilities_cache_ttl": 300
+}</code></pre>
+            </div>
+
+            <table>
+                <thead><tr><th>Key</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
+                <tbody>
+                    <tr><td><code>hub_url</code></td><td>string</td><td>—</td><td>Print Hub server URL (required)</td></tr>
+                    <tr><td><code>agent_key</code></td><td>string</td><td>—</td><td>Agent authentication key from Print Hub (required)</td></tr>
+                    <tr><td><code>branch_code</code></td><td>string</td><td><code>""</code></td><td>Branch code this agent belongs to</td></tr>
+                    <tr><td><code>poll_interval</code></td><td>int</td><td><code>5</code></td><td>Seconds between job queue polls</td></tr>
+                    <tr><td><code>reconnect_delay</code></td><td>int</td><td><code>10</code></td><td>Seconds to wait before reconnecting on disconnect</td></tr>
+                    <tr><td><code>log_level</code></td><td>string</td><td><code>"INFO"</code></td><td>Logging level: DEBUG, INFO, WARNING, ERROR</td></tr>
+                    <tr><td><code>watchdog_enabled</code></td><td>bool</td><td><code>true</code></td><td>Enable self-healing spooler monitor</td></tr>
+                    <tr><td><code>auto_update</code></td><td>bool</td><td><code>true</code></td><td>Enable automatic version checking and updates</td></tr>
+                    <tr><td><code>printer_discovery</code></td><td>bool</td><td><code>true</code></td><td>Auto-discover local printers on startup</td></tr>
+                </tbody>
+            </table>
+
+            <h3>CLI Commands</h3>
+            <table>
+                <thead><tr><th>Flag</th><th>Description</th></tr></thead>
+                <tbody>
+                    <tr><td><code>--install-task</code></td><td>Register a Windows Scheduled Task for auto-start at user logon</td></tr>
+                    <tr><td><code>--uninstall-task</code></td><td>Remove the Windows Scheduled Task</td></tr>
+                    <tr><td><code>--install-service</code></td><td>Install as a Windows service using nssm (runs without tray UI)</td></tr>
+                    <tr><td><code>--uninstall-service</code></td><td>Remove the Windows service</td></tr>
+                    <tr><td><code>--config <path></code></td><td>Specify a custom config file path</td></tr>
+                    <tr><td><code>--silent</code></td><td>Run without system tray UI (background mode)</td></tr>
+                    <tr><td><code>--version</code></td><td>Display version information and exit</td></tr>
+                </tbody>
+            </table>
+
+            <h3>Local Agent API Endpoints</h3>
+            <p>TrayPrint runs a local Flask HTTP server (default port <code>51999</code>) for local management and monitoring. These endpoints are only accessible from <code>localhost</code>.</p>
+
+            <table>
+                <thead><tr><th>Method</th><th>Endpoint</th><th>Description</th></tr></thead>
+                <tbody>
+                    <tr><td><span class="method method-get">GET</span></td><td><code>/status</code></td><td>Agent status (connected, polling, printers)</td></tr>
+                    <tr><td><span class="method method-get">GET</span></td><td><code>/printers</code></td><td>List locally detected printers</td></tr>
+                    <tr><td><span class="method method-get">GET</span></td><td><code>/profiles</code></td><td>List print profiles synced from hub</td></tr>
+                    <tr><td><span class="method method-post">POST</span></td><td><code>/print</code></td><td>Submit a local print job directly</td></tr>
+                    <tr><td><span class="method method-get">GET</span></td><td><code>/jobs</code></td><td>List recent print jobs</td></tr>
+                    <tr><td><span class="method method-get">GET</span></td><td><code>/jobs/{job_id}</code></td><td>Get job details</td></tr>
+                    <tr><td><span class="method method-post">POST</span></td><td><code>/jobs/{job_id}/retry</code></td><td>Retry a failed print job</td></tr>
+                    <tr><td><span class="method method-post">POST</span></td><td><code>/jobs/{job_id}/cancel</code></td><td>Cancel a queued print job</td></tr>
+                    <tr><td><span class="method method-get">GET</span></td><td><code>/queue-status</code></td><td>Current queue depth and status</td></tr>
+                    <tr><td><span class="method method-get">GET</span></td><td><code>/api/capabilities</code></td><td>Get capabilities for the default printer</td></tr>
+                    <tr><td><span class="method method-get">GET</span></td><td><code>/api/capabilities/all</code></td><td>Get capabilities for all detected printers</td></tr>
+                    <tr><td><span class="method method-get">GET</span></td><td><code>/api/diagnostics</code></td><td>Full system diagnostics report</td></tr>
+                    <tr><td><span class="method method-get">GET</span></td><td><code>/api/watchdog/log</code></td><td>Watchdog activity log</td></tr>
+                </tbody>
+            </table>
+
+            <h3>Hub Communication</h3>
+            <p>TrayPrint maintains a persistent connection to Print Hub using two complementary mechanisms:</p>
+
+            <h4>WebSocket (Laravel Reverb)</h4>
+            <p>When connected via WebSocket, TrayPrint receives real-time notifications for:</p>
+            <ul>
+                <li><strong>New print jobs</strong> — Immediately notified when a job is assigned to this agent</li>
+                <li><strong>Job cancellations</strong> — Cancelled jobs are removed from the local queue</li>
+                <li><strong>Profile updates</strong> — Print profiles are synced when changed in the admin panel</li>
+                <li><strong>Configuration changes</strong> — Remote config updates take effect immediately</li>
+            </ul>
+
+            <h4>HTTP Polling (Fallback)</h4>
+            <p>If WebSocket is unavailable, TrayPrint falls back to HTTP polling at the configured <code>poll_interval</code>. The agent calls <code>GET /api/v1/agents/{key}/jobs/pending</code> to fetch pending jobs.</p>
+
+            <h3>Watchdog</h3>
+            <p>The watchdog is a self-healing spooler monitor that runs on a configurable interval (default 30 seconds). It performs the following checks:</p>
+            <ul>
+                <li><strong>Spooler health</strong> — Verifies the Windows Print Spooler service is running (Windows only)</li>
+                <li><strong>Stale job cleanup</strong> — Detects and cleans up print jobs stuck in "printing" state for more than 5 minutes</li>
+                <li><strong>Connection health</strong> — Verifies the WebSocket and HTTP connections to Print Hub are active</li>
+                <li><strong>Disk space</strong> — Checks available temp directory space (alerts if below 100MB)</li>
+            </ul>
+
+            <h3>Auto-Update</h3>
+            <p>TrayPrint can automatically check for updates by querying <code>GET /api/v1/agents/version</code> on Print Hub. When a new version is available:</p>
+            <ol>
+                <li>The agent downloads the new installer package</li>
+                <li>Validates the package checksum</li>
+                <li>Prompts the user (or auto-installs in silent mode)</li>
+                <li>Restarts the agent service</li>
+            </ol>
+
+            <h3>Diagnostics</h3>
+            <p>TrayPrint includes a built-in diagnostics dialog accessible from the system tray menu. It provides:</p>
+            <ul>
+                <li><strong>Connection status</strong> — WebSocket and HTTP connection state</li>
+                <li><strong>Printer list</strong> — All detected printers with capabilities</li>
+                <li><strong>Recent jobs</strong> — Last 50 print jobs with status and error details</li>
+                <li><strong>Log viewer</strong> — Real-time log tail with filter and export</li>
+                <li><strong>Watchdog status</strong> — Last check results and spooler health</li>
+                <li><strong>System info</strong> — OS version, Python version, uptime, memory usage</li>
+            </ul>
+
+            <h3>Troubleshooting</h3>
+
+            <table>
+                <thead><tr><th>Issue</th><th>Likely Cause</th><th>Solution</th></tr></thead>
+                <tbody>
+                    <tr>
+                        <td>Agent shows "Disconnected"</td>
+                        <td>Network issue or invalid agent key</td>
+                        <td>Verify <code>hub_url</code> and <code>agent_key</code> in config.json. Check firewall rules for WebSocket port (8080/443).</td>
+                    </tr>
+                    <tr>
+                        <td>Jobs stuck in "pending"</td>
+                        <td>Agent not polling or WebSocket disconnected</td>
+                        <td>Check agent status in the system tray. Restart the agent service. Verify <code>poll_interval</code> is set correctly.</td>
+                    </tr>
+                    <tr>
+                        <td>Printer not found</td>
+                        <td>Printer name mismatch or driver issue</td>
+                        <td>Run <code>GET /printers</code> on the local API to see detected printers. Verify the printer name matches exactly.</td>
+                    </tr>
+                    <tr>
+                        <td>PDF fails to print</td>
+                        <td>Missing PDF renderer or permissions</td>
+                        <td>Ensure SumatraPDF (Windows) or <code>lp</code> (Linux) is installed. Check temp directory permissions.</td>
+                    </tr>
+                    <tr>
+                        <td>Watchdog alerts frequently</td>
+                        <td>Spooler service unstable or disk space low</td>
+                        <td>Check Windows Print Spooler service. Free up disk space in the temp directory.</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="tip-box">
+                <strong>💡 Tip:</strong> Use the <code>GET /api/diagnostics</code> endpoint on the local agent API to get a comprehensive system report. This is the first step in troubleshooting most issues.
+            </div>
+        </section>
 
     </div>
 </div>

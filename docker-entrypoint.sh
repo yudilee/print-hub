@@ -7,13 +7,9 @@ if [ -z "$APP_KEY" ]; then
     php artisan key:generate --force --show --no-interaction
 fi
 
-# Ensure database folder exists
-mkdir -p database/data
-touch database/data/database.sqlite
-
 # Ensure web server (www-data) has permissions for volumes
-chown -R www-data:www-data storage database
-chmod -R 775 storage database
+chown -R www-data:www-data storage
+chmod -R 775 storage
 
 # Create storage link if it doesn't exist
 if [ ! -L public/storage ]; then

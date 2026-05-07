@@ -17,6 +17,8 @@
         "symfony/expression-language": "^7.4"
     },
     "require-dev": {
+        "barryvdh/laravel-debugbar": "^3.14",
+        "barryvdh/laravel-ide-helper": "^3.5",
         "fakerphp/faker": "^1.23",
         "laravel/pail": "^1.2.2",
         "laravel/pint": "^1.24",
@@ -53,6 +55,11 @@
         "test": [
             "@php artisan config:clear --ansi",
             "@php artisan test"
+        ],
+        "ide-helper": [
+            "@php artisan ide-helper:generate",
+            "@php artisan ide-helper:models",
+            "@php artisan ide-helper:meta"
         ],
         "post-autoload-dump": [
             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",

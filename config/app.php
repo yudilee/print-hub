@@ -154,6 +154,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Large Job Streaming Threshold
+    |--------------------------------------------------------------------------
+    |
+    | Jobs with file sizes above this threshold (in bytes) will use a signed
+    | temporary download URL instead of base64-embedding the file content in
+    | the queue response. This reduces memory pressure on both the hub and
+    | the agent for large PDFs.
+    |
+    */
+    'large_job_threshold_bytes' => env('LARGE_JOB_THRESHOLD_BYTES', 5 * 1024 * 1024), // 5MB
+
+    /*
+    |--------------------------------------------------------------------------
     | IP Whitelist for API Access
     |--------------------------------------------------------------------------
     |

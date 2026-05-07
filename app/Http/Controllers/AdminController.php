@@ -53,9 +53,36 @@ class AdminController extends Controller
         $completed  = $successJobs + $failedJobs;
         $successRate = $completed > 0 ? round(($successJobs / $completed) * 100) : null;
 
+        // ── Agent Uptime Data (Item 3.1) ──────────────────────────────────
+        $agentsWithUptime = $agents->map(function ($agent) {
+            $agent->uptime_duration = null;
+            if ($agent->isOnline() && $agent->last_seen_at) {
+                // Uptime is the duration since the agent was first seen
+                // We approximate by using the last_seen_at as a proxy for
+                // continuous uptime — agents ping regularly when online
+                $agent->uptime_duration = $agent->last_seen_at->diffForHumans(now(), true);
+            }
+            return $agent;
+        });
+
+        $totalAgents  = $agents->count();
+        $onlineAgents = $agents->filter(fn($a) => $a->isOnline())->count();
+        $offlineAgents = $totalAgents - $onlineAgents;
+
+        // ── SLA Breach Data (Item 3.2) ────────────────────────────────────
+        // Jobs created > 1 hour ago that are still pending or queued
+        $slaBreachJobs = PrintJob::with('agent')
+            ->whereIn('status', ['pending', 'queued'])
+            ->where('created_at', '<', now()->subHour())
+            ->when(! $isSuperAdmin && ! empty($visibleBranches), fn($q) => $q->whereIn('branch_id', $visibleBranches))
+            ->orderBy('created_at', 'asc')
+            ->take(20)
+            ->get();
+
         $stats = [
-            'total_agents'    => $agents->count(),
-            'online_agents'   => $agents->filter(fn($a) => $a->isOnline())->count(),
+            'total_agents'    => $totalAgents,
+            'online_agents'   => $onlineAgents,
+            'offline_agents'  => $offlineAgents,
             'total_profiles'  => $profiles->count(),
             'total_jobs'      => $totalJobs,
             'failed_jobs'     => $failedJobs,
@@ -66,6 +93,9 @@ class AdminController extends Controller
             'jobs_by_status'  => $jobsByStatus,
         ];
 
-        return view('admin.dashboard', compact('agents', 'profiles', 'recentJobs', 'stats'));
+        return view('admin.dashboard', compact(
+            'agents', 'agentsWithUptime', 'profiles', 'recentJobs', 'stats',
+            'totalAgents', 'onlineAgents', 'offlineAgents', 'slaBreachJobs'
+        ));
     }
 }

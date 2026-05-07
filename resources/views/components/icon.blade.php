@@ -38,6 +38,7 @@ $icons = [
     'retry'       => '<polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>',
     'home'        => '<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>',
     'font'        => '<polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/>',
+    'webhook'     => '<path d="M18 16.98h-5.99c-1.1 0-1.95.94-2.48 1.9A4 4 0 0 1 2 17c.01-.7.2-1.4.57-2"/><path d="M6 7.01h5.99c1.1 0 1.95-.94 2.48-1.9A4 4 0 0 1 22 7c-.01.7-.2 1.4-.57 2"/><path d="M12 12.01h0"/>',
     'circle'      => '<circle cx="12" cy="12" r="10"/>',
 ];
 $svg = $icons[$name] ?? ($icons['circle'] ?? '');

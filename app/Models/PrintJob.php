@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Traits\BranchScopeable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * PrintJob represents a single print request in the system.
@@ -24,6 +25,7 @@ class PrintJob extends Model
         'scheduled_at', 'recurrence', 'recurrence_end_at', 'recurrence_count',
         'approval_status', 'approved_by', 'approved_at', 'rejected_reason', 'requires_approval',
         'pool_id',
+        'depends_on_job_id', 'dependency_type',
     ];
 
     protected $casts = [
@@ -59,6 +61,22 @@ class PrintJob extends Model
     public function approver(): BelongsTo
     {
         return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    /**
+     * The job that this job depends on.
+     */
+    public function dependsOn(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'depends_on_job_id');
+    }
+
+    /**
+     * Jobs that depend on this job.
+     */
+    public function dependents(): HasMany
+    {
+        return $this->hasMany(self::class, 'depends_on_job_id');
     }
 
     // ── Scopes ───────────────────────────────────────────────

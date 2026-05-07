@@ -9,6 +9,9 @@ use App\Models\PrintProfile;
 use App\Models\PrintJob;
 use App\Services\PaperSizeService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\URL;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class PrintHubController extends Controller
 {
@@ -146,10 +149,25 @@ class PrintHubController extends Controller
             ->orderBy('created_at', 'asc')
             ->get();
 
-        $queue = $jobs->map(function ($job) {
+        $threshold = config('app.large_job_threshold_bytes', 5 * 1024 * 1024); // 5MB default
+
+        $queue = $jobs->map(function ($job) use ($threshold) {
             $base64 = null;
-            if ($job->file_path && \Illuminate\Support\Facades\Storage::exists($job->file_path)) {
-                $base64 = base64_encode(\Illuminate\Support\Facades\Storage::get($job->file_path));
+            $download_url = null;
+
+            if ($job->file_path && Storage::exists($job->file_path)) {
+                $fileSize = Storage::size($job->file_path);
+
+                // For large files, generate a signed temporary download URL instead of base64
+                if ($fileSize > $threshold) {
+                    $download_url = URL::temporarySignedRoute(
+                        'agent.job.download',
+                        now()->addMinutes(30),
+                        ['job_id' => $job->job_id]
+                    );
+                } else {
+                    $base64 = base64_encode(Storage::get($job->file_path));
+                }
             }
 
             return [
@@ -159,6 +177,7 @@ class PrintHubController extends Controller
                 'priority'         => $job->priority,
                 'options'          => $job->options,
                 'document_base64'  => $base64,
+                'download_url'     => $download_url,
                 'scheduled_at'     => $job->scheduled_at?->toISOString(),
                 'recurrence'       => $job->recurrence,
                 'recurrence_end_at'=> $job->recurrence_end_at?->toISOString(),
@@ -294,6 +313,45 @@ class PrintHubController extends Controller
     }
 
     // -------------------------------------------------------------------------
+    // GET /api/print-hub/jobs/{job_id}/download
+    // Signed temporary download URL for large job files (streaming).
+    // -------------------------------------------------------------------------
+
+    public function downloadJob(Request $request, string $jobId)
+    {
+        $agent = $this->authenticateAgent($request);
+        if (! $agent) return $this->unauthorized();
+
+        if (! $request->hasValidSignature()) {
+            return ApiResponse::error('INVALID_SIGNATURE', 'Download link expired or invalid.', 410);
+        }
+
+        $job = PrintJob::where('job_id', $jobId)
+            ->where('print_agent_id', $agent->id)
+            ->first();
+
+        if (! $job || ! $job->file_path || ! Storage::exists($job->file_path)) {
+            return ApiResponse::error('FILE_NOT_FOUND', 'Job file not found.', 404);
+        }
+
+        $filePath = Storage::path($job->file_path);
+        $fileName = basename($job->file_path);
+
+        return new StreamedResponse(function () use ($filePath) {
+            $handle = fopen($filePath, 'rb');
+            if ($handle) {
+                fpassthru($handle);
+                fclose($handle);
+            }
+        }, 200, [
+            'Content-Type'        => Storage::mimeType($job->file_path) ?? 'application/octet-stream',
+            'Content-Disposition' => 'attachment; filename="' . $fileName . '"',
+            'Content-Length'      => (string) Storage::size($job->file_path),
+            'Cache-Control'       => 'private, max-age=300',
+        ]);
+    }
+
+    // -------------------------------------------------------------------------
     // GET /api/print-hub/cors-origins
     // Agent pulls allowed CORS origins for its local configuration.
     // -------------------------------------------------------------------------
@@ -347,5 +405,57 @@ class PrintHubController extends Controller
             'sha256'         => $sha256,
             'mandatory'      => (bool) $mandatory,
         ]);
+    }
+
+    // -------------------------------------------------------------------------
+    // POST /api/print-hub/diagnostics/crash
+    // Receives crash diagnostics reports from TrayPrint agents.
+    // -------------------------------------------------------------------------
+
+    public function reportCrash(Request $request)
+    {
+        $agent = $this->authenticateAgent($request);
+        if (! $agent) return $this->unauthorized();
+
+        $data = $request->validate([
+            'event'          => 'required|string',
+            'agent_version'  => 'required|string',
+            'platform'       => 'required|string',
+            'exception'      => 'required|string',
+            'message'        => 'nullable|string',
+            'traceback'      => 'nullable|string',
+            'timestamp'      => 'required|string',
+        ]);
+
+        // Log the crash report
+        \Illuminate\Support\Facades\Log::error('Agent crash report received', [
+            'agent_id'    => $agent->id,
+            'agent_name'  => $agent->name,
+            'version'     => $data['agent_version'],
+            'platform'    => $data['platform'],
+            'exception'   => $data['exception'],
+            'message'     => $data['message'] ?? '',
+            'timestamp'   => $data['timestamp'],
+        ]);
+
+        // Store crash report in a log file for admin review
+        try {
+            $logLine = sprintf(
+                "[%s] AGENT #%d (%s) v%s on %s — %s: %s\n%s\n---\n",
+                $data['timestamp'],
+                $agent->id,
+                $agent->name,
+                $data['agent_version'],
+                $data['platform'],
+                $data['exception'],
+                $data['message'] ?? '',
+                $data['traceback'] ?? ''
+            );
+            \Illuminate\Support\Facades\Storage::append('crash-reports.log', $logLine);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::warning('Failed to persist crash report: ' . $e->getMessage());
+        }
+
+        return ApiResponse::success(['status' => 'crash_received']);
     }
 }

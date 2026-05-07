@@ -106,31 +106,38 @@
                         <span style="font-style: italic;">—</span>
                     @endif
                 </td>
-                <td style="font-size: 0.75rem; max-width: 240px;">
+                <td style="font-size: 0.75rem; max-width: 240px; cursor: pointer;" onclick="openCapsModal({{ $agent->id }})" title="Click to view full capabilities">
                     @if($agent->capabilities && count($agent->capabilities) > 0)
-                        <div style="display: flex; flex-direction: column; gap: 2px;">
-                            @if(isset($agent->capabilities['version']))
-                                <code style="font-size: 0.65rem;">v{{ $agent->capabilities['version'] }}</code>
+                        @php
+                            $printers = $agent->capabilities['printers'] ?? [];
+                            $printerCount = is_array($printers) ? count($printers) : 0;
+                            $allPaperSizes = [];
+                            $allDuplexModes = [];
+                            foreach ((array)$printers as $pc) {
+                                if (!empty($pc['paper_sizes'])) {
+                                    $allPaperSizes = array_merge($allPaperSizes, (array)$pc['paper_sizes']);
+                                }
+                                if (!empty($pc['duplex'])) {
+                                    $allDuplexModes[] = is_string($pc['duplex']) ? $pc['duplex'] : 'yes';
+                                }
+                            }
+                            $allPaperSizes = array_unique($allPaperSizes);
+                            $allDuplexModes = array_unique($allDuplexModes);
+                            $truncatedSizes = array_slice($allPaperSizes, 0, 4);
+                        @endphp
+                        <div style="display: flex; flex-direction: column; gap: 3px;">
+                            <div><strong style="color: var(--text);">🖨️ {{ $printerCount }} printer(s)</strong></div>
+                            @if(!empty($truncatedSizes))
+                                <div style="color: var(--text-muted); font-size: 0.7rem;">
+                                    📄 {{ implode(', ', $truncatedSizes) }}{{ count($allPaperSizes) > 4 ? '…' : '' }}
+                                </div>
                             @endif
-                            @if(isset($agent->capabilities['printers']) && is_array($agent->capabilities['printers']))
-                                @foreach($agent->capabilities['printers'] as $printerName => $printerCaps)
-                                    <div style="font-size: 0.65rem; color: var(--text-muted); line-height: 1.4; border-bottom: 1px solid var(--border); padding: 2px 0;">
-                                        <strong style="color: var(--text);">{{ $printerName }}</strong>
-                                        @if(!empty($printerCaps['paper_sizes']))
-                                            <br>📄 {{ implode(', ', $printerCaps['paper_sizes']) }}
-                                        @endif
-                                        @if(!empty($printerCaps['color_modes']))
-                                            · 🎨 {{ implode('/', $printerCaps['color_modes']) }}
-                                        @endif
-                                        @if(!empty($printerCaps['duplex']))
-                                            · 🔁 Duplex
-                                        @endif
-                                        @if(!empty($printerCaps['trays']))
-                                            <br>📦 Trays: {{ implode(', ', $printerCaps['trays']) }}
-                                        @endif
-                                    </div>
-                                @endforeach
+                            @if(!empty($allDuplexModes))
+                                <div style="color: var(--text-muted); font-size: 0.7rem;">
+                                    🔁 Duplex: {{ implode(', ', $allDuplexModes) }}
+                                </div>
                             @endif
+                            <div style="color: var(--primary); font-size: 0.65rem; margin-top: 2px;">👁️ View details</div>
                         </div>
                     @else
                         <span style="font-style: italic; color: var(--text-muted); font-size: 0.75rem;">Not reported</span>
@@ -146,8 +153,10 @@
                     @php $keyAge = $agent->last_key_rotated_at ? $agent->last_key_rotated_at->diffInDays(now()) : null; @endphp
                     @if(is_null($keyAge))
                         <span style="color: var(--text-muted); font-style: italic;">N/A</span>
-                    @elseif($keyAge > 90)
-                        <span style="background: rgba(245,158,11,0.15); color: var(--warning); padding: 2px 8px; border-radius: 10px; font-size: 0.75rem; font-weight: 500;">{{ $keyAge }} days</span>
+                    @elseif($keyAge > ($keyRotationDays ?? 90))
+                        <span style="background: rgba(245,158,11,0.15); color: var(--warning); padding: 2px 8px; border-radius: 10px; font-size: 0.75rem; font-weight: 500;" title="Key hasn't been rotated in {{ $keyAge }} days (policy: {{ $keyRotationDays ?? 90 }} days)">
+                            ⚠️ {{ $keyAge }} days
+                        </span>
                     @else
                         {{ $keyAge }} days
                     @endif
@@ -266,6 +275,46 @@ function regenerateKey() {
 
 document.getElementById('edit-modal').addEventListener('click', function(e) {
     if (e.target === this) closeEditModal();
+});
+
+// ── Capabilities Modal ──────────────────────────────────────
+let agentsData = @json($agents->map(fn($a) => [
+    'id' => $a->id,
+    'name' => $a->name,
+    'capabilities' => $a->capabilities,
+]));
+
+function openCapsModal(agentId) {
+    const agent = agentsData.find(a => a.id === agentId);
+    if (!agent) return;
+
+    document.getElementById('caps-modal-title').textContent = agent.name + ' — Capabilities';
+    const pre = document.getElementById('caps-modal-content');
+    pre.textContent = JSON.stringify(agent.capabilities, null, 2);
+    document.getElementById('caps-modal').style.display = 'flex';
+}
+
+function closeCapsModal() {
+    document.getElementById('caps-modal').style.display = 'none';
+}
+</script>
+
+{{-- Capabilities Modal --}}
+<div id="caps-modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 1000; align-items: center; justify-content: center;">
+    <div class="card" style="width: 700px; padding: 2rem; max-height: 90vh; overflow-y: auto;">
+        <div class="card-header">
+            <h2 id="caps-modal-title">Capabilities</h2>
+        </div>
+        <pre id="caps-modal-content" style="background: var(--bg); padding: 1rem; border-radius: 6px; font-size: 0.75rem; overflow-x: auto; max-height: 60vh; overflow-y: auto; border: 1px solid var(--border); white-space: pre-wrap; word-break: break-word;"></pre>
+        <div style="display: flex; justify-content: flex-end; margin-top: 1rem;">
+            <button type="button" class="btn btn-secondary" onclick="closeCapsModal()">Close</button>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('caps-modal')?.addEventListener('click', function(e) {
+    if (e.target === this) closeCapsModal();
 });
 </script>
 @endsection

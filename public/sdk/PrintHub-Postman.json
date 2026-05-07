@@ -10,7 +10,11 @@
     { "key": "job_id", "value": "" },
     { "key": "template_name", "value": "invoice_sewa" },
     { "key": "branch_code", "value": "SDP-MAIN" },
-    { "key": "document_id", "value": "" }
+    { "key": "document_id", "value": "" },
+    { "key": "pool_id", "value": "" },
+    { "key": "schema_name", "value": "invoice_sewa" },
+    { "key": "connector_id", "value": "" },
+    { "key": "approval_id", "value": "" }
   ],
   "auth": {
     "type": "apikey",
@@ -100,6 +104,20 @@
             "method": "GET",
             "url": "{{base_url}}/templates/{{template_name}}/schema"
           }
+        },
+        {
+          "name": "Validate Template Data",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"data\": {\n        \"no_invoice\": \"INV-001\",\n        \"customer\": \"PT Example\",\n        \"total\": 150000\n    }\n}"
+            },
+            "url": "{{base_url}}/templates/{{template_name}}/validate"
+          }
         }
       ]
     },
@@ -131,7 +149,23 @@
           "name": "Schema Version History",
           "request": {
             "method": "GET",
-            "url": "{{base_url}}/schema/{{template_name}}/versions"
+            "url": "{{base_url}}/schema/{{schema_name}}/versions"
+          }
+        },
+        {
+          "name": "Schema Version Diff",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/schema/{{schema_name}}/diff?from_version=1&to_version=2",
+              "query": [
+                { "key": "from_version", "value": "1" },
+                { "key": "to_version", "value": "2" }
+              ]
+            }
           }
         }
       ]
@@ -148,7 +182,49 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"template\": \"{{template_name}}\",\n    \"data\": {\n        \"no_invoice\": \"INV-001\",\n        \"customer\": \"PT Example\",\n        \"total\": 150000\n    },\n    \"branch_code\": \"{{branch_code}}\",\n    \"reference_id\": \"INV-001\",\n    \"options\": {\n        \"copies\": 1\n    }\n}"
+              "raw": "{\n    \"template\": \"{{template_name}}\",\n    \"data\": {\n        \"no_invoice\": \"INV-001\",\n        \"customer\": \"PT Example\",\n        \"total\": 150000\n    },\n    \"branch_code\": \"{{branch_code}}\",\n    \"reference_id\": \"INV-001\",\n    \"options\": {\n        \"copies\": 1\n    },\n    \"pool_id\": {{pool_id}},\n    \"priority\": 0,\n    \"type\": \"normal\"\n}"
+            },
+            "url": "{{base_url}}/print"
+          }
+        },
+        {
+          "name": "Submit Print Job (Scheduled)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"template\": \"{{template_name}}\",\n    \"data\": {\n        \"no_invoice\": \"INV-001\",\n        \"customer\": \"PT Example\",\n        \"total\": 150000\n    },\n    \"branch_code\": \"{{branch_code}}\",\n    \"reference_id\": \"INV-001\",\n    \"options\": {\n        \"copies\": 1\n    },\n    \"scheduled_at\": \"2026-05-08 08:00:00\",\n    \"recurrence\": \"daily\",\n    \"recurrence_count\": 5\n}"
+            },
+            "url": "{{base_url}}/print"
+          }
+        },
+        {
+          "name": "Submit Print Job (Raw PDF)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"document_base64\": \"JVBERi0xLjcNC... (base64-encoded PDF)\",\n    \"reference_id\": \"DOC-001\",\n    \"branch_code\": \"{{branch_code}}\",\n    \"options\": {\n        \"copies\": 2\n    },\n    \"pool_id\": {{pool_id}}\n}"
+            },
+            "url": "{{base_url}}/print/base64"
+          }
+        },
+        {
+          "name": "Submit Print Job (Document ID)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"document_id\": {{document_id}},\n    \"reference_id\": \"DOC-001\",\n    \"branch_code\": \"{{branch_code}}\",\n    \"options\": {\n        \"copies\": 1\n    }\n}"
             },
             "url": "{{base_url}}/print"
           }
@@ -198,6 +274,46 @@
           "request": {
             "method": "DELETE",
             "url": "{{base_url}}/jobs/{{job_id}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Approvals",
+      "item": [
+        {
+          "name": "Get Pending Approvals",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/approvals/pending"
+          }
+        },
+        {
+          "name": "Approve Job",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"notes\": \"Approved by manager\"\n}"
+            },
+            "url": "{{base_url}}/approvals/{{approval_id}}/approve"
+          }
+        },
+        {
+          "name": "Reject Job",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"reason\": \"Incorrect data format\"\n}"
+            },
+            "url": "{{base_url}}/approvals/{{approval_id}}/reject"
           }
         }
       ]
@@ -255,6 +371,133 @@
           "request": {
             "method": "DELETE",
             "url": "{{base_url}}/documents/{{document_id}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Connectors",
+      "item": [
+        {
+          "name": "Register Connector",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"My Database\",\n    \"type\": \"mysql\",\n    \"config\": {\n        \"host\": \"localhost\",\n        \"port\": 3306,\n        \"database\": \"my_db\",\n        \"username\": \"user\",\n        \"password\": \"pass\"\n    }\n}"
+            },
+            "url": "{{base_url}}/connectors"
+          }
+        },
+        {
+          "name": "List Connectors",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/connectors"
+          }
+        },
+        {
+          "name": "Update Connector",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"My Database (Updated)\",\n    \"config\": {\n        \"host\": \"db.example.com\"\n    }\n}"
+            },
+            "url": "{{base_url}}/connectors/{{connector_id}}"
+          }
+        },
+        {
+          "name": "Test Connector",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/connectors/{{connector_id}}/test"
+          }
+        },
+        {
+          "name": "Fetch Preview",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"query\": \"SELECT * FROM invoices LIMIT 5\"\n}"
+            },
+            "url": "{{base_url}}/connectors/{{connector_id}}/fetch-preview"
+          }
+        },
+        {
+          "name": "Delete Connector",
+          "request": {
+            "method": "DELETE",
+            "url": "{{base_url}}/connectors/{{connector_id}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Agent & System",
+      "item": [
+        {
+          "name": "Get Agent Version",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/agents/version"
+          }
+        },
+        {
+          "name": "Get Fonts",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/fonts"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Formula Editor",
+      "item": [
+        {
+          "name": "Get Formula Functions",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/formula/functions"
+          }
+        },
+        {
+          "name": "Validate Formula",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"expression\": \"SUM(items.price * items.qty)\"\n}"
+            },
+            "url": "{{base_url}}/formula/validate"
+          }
+        },
+        {
+          "name": "Evaluate Formula",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"expression\": \"SUM(items.price * items.qty)\",\n    \"context\": {\n        \"items\": [\n            { \"price\": 10000, \"qty\": 3 },\n            { \"price\": 25000, \"qty\": 2 }\n        ]\n    }\n}"
+            },
+            "url": "{{base_url}}/formula/evaluate"
           }
         }
       ]

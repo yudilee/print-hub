@@ -211,6 +211,39 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+  /templates/{name}/validate:
+    post:
+      summary: Validate data against a template schema
+      description: Validates the provided data against the template's registered schema without submitting a print job.
+      operationId: validateTemplateData
+      tags: [Templates]
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Template name
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ValidateDataRequest"
+      responses:
+        "200":
+          description: Validation result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidateDataResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
   # =====================================================================
   # Data Schemas
   # =====================================================================
@@ -274,6 +307,43 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SchemaVersionsResponse"
+
+  /schemas/{name}/diff:
+    get:
+      summary: Get schema version diff
+      description: Returns the differences between two versions of a schema.
+      operationId: schemaVersionDiff
+      tags: [Data Schemas]
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Schema name
+        - name: from_version
+          in: query
+          required: true
+          schema:
+            type: integer
+          description: Base version number
+        - name: to_version
+          in: query
+          required: true
+          schema:
+            type: integer
+          description: Target version number
+      responses:
+        "200":
+          description: Schema diff
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SchemaDiffResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
   # =====================================================================
   # Printing
@@ -703,6 +773,207 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+  /connectors/{id}/fetch-preview:
+    post:
+      summary: Fetch a preview from a connector
+      description: Sends a request to the connector to fetch preview data.
+      operationId: fetchConnectorPreview
+      tags: [Connector Registry]
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Connector UUID
+      responses:
+        "200":
+          description: Preview data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    description: Preview data from the connector
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # =====================================================================
+  # Approvals
+  # =====================================================================
+  /approvals/pending:
+    get:
+      summary: List pending approval jobs
+      description: Returns all print jobs awaiting approval.
+      operationId: listPendingApprovals
+      tags: [Approvals]
+      security:
+        - ApiKeyAuth: []
+      responses:
+        "200":
+          description: Pending approvals list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApprovalListResponse"
+
+  /approvals/{id}/approve:
+    post:
+      summary: Approve a print job
+      description: Approve a pending print job for printing.
+      operationId: approveJob
+      tags: [Approvals]
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Print job ID
+      responses:
+        "200":
+          description: Job approved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApprovalActionResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /approvals/{id}/reject:
+    post:
+      summary: Reject a print job
+      description: Reject a pending print job.
+      operationId: rejectJob
+      tags: [Approvals]
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Print job ID
+      responses:
+        "200":
+          description: Job rejected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApprovalActionResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # =====================================================================
+  # Agent & System Info
+  # =====================================================================
+  /v1/agents/version:
+    get:
+      summary: Get latest agent version
+      description: Returns the latest available TrayPrint agent version.
+      operationId: getAgentVersion
+      tags: [Agent & System Info]
+      responses:
+        "200":
+          description: Agent version info
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentVersionResponse"
+
+  /v1/fonts:
+    get:
+      summary: List available fonts
+      description: Returns all fonts available for template design.
+      operationId: listFonts
+      tags: [Agent & System Info]
+      responses:
+        "200":
+          description: Font list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FontListResponse"
+
+  /v1/formula/functions:
+    get:
+      summary: List formula functions
+      description: Returns all available formula functions for the template designer.
+      operationId: listFormulaFunctions
+      tags: [Agent & System Info]
+      responses:
+        "200":
+          description: Formula functions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FormulaFunctionsResponse"
+
+  /v1/formula/validate:
+    post:
+      summary: Validate a formula expression
+      description: Validates a formula expression syntax.
+      operationId: validateFormula
+      tags: [Agent & System Info]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                expression:
+                  type: string
+                  description: Formula expression to validate
+              required:
+                - expression
+      responses:
+        "200":
+          description: Validation result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FormulaValidateResponse"
+
+  /v1/formula/evaluate:
+    post:
+      summary: Evaluate a formula expression
+      description: Evaluates a formula expression with provided data.
+      operationId: evaluateFormula
+      tags: [Agent & System Info]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                expression:
+                  type: string
+                  description: Formula expression to evaluate
+                data:
+                  type: object
+                  description: Data context for evaluation
+              required:
+                - expression
+      responses:
+        "200":
+          description: Evaluation result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FormulaEvaluateResponse"
+
 components:
   securitySchemes:
     ApiKeyAuth:
@@ -1061,9 +1332,13 @@ components:
         data:
           type: object
           description: Field values matching the template schema
-        base64_pdf:
+        document_base64:
           type: string
           description: Base64-encoded PDF content (for raw PDF printing)
+        type:
+          type: string
+          description: Document type (e.g. pdf, raw)
+          example: "pdf"
         reference_id:
           type: string
           description: Your internal reference ID
@@ -1072,9 +1347,77 @@ components:
           type: string
           description: Target branch code
           example: "SDP-SBY"
+        branch_id:
+          type: integer
+          description: Target branch ID (alternative to branch_code)
+          nullable: true
+        printer:
+          type: string
+          description: Override printer name
+          example: "HP LaserJet M404"
         printer_name:
           type: string
-          description: Target printer name (required when no template)
+          description: Alias for printer
+          example: "HP LaserJet M404"
+        pool_id:
+          type: integer
+          description: Printer pool ID for automatic printer selection via dispatcher
+          nullable: true
+          example: 1
+        queue:
+          type: string
+          description: Explicit queue/profile name
+          example: "sby-invoice"
+        profile:
+          type: string
+          description: Alias for queue
+          example: "sby-invoice"
+        agent_id:
+          type: integer
+          description: Pin to a specific agent ID
+          nullable: true
+        document_id:
+          type: integer
+          description: Reference an uploaded document by ID
+          nullable: true
+        webhook_url:
+          type: string
+          format: uri
+          description: URL to receive async status update via webhook
+          example: "https://myapp.com/webhook/print-status"
+        skip_validation:
+          type: boolean
+          description: Skip schema validation (default: false)
+          default: false
+        parameters:
+          type: object
+          description: Template parameters (dynamic values for template rendering)
+        priority:
+          type: integer
+          description: Job priority (higher = processed first, 0-255)
+          minimum: 0
+          maximum: 255
+          default: 0
+        scheduled_at:
+          type: string
+          format: date-time
+          description: Schedule the job for future printing
+          nullable: true
+        recurrence:
+          type: string
+          description: Recurrence pattern for scheduled jobs
+          enum: [daily, weekly, monthly, none]
+          nullable: true
+        recurrence_end_at:
+          type: string
+          format: date-time
+          description: Stop recurring after this date
+          nullable: true
+        recurrence_count:
+          type: integer
+          description: Maximum number of recurrences (0 = unlimited)
+          minimum: 0
+          nullable: true
         options:
           type: object
           description: Print options (copies, duplex, color_mode, etc.)
@@ -1109,6 +1452,23 @@ components:
               enum: [1, 2, 4, 6, 8, 9, 16]
             remove_images:
               type: boolean
+            priority:
+              type: integer
+              description: Print priority (deprecated, use top-level priority field)
+            print_quality:
+              type: string
+              enum: [draft, normal, high]
+            scaling_percentage:
+              type: integer
+              minimum: 1
+              maximum: 400
+              default: 100
+            media_type:
+              type: string
+              enum: [plain, glossy, envelope, label, continuous_feed]
+            reverse_order:
+              type: boolean
+              default: false
 
     PrintJobResponse:
       type: object
@@ -1403,3 +1763,203 @@ components:
               type: string
               format: date-time
               nullable: true
+
+    ValidateDataRequest:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          type: object
+          description: The data to validate against the template schema
+          example:
+            customer_name: "John Doe"
+            items:
+              - sku: "ABC-123"
+                qty: 2
+
+    ValidateDataResponse:
+      type: object
+      properties:
+        valid:
+          type: boolean
+          description: Whether the data is valid
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+                description: The field path that failed validation
+              message:
+                type: string
+                description: Validation error message
+          description: List of validation errors (empty if valid)
+
+    SchemaDiffResponse:
+      type: object
+      properties:
+        schema_name:
+          type: string
+        from_version:
+          type: integer
+        to_version:
+          type: integer
+        changes:
+          type: array
+          items:
+            type: object
+            properties:
+              type:
+                type: string
+                enum: [added, removed, modified]
+              path:
+                type: string
+                description: JSON path to the changed field
+              before:
+                type: object
+                nullable: true
+              after:
+                type: object
+                nullable: true
+
+    ApprovalListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/PrintJob'
+        meta:
+          type: object
+          properties:
+            current_page:
+              type: integer
+            last_page:
+              type: integer
+            per_page:
+              type: integer
+            total:
+              type: integer
+
+    ApprovalActionResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        job:
+          $ref: '#/components/schemas/PrintJob'
+
+    AgentVersionResponse:
+      type: object
+      properties:
+        version:
+          type: string
+          example: "1.2.3"
+        download_url:
+          type: string
+          format: uri
+          nullable: true
+        release_notes:
+          type: string
+          nullable: true
+        published_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    FontListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/PrintFont'
+        meta:
+          type: object
+          properties:
+            current_page:
+              type: integer
+            last_page:
+              type: integer
+            per_page:
+              type: integer
+            total:
+              type: integer
+
+    PrintFont:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        family:
+          type: string
+        variant:
+          type: string
+          nullable: true
+        file_path:
+          type: string
+        is_system:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+
+    FormulaFunctionsResponse:
+      type: object
+      properties:
+        functions:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+                description: Function name
+              description:
+                type: string
+                description: Description of what the function does
+              signature:
+                type: string
+                description: Function signature with parameter types
+              category:
+                type: string
+                description: Function category (e.g., math, string, date)
+              example:
+                type: string
+                description: Example usage
+
+    FormulaValidateResponse:
+      type: object
+      properties:
+        valid:
+          type: boolean
+          description: Whether the formula expression is valid
+        errors:
+          type: array
+          items:
+            type: string
+          description: List of parse/validation errors (empty if valid)
+        tokens:
+          type: array
+          items:
+            type: string
+          description: Tokenized expression (only when valid)
+
+    FormulaEvaluateResponse:
+      type: object
+      properties:
+        result:
+          type: object
+          description: The evaluated result
+        success:
+          type: boolean
+        error:
+          type: string
+          nullable: true
+          description: Error message if evaluation failed

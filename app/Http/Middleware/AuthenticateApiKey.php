@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Models\ClientApp;
+use App\Services\GroupPolicyEnforcer;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -14,9 +15,19 @@ use Symfony\Component\HttpFoundation\Response;
  * so controllers can access it without repeating the lookup:
  *
  *   $app = $request->attributes->get('client_app');
+ *
+ * Also enforces the `min_key_length` group policy by rejecting keys that
+ * are shorter than the configured minimum length.
  */
 class AuthenticateApiKey
 {
+    private GroupPolicyEnforcer $policyEnforcer;
+
+    public function __construct(?GroupPolicyEnforcer $policyEnforcer = null)
+    {
+        $this->policyEnforcer = $policyEnforcer ?? app(GroupPolicyEnforcer::class);
+    }
+
     public function handle(Request $request, Closure $next): Response
     {
         $key = $request->header('X-API-Key');
@@ -27,6 +38,18 @@ class AuthenticateApiKey
                 'error'   => [
                     'code'    => 'MISSING_API_KEY',
                     'message' => 'Provide a valid X-API-Key header.',
+                ],
+            ], 401);
+        }
+
+        // Enforce minimum key length from group policy
+        $keyLengthCheck = $this->policyEnforcer->enforceMinKeyLength($key);
+        if (! $keyLengthCheck['valid']) {
+            return response()->json([
+                'success' => false,
+                'error'   => [
+                    'code'    => 'KEY_TOO_SHORT',
+                    'message' => $keyLengthCheck['error'],
                 ],
             ], 401);
         }

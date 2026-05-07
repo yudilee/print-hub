@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\ClientApp;
+use App\Models\Setting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
@@ -12,7 +13,8 @@ class ClientAppController extends Controller
     public function index()
     {
         $clients = ClientApp::latest()->get();
-        return view('admin.clients', compact('clients'));
+        $keyRotationDays = Setting::getValue('key_rotation_days', 90);
+        return view('admin.clients', compact('clients', 'keyRotationDays'));
     }
 
     public function store(Request $request)
