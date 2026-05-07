@@ -51,34 +51,36 @@ class ClientApp extends Model
      */
     public static function hashKey(string $rawKey): string
     {
-        return Hash::make($rawKey);
+        return hash('sha256', $rawKey);
     }
 
     /**
      * Look up a ClientApp by its raw API key.
      *
-     * Supports dual authentication:
-     * 1. First checks the legacy sha256 hash against `api_key`
-     * 2. If that matches and `key_hash_bcrypt` is null, upgrades the hash
-     * 3. Falls back to checking `key_hash_bcrypt` with Hash::check
+     * Prioritizes fast indexed SHA-256 lookup, falling back to bcrypt if necessary.
      */
     public static function findByKey(string $rawKey): ?self
     {
         $sha256 = hash('sha256', $rawKey);
 
-        // Try legacy sha256 lookup first
-        $app = static::where('api_key', $sha256)->first();
+        // Fast indexed SHA-256 lookup first
+        $app = static::where('api_key', $sha256)
+            ->orWhere('key_hash_bcrypt', $sha256)
+            ->first();
+
         if ($app) {
-            // Upgrade to bcrypt if not already done
-            if (is_null($app->key_hash_bcrypt)) {
-                $app->updateQuietly(['key_hash_bcrypt' => static::hashKey($rawKey)]);
-            }
             return $app;
         }
 
-        // Fall back to bcrypt lookup
+        // Fallback to bcrypt lookup for legacy bcrypt-hashed keys
         $app = static::whereNotNull('key_hash_bcrypt')->get()
-            ->first(fn ($a) => Hash::check($rawKey, $a->key_hash_bcrypt));
+            ->first(function ($a) use ($rawKey, $sha256) {
+                try {
+                    return Hash::check($rawKey, $a->key_hash_bcrypt) || $a->key_hash_bcrypt === $sha256;
+                } catch (\Exception $e) {
+                    return $a->key_hash_bcrypt === $sha256;
+                }
+            });
 
         return $app;
     }
