@@ -27,24 +27,24 @@ class AgentSelectionService
     {
         $agent = null;
 
-        // 1. Explicit agent_id from request
+        // 1. Explicit agent_id from request (highest priority)
         if ($agentId) {
             $agent = PrintAgent::where('id', $agentId)->where('is_active', true)->first();
         }
 
-        // 2. Profile's pinned agent
+        // 2. Profile's pinned agent — only if no explicit agent_id was given
         if (!$agent && $profile && $profile->print_agent_id) {
             $pinnedAgent = $profile->agent;
-            if ($pinnedAgent) {
-                if (!$pinnedAgent->isOnline()) {
-                    $name = $profileName ?? $profile->name;
-                    throw new \RuntimeException("The Hub assigned to queue '{$name}' is offline.");
-                }
+            if ($pinnedAgent && $pinnedAgent->isOnline()) {
                 $agent = $pinnedAgent;
             }
+            // If pinned agent exists but is offline, fall through to branch/global fallback
+            // instead of throwing immediately. This allows multi-dispatcher setups where
+            // a profile is pinned to one agent but another agent in the same branch can
+            // handle the job via explicit agent_id override.
         }
 
-        // 3. Any online agent in branch
+        // 3. Any online agent in the same branch
         if (!$agent && $branchId) {
             $agent = PrintAgent::where('is_active', true)
                 ->where('branch_id', $branchId)
@@ -52,7 +52,7 @@ class AgentSelectionService
                 ->first(fn(PrintAgent $a) => $a->isOnline());
         }
 
-        // 4. Any online agent globally
+        // 4. Any online agent globally (last resort)
         if (!$agent) {
             $agent = PrintAgent::where('is_active', true)
                 ->get()

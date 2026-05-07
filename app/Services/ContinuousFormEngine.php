@@ -123,6 +123,27 @@ class ContinuousFormEngine
             $this->applyEcoMode($ecoMode, $grayscaleForce, $pagesPerSheet, $removeImages, $options);
         }
 
+        // ── Per-Copy Watermark: Duplicate pages if per-copy configs are set ──
+        $watermarkCopies = $options['watermark_copies'] ?? null;
+        if (!empty($watermarkCopies) && is_array($watermarkCopies)) {
+            // We have N configs for N copies - duplicate the original pages
+            $originalPageCount = $this->pdf->n;
+            $copyCount = count($watermarkCopies);
+
+            // Only duplicate if we have more copies than 1
+            if ($copyCount > 1 && $originalPageCount > 0) {
+                for ($c = 1; $c < $copyCount; $c++) {
+                    for ($p = 1; $p <= $originalPageCount; $p++) {
+                        $this->pdf->n++;
+                        $this->pdf->pages[$this->pdf->n] = $this->pdf->pages[$p];
+                    }
+                }
+                // Override copies to 1 since all copies are now embedded in the PDF
+                $options['copies'] = 1;
+            }
+        }
+        // ────────────────────────────────────────────────────────────────────
+
         // Apply watermark if configured
         $this->applyWatermark($options);
 
@@ -1327,6 +1348,56 @@ class ContinuousFormEngine
     {
         $wm = $options['watermark'] ?? $options;
 
+        // ── Per-Copy Watermark Mode ─────────────────────────────────────
+        // Each entry in watermark_copies is an object: {text, opacity, rotation, position}
+        $watermarkCopies = $wm['watermark_copies'] ?? null;
+        if (!empty($watermarkCopies) && is_array($watermarkCopies)) {
+            $totalPages = $this->pdf->n;
+            $copyCount = count($watermarkCopies);
+
+            if ($copyCount > 0 && $totalPages > 0) {
+                $pagesPerCopy = intdiv($totalPages, $copyCount);
+                if ($pagesPerCopy < 1) $pagesPerCopy = 1;
+
+                $pageW = $this->pdf->w;
+                $pageH = $this->pdf->h;
+
+                for ($c = 0; $c < $copyCount; $c++) {
+                    $copyConfig = $watermarkCopies[$c] ?? [];
+                    // Support both object format and legacy string format
+                    if (is_string($copyConfig)) {
+                        $text = $copyConfig;
+                        $opacity  = (float) ($wm['watermark_opacity'] ?? 0.3);
+                        $rotation = (int) ($wm['watermark_rotation'] ?? -45);
+                        $position = $wm['watermark_position'] ?? 'center';
+                    } else {
+                        $text     = $copyConfig['text'] ?? '';
+                        $opacity  = (float) ($copyConfig['opacity'] ?? $wm['watermark_opacity'] ?? 0.3);
+                        $rotation = (int) ($copyConfig['rotation'] ?? $wm['watermark_rotation'] ?? -45);
+                        $position = $copyConfig['position'] ?? $wm['watermark_position'] ?? 'center';
+                    }
+                    if (empty($text)) continue;
+
+                    $opacity  = max(0.1, min(1.0, $opacity));
+                    $rotation = max(-90, min(90, $rotation));
+                    $fontSize = min($pageW, $pageH) / 8;
+
+                    $startPage = $c * $pagesPerCopy + 1;
+                    $endPage = min(($c + 1) * $pagesPerCopy, $totalPages);
+
+                    for ($p = $startPage; $p <= $endPage; $p++) {
+                        $this->pdf->page = $p;
+                        $this->renderWatermarkOnPage($text, $fontSize, $opacity, $rotation, $position, $pageW, $pageH);
+                    }
+                }
+
+                $this->pdf->page = 1;
+                return;
+            }
+        }
+        // ────────────────────────────────────────────────────────────────
+
+        // ── Original Single Watermark (backward compatible) ────────────
         $text     = $wm['watermark_text'] ?? null;
         if (!$text) {
             return;

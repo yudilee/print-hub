@@ -28,6 +28,8 @@ class PrintProfile extends Model
         'watermark_opacity',
         'watermark_rotation',
         'watermark_position',
+        // Per-copy watermark configs (JSON array of objects: {text, opacity, rotation, position})
+        'watermark_copies',
         // Finishing fields
         'finishing_staple',
         'finishing_punch',
@@ -57,6 +59,7 @@ class PrintProfile extends Model
         'reverse_order'        => 'boolean',
         'watermark_opacity'    => 'float',
         'watermark_rotation'   => 'integer',
+        'watermark_copies' => 'array',
         'finishing_booklet'    => 'boolean',
         // Sustainability casts
         'eco_mode'             => 'boolean',

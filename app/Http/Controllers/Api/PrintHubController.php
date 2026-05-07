@@ -63,7 +63,9 @@ class PrintHubController extends Controller
         $agent = $this->authenticateAgent($request);
         if (! $agent) return $this->unauthorized();
 
-        $profiles = PrintProfile::where('print_agent_id', $agent->id)->get()->map(function ($p) {
+        // Scope profiles to the agent's branch so all agents in the same branch
+        // see the same set of profiles. The agent can then override via options.
+        $profiles = PrintProfile::where('branch_id', $agent->branch_id)->get()->map(function ($p) {
             $dimensions = PaperSizeService::resolveFromProfile($p);
 
             return [
@@ -72,6 +74,7 @@ class PrintHubController extends Controller
                 'description'        => $p->description,
                 'printer'            => $p->default_printer ?? '',
                 'print_agent_id'     => $p->print_agent_id,
+                'branch_id'          => $p->branch_id,
                 'paper_size'         => $p->paper_size,
                 'paper_width_mm'     => $dimensions['width_mm'],
                 'paper_height_mm'    => $dimensions['height_mm'],
@@ -96,6 +99,9 @@ class PrintHubController extends Controller
                 'watermark_opacity'  => (float)($p->watermark_opacity ?? 0.3),
                 'watermark_rotation' => (int)($p->watermark_rotation ?? -45),
                 'watermark_position' => $p->watermark_position ?? 'center',
+
+                // Per-copy watermark configs (array of {text, opacity, rotation, position})
+                'watermark_copies' => $p->watermark_copies ?? [],
 
                 // Finishing fields
                 'finishing_staple'   => $p->finishing_staple ?? '',

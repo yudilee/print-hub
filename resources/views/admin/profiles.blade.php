@@ -222,6 +222,56 @@
         </div>
         </div>
 
+        {{-- Watermark Configuration --}}
+        <div class="expandable" style="background: rgba(59,130,246,0.05); padding: 1rem; border-radius: 8px; margin-bottom: 1rem; border: 1px solid rgba(59,130,246,0.2);">
+            <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; font-size: 0.8rem; font-weight: bold; color: var(--primary);">
+                <span>💧 Watermark</span>
+                <span class="expandable-arrow" style="color: var(--text-muted);">▸</span>
+            </div>
+        </div>
+        <div class="expandable-content" style="padding: 0 1rem 1rem;">
+            <p style="color: var(--text-muted); font-size: 0.75rem; margin-bottom: 0.75rem;">Overlay a watermark on printed documents. Leave blank to disable.</p>
+
+            <div class="form-row">
+                <div class="form-group" style="flex: 2;">
+                    <label for="watermark_text">Watermark Text (all copies)</label>
+                    <input type="text" name="watermark_text" id="watermark_text" placeholder="e.g. CONFIDENTIAL, DRAFT, COPY">
+                </div>
+                <div class="form-group" style="flex: 1;">
+                    <label for="watermark_position">Position</label>
+                    <select name="watermark_position" id="watermark_position">
+                        <option value="center">Center</option>
+                        <option value="tile">Tile (Repeating)</option>
+                        <option value="top-left">Top Left</option>
+                        <option value="top-right">Top Right</option>
+                        <option value="bottom-left">Bottom Left</option>
+                        <option value="bottom-right">Bottom Right</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="watermark_opacity">Opacity: <span id="opacity-value">0.3</span></label>
+                    <input type="range" name="watermark_opacity" id="watermark_opacity" min="0.1" max="1" step="0.05" value="0.3" oninput="document.getElementById(\"opacity-value\").textContent=this.value;">
+                </div>
+                <div class="form-group">
+                    <label for="watermark_rotation">Rotation (°): <span id="rotation-value">-45</span></label>
+                    <input type="range" name="watermark_rotation" id="watermark_rotation" min="-90" max="90" step="5" value="-45" oninput="document.getElementById(\"rotation-value\").textContent=this.value;">
+                </div>
+            </div>
+
+            {{-- Per-Copy Watermark Configs --}}
+            <div id="per-copy-watermark-section" style="margin-top: 1rem; padding-top: 1rem; border-top: 1px dashed var(--border); display: none;">
+                <div style="font-size: 0.85rem; font-weight: 600; color: var(--primary); margin-bottom: 0.5rem;">📋 Per-Copy Watermark Configuration</div>
+                <p style="color: var(--text-muted); font-size: 0.75rem; margin-bottom: 0.75rem;">
+                    When copies > 1, you can configure a <strong>different watermark</strong> for each copy — including text, opacity, rotation, and position.
+                    Leave empty to use the single watermark settings above for all copies.
+                </p>
+                <div id="copy-watermark-configs"></div>
+            </div>
+        </div>
+
         <button type="submit" class="btn btn-primary">+ Create Queue</button>
     </form>
 </div>
@@ -387,6 +437,110 @@ function applyDotMatrixDefaults() {
     document.getElementsByName('margin_left')[0].value = 4.23;
     document.getElementsByName('margin_right')[0].value = 4.23;
 }
+
+// ── Per-Copy Watermark UI ─────────────────────────────────────
+function initPerCopyWatermark() {
+    const copiesInput = document.getElementById('copies');
+    if (!copiesInput) return;
+
+    copiesInput.addEventListener('input', updateCopyWatermarkConfigs);
+    copiesInput.addEventListener('change', updateCopyWatermarkConfigs);
+    updateCopyWatermarkConfigs();
+}
+
+function getCopyConfigValue(index, field) {
+    // Try to read from existing DOM elements first
+    const el = document.querySelector(`[name="watermark_copies[${index}][${field}]"]`);
+    if (el) return el.value;
+    // Fall back to saved data
+    if (window._savedWatermarkCopies && window._savedWatermarkCopies[index]) {
+        return window._savedWatermarkCopies[index][field] || '';
+    }
+    return '';
+}
+
+function updateCopyWatermarkConfigs() {
+    const copies = parseInt(document.getElementById('copies')?.value || 1);
+    const section = document.getElementById('per-copy-watermark-section');
+    const container = document.getElementById('copy-watermark-configs');
+
+    if (!section || !container) return;
+
+    if (copies <= 1) {
+        section.style.display = 'none';
+        return;
+    }
+
+    section.style.display = 'block';
+
+    // Preserve existing values from current DOM
+    const existingConfigs = [];
+    for (let i = 0; i < 99; i++) {
+        const textEl = document.querySelector(`[name="watermark_copies[${i}][text]"]`);
+        if (!textEl) break;
+        existingConfigs[i] = {
+            text: textEl.value,
+            opacity: document.querySelector(`[name="watermark_copies[${i}][opacity]"]`)?.value || '0.3',
+            rotation: document.querySelector(`[name="watermark_copies[${i}][rotation]"]`)?.value || '-45',
+            position: document.querySelector(`[name="watermark_copies[${i}][position]"]`)?.value || 'center',
+        };
+    }
+
+    const positionOptions = [
+        { value: 'center', label: 'Center' },
+        { value: 'tile', label: 'Tile (Repeating)' },
+        { value: 'top-left', label: 'Top Left' },
+        { value: 'top-right', label: 'Top Right' },
+        { value: 'bottom-left', label: 'Bottom Left' },
+        { value: 'bottom-right', label: 'Bottom Right' },
+    ];
+
+    let html = '';
+    for (let i = 0; i < copies; i++) {
+        const cfg = existingConfigs[i] || {};
+        const textVal = cfg.text || '';
+        const opacityVal = cfg.opacity || '0.3';
+        const rotationVal = cfg.rotation || '-45';
+        const positionVal = cfg.position || 'center';
+
+        html += '<div style="border: 1px solid var(--border); border-radius: 6px; padding: 0.75rem; margin-bottom: 0.75rem; background: rgba(255,255,255,0.02);">';
+        html += '<div style="font-size: 0.8rem; font-weight: 600; color: var(--primary); margin-bottom: 0.5rem;">📄 Copy ' + (i + 1) + '</div>';
+
+        // Text
+        html += '<div class="form-row" style="gap: 8px; margin-bottom: 0.5rem;">';
+        html += '<div class="form-group" style="flex: 2;">';
+        html += '<label style="font-size: 0.7rem;">Watermark Text</label>';
+        html += '<input type="text" name="watermark_copies[' + i + '][text]" value="' + textVal.replace(/"/g, '"') + '" placeholder="e.g. Customer Copy" style="font-size: 0.8rem;">';
+        html += '</div>';
+        html += '<div class="form-group" style="flex: 1;">';
+        html += '<label style="font-size: 0.7rem;">Position</label>';
+        html += '<select name="watermark_copies[' + i + '][position]" style="font-size: 0.8rem;">';
+        positionOptions.forEach(function(po) {
+            const sel = po.value === positionVal ? ' selected' : '';
+            html += '<option value="' + po.value + '"' + sel + '>' + po.label + '</option>';
+        });
+        html += '</select>';
+        html += '</div>';
+        html += '</div>';
+
+        // Opacity + Rotation
+        html += '<div class="form-row" style="gap: 8px;">';
+        html += '<div class="form-group" style="flex: 1;">';
+        html += '<label style="font-size: 0.7rem;">Opacity: <span id="copy-opacity-' + i + '">' + opacityVal + '</span></label>';
+        html += '<input type="range" name="watermark_copies[' + i + '][opacity]" min="0.1" max="1" step="0.05" value="' + opacityVal + '" oninput="document.getElementById(\'copy-opacity-' + i + '\').textContent=this.value;" style="font-size: 0.8rem;">';
+        html += '</div>';
+        html += '<div class="form-group" style="flex: 1;">';
+        html += '<label style="font-size: 0.7rem;">Rotation (°): <span id="copy-rotation-' + i + '">' + rotationVal + '</span></label>';
+        html += '<input type="range" name="watermark_copies[' + i + '][rotation]" min="-90" max="90" step="5" value="' + rotationVal + '" oninput="document.getElementById(\'copy-rotation-' + i + '\').textContent=this.value;" style="font-size: 0.8rem;">';
+        html += '</div>';
+        html += '</div>';
+
+        html += '</div>';
+    }
+    container.innerHTML = html;
+}
+
+document.addEventListener('DOMContentLoaded', initPerCopyWatermark);
 </script>
 
 {{-- Profile List --}}
@@ -508,5 +662,6 @@ function openTestModal(id, name, agent, printer) {
 function closeTestModal() {
     document.getElementById('test-modal').style.display = 'none';
 }
+
 </script>
 @endsection

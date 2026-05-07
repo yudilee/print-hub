@@ -1245,6 +1245,49 @@ console.log(data);</code></pre>
                     </div>
                 </div>
             </div>
+
+            {{-- Multi-Dispatcher Scenario --}}
+            <div class="tip-box" style="margin-top:1.5rem;">
+                <strong>🏢 Multi-Branch / Multi-Dispatcher Scenario</strong>
+                <p>In setups where each branch has multiple dispatchers, each with their own PC and printer, you can override which agent and printer handles each job by passing <code>agent_id</code> and <code>printer</code> in the request:</p>
+                <div class="code-block-wrapper">
+                    <button class="copy-btn" onclick="copyCode(this)" title="Copy to clipboard">📋</button>
+                    <pre class="code-block"><code>// Dispatcher A — routes to agent 1, printer "EPSON-LQ-2190"
+curl -X POST {{ config('app.url') }}/api/v1/print \
+    -H "X-API-Key: your-api-key" \
+    -H "Content-Type: application/json" \
+    -d '{
+        "template": "invoice_sewa",
+        "data": { "no_invoice": "INV-001", "customer": "PT ABC", "total": 150000 },
+        "branch_code": "SDP-SBY",
+        "agent_id": 1,
+        "printer": "EPSON-LQ-2190",
+        "queue": "sby-invoice"
+    }'
+
+// Dispatcher B — routes to agent 2, printer "HP-LaserJet-4000"
+curl -X POST {{ config('app.url') }}/api/v1/print \
+    -H "X-API-Key: your-api-key" \
+    -H "Content-Type: application/json" \
+    -d '{
+        "template": "invoice_sewa",
+        "data": { "no_invoice": "INV-002", "customer": "PT XYZ", "total": 250000 },
+        "branch_code": "SDP-SBY",
+        "agent_id": 2,
+        "printer": "HP-LaserJet-4000",
+        "queue": "sby-invoice"
+    }'</code></pre>
+                </div>
+                <p><strong>How it works:</strong></p>
+                <ol>
+                    <li>Each dispatcher's PC runs a <strong>Print Agent</strong> with its own agent ID and locally connected printer.</li>
+                    <li>Profiles are <strong>branch-scoped</strong> (not pinned to a specific agent), so all agents in the same branch see the same set of profiles.</li>
+                    <li>The client app passes the correct <code>agent_id</code> and <code>printer</code> for the current dispatcher.</li>
+                    <li>The server's <a href="#agent-selection"><code>AgentSelectionService</code></a> uses the explicit <code>agent_id</code> as highest priority, bypassing any profile pinning.</li>
+                    <li>Only the targeted agent picks up the job from its queue and prints to the specified printer.</li>
+                </ol>
+                <p>See the <a href="#sdk-php-multi-dispatcher">PHP SDK example</a> for the programmatic approach.</p>
+            </div>
         </section>
 
         {{-- ================================================================= --}}
@@ -1592,6 +1635,55 @@ if (!empty($errors)) {
 );
 // ['status' => 'queued', 'job_id' => '...', 'agent' => 'PC-SBY-01', ...]</code></pre>
                 </div>
+            </div>
+
+            {{-- Multi-Dispatcher Example --}}
+            <div class="method-block" id="sdk-php-multi-dispatcher">
+                <div class="method-sig"><code>Multi-Dispatcher Example</code></div>
+                <p>In a multi-branch setup where each dispatcher has their own PC and printer, pass <code>agent_id</code> and <code>printer</code> in the <code>$options</code> array to route jobs to the correct agent:</p>
+                <div class="code-block-wrapper">
+                    <button class="copy-btn" onclick="copyCode(this)" title="Copy to clipboard">📋</button>
+                    <pre class="code-block"><code>&lt;?php
+// Each dispatcher's client app knows its own agent ID and printer name.
+// Profiles are branch-scoped, so all agents in the same branch see the same queues.
+
+// Dispatcher A — routes to agent 1, printer "EPSON-LQ-2190"
+$resultA = $printHub->printWithTemplate(
+    template:    'invoice_sewa',
+    data:        ['no_invoice' => 'INV-001', 'customer' => 'PT ABC', 'total' => 150000],
+    referenceId: 'INV-001',
+    queue:       'sby-invoice',
+    branchCode:  'SDP-SBY',
+    options:     [
+        'agent_id' => 1,
+        'printer'  => 'EPSON-LQ-2190',
+    ]
+);
+
+// Dispatcher B — routes to agent 2, printer "HP-LaserJet-4000"
+$resultB = $printHub->printWithTemplate(
+    template:    'invoice_sewa',
+    data:        ['no_invoice' => 'INV-002', 'customer' => 'PT XYZ', 'total' => 250000],
+    referenceId: 'INV-002',
+    queue:       'sby-invoice',
+    branchCode:  'SDP-SBY',
+    options:     [
+        'agent_id' => 2,
+        'printer'  => 'HP-LaserJet-4000',
+    ]
+);
+
+// Each job is queued only to the specified agent's queue.
+// The agent picks it up and prints to the specified printer.</code></pre>
+                </div>
+                <p><strong>Agent Selection Priority:</strong></p>
+                <ol>
+                    <li><strong>Explicit <code>agent_id</code></strong> (from <code>$options</code>) — highest priority</li>
+                    <li><strong>Profile's pinned agent</strong> (<code>print_agent_id</code>) — used if no explicit agent_id given</li>
+                    <li><strong>Any online agent in the branch</strong> — fallback if no agent specified and profile has no pinned agent</li>
+                    <li><strong>Any online agent globally</strong> — last resort</li>
+                </ol>
+                <p>See the <a href="#print-flow">Print Job Flow</a> section for the cURL equivalent.</p>
             </div>
 
             <div class="method-block">

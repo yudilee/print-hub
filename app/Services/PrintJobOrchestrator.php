@@ -247,6 +247,12 @@ class PrintJobOrchestrator
                 'margin_left'    => $profile->margin_left,
                 'margin_right'   => $profile->margin_right,
                 'fit_to_page'    => $profile->extra_options['fit_to_page'] ?? false,
+                // Watermark fields
+                'watermark_text'        => $profile->watermark_text,
+                'watermark_opacity'     => $profile->watermark_opacity ?? 0.3,
+                'watermark_rotation'    => $profile->watermark_rotation ?? -45,
+                'watermark_position'    => $profile->watermark_position ?? 'center',
+                'watermark_copies'  => $profile->watermark_copies ?? [],
             ];
 
             $dimensions = PaperSizeService::resolveFromProfile($profile);
