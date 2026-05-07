@@ -12,10 +12,10 @@ services:
         condition: service_healthy
     environment:
       - APP_NAME=PrintHub
-      - APP_ENV=local
+      - APP_ENV=${APP_ENV:-production}
       - APP_KEY=${APP_KEY:-base64:19hjIjrPouxH0sSc7OKp+Z7wjIYlDEWP5kfbYpKC7fY=}
-      - APP_DEBUG=true
-      - APP_URL=http://print-hub.hartonomotor-group.com
+      - APP_DEBUG=${APP_DEBUG:-false}
+      - APP_URL=${APP_URL:-http://print-hub.hartonomotor-group.com}
       - DB_CONNECTION=pgsql
       - DB_HOST=print-hub-db
       - DB_PORT=5432
