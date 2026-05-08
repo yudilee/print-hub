@@ -73,12 +73,14 @@ class ClientApp extends Model
         }
 
         // Fallback to bcrypt lookup for legacy bcrypt-hashed keys
-        $app = static::whereNotNull('key_hash_bcrypt')->get()
+        $app = static::get()
             ->first(function ($a) use ($rawKey, $sha256) {
                 try {
-                    return Hash::check($rawKey, $a->key_hash_bcrypt) || $a->key_hash_bcrypt === $sha256;
+                    return Hash::check($rawKey, $a->api_key)
+                        || ($a->key_hash_bcrypt && Hash::check($rawKey, $a->key_hash_bcrypt))
+                        || $a->api_key === $sha256;
                 } catch (\Exception $e) {
-                    return $a->key_hash_bcrypt === $sha256;
+                    return $a->api_key === $sha256;
                 }
             });
 
