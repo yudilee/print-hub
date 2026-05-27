@@ -222,6 +222,10 @@ Route::middleware(['auth', 'session.activity'])->group(function () {
         return view('admin.sdk-docs');
     })->name('admin.sdk-docs');
 
+    // Cost Tracking (Feature 1)
+    Route::get('/costs', [\App\Http\Controllers\Admin\CostController::class, 'index'])->name('admin.costs');
+    Route::get('/costs/export', [\App\Http\Controllers\Admin\CostController::class, 'exportCsv'])->name('admin.costs.export');
+
     // Printer Pools (Feature 5)
     Route::get('/pools', [\App\Http\Controllers\Admin\PoolController::class, 'index'])->name('admin.pools');
     Route::get('/pools/create', [\App\Http\Controllers\Admin\PoolController::class, 'edit'])->name('admin.pools.create');
@@ -229,6 +233,7 @@ Route::middleware(['auth', 'session.activity'])->group(function () {
     Route::get('/pools/{pool}/edit', [\App\Http\Controllers\Admin\PoolController::class, 'edit'])->name('admin.pools.edit');
     Route::put('/pools/{pool}', [\App\Http\Controllers\Admin\PoolController::class, 'update'])->name('admin.pools.update');
     Route::delete('/pools/{pool}', [\App\Http\Controllers\Admin\PoolController::class, 'destroy'])->name('admin.pools.destroy');
+    Route::post('/pools/{pool}/reset-health', [\App\Http\Controllers\Admin\PoolController::class, 'resetHealth'])->name('admin.pools.reset-health');
 
     // SSO Settings (super-admin only)
     Route::middleware('role:super-admin')->group(function () {

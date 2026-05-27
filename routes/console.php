@@ -21,3 +21,6 @@ Schedule::command('print-hub:retry-webhooks')->everyFiveMinutes()->withoutOverla
 // Clean up old job files — runs weekly at 02:00 on Sunday
 Schedule::command('print-hub:cleanup-jobs')->weeklyOn(0, '02:00');
 
+// Reset printer health for printers unhealthy > 30 minutes — runs every 30 minutes
+Schedule::command('print-hub:reset-printer-health')->everyThirtyMinutes()->withoutOverlapping();
+

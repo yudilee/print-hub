@@ -7,6 +7,7 @@ use App\Models\PrinterPool;
 use App\Models\PrinterPoolPrinter;
 use App\Models\PrintAgent;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class PoolController extends Controller
 {
@@ -119,5 +120,32 @@ class PoolController extends Controller
     {
         $pool->delete();
         return redirect()->route('admin.pools')->with('success', 'Printer pool removed.');
+    }
+
+    /**
+     * Reset health status for printers in a pool.
+     * If `printer_name` is provided, only that printer is reset.
+     * Otherwise, all printers in the pool are reset.
+     */
+    public function resetHealth(Request $request, PrinterPool $pool)
+    {
+        $query = PrinterPoolPrinter::where('pool_id', $pool->id);
+
+        if ($request->has('printer_name')) {
+            $query->where('printer_name', $request->input('printer_name'));
+        }
+
+        $count = $query->update([
+            'is_healthy'          => true,
+            'failure_count'       => 0,
+            'last_error_at'       => null,
+            'last_error_message'  => null,
+            'last_healthy_at'     => now(),
+        ]);
+
+        Log::info("Health reset for {$count} printer(s) in pool '{$pool->name}'.");
+
+        return redirect()->route('admin.pools.edit', $pool)
+            ->with('success', "Health status reset for {$count} printer(s) in pool.");
     }
 }

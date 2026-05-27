@@ -71,6 +71,9 @@
 
             <p style="color: var(--text-muted); font-size: 0.8rem; margin-bottom: 1rem;">
                 Add printers to this pool. The strategy determines how jobs are distributed.
+                @if($pool->exists && $pool->strategy === 'failover')
+                    <span class="badge badge-info" style="margin-left: 0.5rem;">Health tracking active</span>
+                @endif
             </p>
 
             <div id="printers-container">
@@ -82,7 +85,7 @@
                     @foreach($existingPrinters as $idx => $pp)
                         @php $ppData = $pp instanceof \App\Models\PrinterPoolPrinter ? $pp : (object) $pp; @endphp
                         <div class="printer-row" style="display: flex; gap: 0.75rem; align-items: flex-end; margin-bottom: 0.75rem; padding: 0.75rem; background: var(--bg); border-radius: 6px; border: 1px solid var(--border);">
-                            <div class="form-group" style="flex: 3; margin-bottom: 0;">
+                            <div class="form-group" style="flex: 2; margin-bottom: 0;">
                                 <label>Printer Name</label>
                                 <input type="text" name="printers[{{ $idx }}][name]" value="{{ old('printers.' . $idx . '.name', $ppData->printer_name) }}" required placeholder="e.g. Printer-01" list="printer-list">
                             </div>
@@ -90,7 +93,38 @@
                                 <label>Priority</label>
                                 <input type="number" name="printers[{{ $idx }}][priority]" value="{{ old('printers.' . $idx . '.priority', $ppData->priority ?? $idx) }}" min="0" placeholder="0">
                             </div>
-                            <div class="form-group" style="flex: 1; display: flex; align-items: center; padding-bottom: 0.5rem; margin-bottom: 0;">
+                            <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                                <label>Status</label>
+                                @php
+                                    $isHealthy = $ppData->is_healthy ?? true;
+                                    $failureCount = $ppData->failure_count ?? 0;
+                                    $lastHealthy = isset($ppData->last_healthy_at) ? \Carbon\Carbon::parse($ppData->last_healthy_at)->diffForHumans() : null;
+                                @endphp
+                                <div style="display: flex; align-items: center; gap: 0.4rem; padding-top: 0.3rem;">
+                                    @if($isHealthy)
+                                        <span class="dot dot-green"></span>
+                                        <span style="font-size: 0.8rem; color: var(--success);">Healthy</span>
+                                    @else
+                                        <span class="dot dot-red"></span>
+                                        <span style="font-size: 0.8rem; color: var(--danger);">
+                                            Unhealthy ({{ $failureCount }} failure{{ $failureCount !== 1 ? 's' : '' }})
+                                        </span>
+                                    @endif
+                                </div>
+                                @if($lastHealthy)
+                                    <div style="font-size: 0.65rem; color: var(--text-muted); margin-top: 2px;">
+                                        Last healthy: {{ $lastHealthy }}
+                                    </div>
+                                @endif
+                                @if(!$isHealthy)
+                                    <form action="{{ route('admin.pools.reset-health', $pool) }}" method="POST" style="display: inline; margin-top: 2px;" data-confirm="Reset health for this printer?">
+                                        @csrf
+                                        <input type="hidden" name="printer_name" value="{{ $ppData->printer_name }}">
+                                        <button type="submit" class="btn btn-warning btn-sm" style="font-size: 0.65rem; padding: 0.15rem 0.4rem;">Reset Health</button>
+                                    </form>
+                                @endif
+                            </div>
+                            <div class="form-group" style="flex: 0.8; display: flex; align-items: center; padding-bottom: 0.5rem; margin-bottom: 0;">
                                 <label class="checkbox-container" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
                                     <input type="checkbox" name="printers[{{ $idx }}][active]" value="1" {{ old('printers.' . $idx . '.active', $ppData->active ?? true) ? 'checked' : '' }} style="width: 18px; height: 18px;">
                                     Active
@@ -103,6 +137,12 @@
             </div>
 
             <button type="button" class="btn btn-secondary btn-sm" onclick="addPrinterRow()">+ Add Printer</button>
+            @if($pool->exists)
+                <form action="{{ route('admin.pools.reset-health', $pool) }}" method="POST" style="display: inline; margin-left: 0.5rem;" data-confirm="Reset health for ALL printers in this pool?">
+                    @csrf
+                    <button type="submit" class="btn btn-warning btn-sm">🔄 Reset All Health</button>
+                </form>
+            @endif
 
             <datalist id="printer-list">
                 @foreach($allPrinters as $printerName)

@@ -4,11 +4,16 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Responses\ApiResponse;
+use App\Models\Branch;
 use App\Models\PrintAgent;
+use App\Models\PrintCost;
+use App\Models\PrinterPoolPrinter;
 use App\Models\PrintProfile;
 use App\Models\PrintJob;
 use App\Services\PaperSizeService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -257,14 +262,16 @@ class PrintHubController extends Controller
         if (! $agent) return $this->unauthorized();
 
         $data = $request->validate([
-            'job_id'       => 'required|string',
-            'printer'      => 'required|string',
-            'type'         => 'required|string',
-            'status'       => 'required|string',
-            'error'        => 'nullable|string',
-            'options'      => 'nullable|array',
-            'created_at'   => 'nullable|string',
-            'completed_at' => 'nullable|string',
+            'job_id'        => 'required|string',
+            'printer'       => 'required|string',
+            'type'          => 'required|string',
+            'status'        => 'required|string',
+            'error'         => 'nullable|string',
+            'options'       => 'nullable|array',
+            'created_at'    => 'nullable|string',
+            'completed_at'  => 'nullable|string',
+            'pages_printed' => 'nullable|integer|min:0',
+            'is_color'      => 'nullable|boolean',
         ]);
 
         $job = PrintJob::where('job_id', $data['job_id'])->first();
@@ -288,13 +295,13 @@ class PrintHubController extends Controller
                     'printer'      => $job->printer_name,
                 ]);
             } catch (\Exception $e) {
-                \Illuminate\Support\Facades\Log::warning('WebhookService dispatch failed: ' . $e->getMessage(), [
+                Log::warning('WebhookService dispatch failed: ' . $e->getMessage(), [
                     'job_id' => $job->job_id,
                 ]);
             }
         } else {
             // Unregistered job (local/direct print), create for historical records
-            PrintJob::create([
+            $job = PrintJob::create([
                 'job_id'              => $data['job_id'],
                 'print_agent_id'      => $agent->id,
                 'printer_name'        => $data['printer'],
@@ -307,6 +314,64 @@ class PrintHubController extends Controller
             ]);
         }
 
+        // ── Feature 2.3: Track printer failures ──────────────
+        if ($data['status'] === 'failed') {
+            try {
+                $printerName = $data['printer'] ?? $job->printer_name;
+                $poolPrinters = PrinterPoolPrinter::where('printer_name', $printerName)->get();
+
+                foreach ($poolPrinters as $pp) {
+                    $pp->increment('failure_count');
+                    $pp->update([
+                        'last_error_at'      => now(),
+                        'last_error_message' => $data['error'] ?? 'Unknown failure',
+                    ]);
+
+                    // Mark unhealthy if failure_count >= 3
+                    if ($pp->failure_count >= 3) {
+                        $pp->update(['is_healthy' => false]);
+                    }
+                }
+            } catch (\Exception $e) {
+                Log::warning('Failed to track printer failure: ' . $e->getMessage());
+            }
+        }
+
+        // ── Feature 1.3: Record costs on successful completion ─
+        if ($data['status'] === 'success') {
+            try {
+                $pagesPrinted = (int) ($data['pages_printed'] ?? $job->options['pages_printed'] ?? 0);
+                $isColor      = (bool) ($data['is_color'] ?? $job->options['is_color'] ?? false);
+
+                if ($pagesPrinted > 0) {
+                    $branchId = $job->branch_id ?? $agent->branch_id;
+                    $branch   = $branchId ? Branch::find($branchId) : null;
+
+                    if ($branch) {
+                        $costPerPage = $isColor ? $branch->color_cost_per_page : $branch->bw_cost_per_page;
+                    } else {
+                        // Fallback defaults
+                        $costPerPage = $isColor ? 0.25 : 0.05;
+                    }
+
+                    $totalCost = round($pagesPrinted * $costPerPage, 2);
+
+                    PrintCost::create([
+                        'print_job_id'   => $job->id,
+                        'branch_id'      => $branchId,
+                        'print_agent_id' => $agent->id,
+                        'pages_printed'  => $pagesPrinted,
+                        'is_color'       => $isColor,
+                        'cost_per_page'  => $costPerPage,
+                        'total_cost'     => $totalCost,
+                        'currency'       => $branch?->currency ?? 'IDR',
+                    ]);
+                }
+            } catch (\Exception $e) {
+                Log::warning('Failed to record print cost: ' . $e->getMessage());
+            }
+        }
+
         $jobToBroadcast = $job ?? PrintJob::where('job_id', $data['job_id'])->first();
         if ($jobToBroadcast) {
             event(new \App\Events\JobStatusUpdated($jobToBroadcast));
@@ -315,13 +380,13 @@ class PrintHubController extends Controller
         // Dispatch QueueUpdated for admin dashboard
         try {
             $queueData = [
-                'total_pending'    => \App\Models\PrintJob::where('status', 'pending')->count(),
-                'total_processing' => \App\Models\PrintJob::where('status', 'processing')->count(),
-                'total_queued'     => \App\Models\PrintJob::whereIn('status', ['pending', 'processing'])->count(),
+                'total_pending'    => PrintJob::where('status', 'pending')->count(),
+                'total_processing' => PrintJob::where('status', 'processing')->count(),
+                'total_queued'     => PrintJob::whereIn('status', ['pending', 'processing'])->count(),
             ];
             event(new \App\Events\QueueUpdated($queueData));
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::warning('Failed to dispatch QueueUpdated: ' . $e->getMessage());
+            Log::warning('Failed to dispatch QueueUpdated: ' . $e->getMessage());
         }
 
         return ApiResponse::success(['status' => 'received']);

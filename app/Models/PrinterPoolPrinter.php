@@ -12,11 +12,20 @@ class PrinterPoolPrinter extends Model
         'printer_name',
         'priority',
         'active',
+        'last_healthy_at',
+        'failure_count',
+        'is_healthy',
+        'last_error_at',
+        'last_error_message',
     ];
 
     protected $casts = [
-        'active'   => 'boolean',
-        'priority' => 'integer',
+        'active'          => 'boolean',
+        'priority'        => 'integer',
+        'failure_count'   => 'integer',
+        'is_healthy'      => 'boolean',
+        'last_healthy_at' => 'datetime',
+        'last_error_at'   => 'datetime',
     ];
 
     public function pool(): BelongsTo

@@ -14,10 +14,21 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  */
 class Branch extends Model
 {
-    protected $fillable = ['company_id', 'name', 'code', 'address', 'is_active'];
+    protected $fillable = [
+        'company_id',
+        'name',
+        'code',
+        'address',
+        'is_active',
+        'bw_cost_per_page',
+        'color_cost_per_page',
+        'currency',
+    ];
 
     protected $casts = [
-        'is_active' => 'boolean',
+        'is_active'          => 'boolean',
+        'bw_cost_per_page'   => 'decimal:4',
+        'color_cost_per_page' => 'decimal:4',
     ];
 
     // ── Relationships ────────────────────────────────────────

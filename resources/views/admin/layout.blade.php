@@ -418,6 +418,9 @@
                 <a href="{{ route('admin.monitoring') }}" class="nav-link {{ request()->routeIs('admin.monitoring') ? 'active' : '' }}" {{ request()->routeIs('admin.monitoring') ? 'aria-current="page"' : '' }}>
                     <x-icon name="monitor" size="18"/> Monitoring
                 </a>
+                <a href="{{ route('admin.costs') }}" class="nav-link {{ request()->routeIs('admin.costs*') ? 'active' : '' }}" {{ request()->routeIs('admin.costs*') ? 'aria-current="page"' : '' }}>
+                    <x-icon name="settings" size="18"/> Cost Tracking
+                </a>
                 <a href="{{ route('admin.agents') }}" class="nav-link {{ request()->routeIs('admin.agents') ? 'active' : '' }}" {{ request()->routeIs('admin.agents') ? 'aria-current="page"' : '' }}>
                     <x-icon name="agent" size="18"/> Agents
                 </a>

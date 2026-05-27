@@ -347,12 +347,18 @@ class PrintJobOrchestrator
                 return $printers->random()->printer_name;
 
             case 'failover':
-                // Failover: return the highest priority active printer
-                $first = $printers->first();
-                if (!$first) {
+                // Pick the highest-priority printer that is healthy
+                $healthy = $printers->first(fn($p) => ($p->is_healthy ?? true));
+                if (!$healthy) {
+                    // All unhealthy — reset and try again
+                    \App\Models\PrinterPoolPrinter::where('pool_id', $pool->id)
+                        ->update(['is_healthy' => true, 'failure_count' => 0]);
+                    $healthy = $printers->first();
+                }
+                if (!$healthy) {
                     throw new \RuntimeException("Failover pool '{$pool->name}' has no active printers.");
                 }
-                return $first->printer_name;
+                return $healthy->printer_name;
 
             default:
                 return $printers->first()->printer_name;
