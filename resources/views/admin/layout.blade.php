@@ -25,20 +25,20 @@
         }
 
         [data-theme="light"] {
-            --bg: #f8fafc;
+            --bg: #f1f5f9;
             --surface: #ffffff;
-            --surface-hover: #f1f5f9;
-            --border: #e2e8f0;
+            --surface-hover: #e8ecf4;
+            --border: #d1d5db;
             --text: #0f172a;
-            --text-muted: #64748b;
-            --primary: #6366f1;
-            --primary-hover: #4f46e5;
+            --text-muted: #6b7280;
+            --primary: #4f46e5;
+            --primary-hover: #4338ca;
             --success: #16a34a;
             --danger: #dc2626;
             --warning: #d97706;
             --info: #2563eb;
             --toast-bg: #ffffff;
-            --toast-border: #e2e8f0;
+            --toast-border: #d1d5db;
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -231,12 +231,12 @@
         .btn:disabled { opacity: 0.5; cursor: not-allowed; pointer-events: none; }
         .btn-primary { background: var(--primary); color: white; }
         .btn-primary:hover { background: var(--primary-hover); }
-        .btn-secondary { background: rgba(255, 255, 255, 0.08); color: var(--text); }
-        .btn-secondary:hover { background: rgba(255, 255, 255, 0.15); }
-        .btn-danger { background: rgba(239, 68, 68, 0.15); color: var(--danger); }
-        .btn-danger:hover { background: rgba(239, 68, 68, 0.25); }
-        .btn-warning { background: rgba(245, 158, 11, 0.15); color: var(--warning); }
-        .btn-warning:hover { background: rgba(245, 158, 11, 0.25); }
+        .btn-secondary { background: var(--surface-hover); color: var(--text); border: 1px solid var(--border); }
+        .btn-secondary:hover { background: var(--border); }
+        .btn-danger { background: rgba(239, 68, 68, 0.12); color: var(--danger); }
+        .btn-danger:hover { background: rgba(239, 68, 68, 0.2); }
+        .btn-warning { background: rgba(245, 158, 11, 0.12); color: var(--warning); }
+        .btn-warning:hover { background: rgba(245, 158, 11, 0.2); }
         .btn-sm { padding: 0.3rem 0.6rem; font-size: 0.75rem; }
 
         .form-group { margin-bottom: 1rem; }
@@ -313,6 +313,9 @@
             animation: toastIn 0.3s ease;
             transition: opacity 0.3s, transform 0.3s;
         }
+        [data-theme="light"] .toast {
+            box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+        }
         .toast-removing { opacity: 0; transform: translateX(100%); }
         .toast-success { border-left: 3px solid var(--success); }
         .toast-error { border-left: 3px solid var(--danger); }
@@ -378,6 +381,9 @@
             background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
             font-size: 0.8rem; color: var(--text); box-shadow: 0 4px 20px rgba(0,0,0,0.3);
             z-index: 100; white-space: normal; font-weight: 400; line-height: 1.4;
+        }
+        [data-theme="light"] .help-tip-popover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
         }
         .help-tip:hover .help-tip-popover { display: block; }
     </style>
