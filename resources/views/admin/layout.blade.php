@@ -421,6 +421,9 @@
                 <a href="{{ route('admin.agents') }}" class="nav-link {{ request()->routeIs('admin.agents') ? 'active' : '' }}" {{ request()->routeIs('admin.agents') ? 'aria-current="page"' : '' }}>
                     <x-icon name="agent" size="18"/> Agents
                 </a>
+                <a href="{{ route('admin.releases') }}" class="nav-link {{ request()->routeIs('admin.releases*') ? 'active' : '' }}" {{ request()->routeIs('admin.releases*') ? 'aria-current="page"' : '' }}>
+                    <x-icon name="settings" size="18"/> Agent Releases
+                </a>
                 <a href="{{ route('admin.profiles') }}" class="nav-link {{ request()->routeIs('admin.profiles') ? 'active' : '' }}" {{ request()->routeIs('admin.profiles') ? 'aria-current="page"' : '' }}>
                     <x-icon name="queue" size="18"/> Print Queues
                 </a>

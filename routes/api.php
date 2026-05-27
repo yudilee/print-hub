@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\PrintHubController;
 use App\Http\Controllers\Api\ClientAppController;
 use App\Http\Controllers\Api\DocumentController;
 use App\Http\Controllers\Api\ApprovalController;
+use App\Http\Controllers\Api\AgentVersionController;
 use Illuminate\Support\Facades\Route;
 
 // ─────────────────────────────────────────────
@@ -22,10 +23,10 @@ Route::prefix('print-hub')->middleware(['throttle:120,1', 'throttle.api-key'])->
 });
 
 // ─────────────────────────────────────────────
-// Agent Version API  (open endpoint or key-authenticated)
+// Agent Version API  (open endpoint for agent auto-update checks)
 // ─────────────────────────────────────────────
 Route::prefix('v1')->group(function () {
-    Route::get('/agents/version', [PrintHubController::class, 'getAgentVersion']);
+    Route::get('/agents/version', [AgentVersionController::class, 'index']);
 
     // Fonts endpoint for template designer (no auth required for canvas preview)
     Route::get('/fonts', function () {

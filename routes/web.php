@@ -11,6 +11,7 @@ use App\Http\Controllers\Admin\JobController;
 use App\Http\Controllers\Admin\NotificationController;
 use App\Http\Controllers\Admin\PrinterConfigController;
 use App\Http\Controllers\Admin\ProfileController;
+use App\Http\Controllers\Admin\ReleaseController;
 use App\Http\Controllers\Admin\SessionController;
 use App\Http\Controllers\Admin\TemplateController;
 use App\Http\Controllers\Admin\ActivityLogController;
@@ -258,4 +259,10 @@ Route::middleware(['auth', 'session.activity'])->group(function () {
     Route::post('/settings/webhooks/deliveries/{delivery}/retry', [WebhookController::class, 'retryDelivery'])->name('admin.webhooks.deliveries.retry');
     Route::post('/settings/webhooks/{clientApp}/deliveries/bulk-retry', [WebhookController::class, 'bulkRetry'])->name('admin.webhooks.deliveries.bulk-retry');
     Route::get('/settings/webhooks/{clientApp}/deliveries/export-csv', [WebhookController::class, 'exportDeliveriesCsv'])->name('admin.webhooks.deliveries.export-csv');
+
+    // Agent Releases (Auto-Update from Hub)
+    Route::get('/releases', [ReleaseController::class, 'index'])->name('admin.releases');
+    Route::post('/releases', [ReleaseController::class, 'store'])->name('admin.releases.store');
+    Route::delete('/releases/{release}', [ReleaseController::class, 'destroy'])->name('admin.releases.destroy');
+    Route::post('/releases/{release}/mark-latest', [ReleaseController::class, 'markLatest'])->name('admin.releases.mark-latest');
 });
