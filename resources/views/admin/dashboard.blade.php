@@ -323,6 +323,77 @@
     @endif
 </div>
 
+{{-- Print Reduction Goals (Task 8) --}}
+@if(count($branchGoals) > 0)
+<div class="card" style="margin-bottom: 1.5rem;">
+    <div class="card-header">
+        <h2>🎯 Print Reduction Goals — {{ now()->format('F Y') }}</h2>
+        <a href="{{ route('admin.branches') }}" class="btn btn-primary btn-sm">Manage Branches</a>
+    </div>
+    <div style="overflow-x: auto;">
+        <table role="table">
+            <caption class="sr-only">Monthly print reduction goals per branch</caption>
+            <thead>
+                <tr>
+                    <th scope="col">Branch</th>
+                    <th scope="col">Company</th>
+                    <th scope="col">Monthly Goal</th>
+                    <th scope="col">Current Usage</th>
+                    <th scope="col">Progress</th>
+                    <th scope="col">Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach($branchGoals as $bg)
+                <tr>
+                    <td><strong>{{ $bg['branch']->name }}</strong></td>
+                    <td style="font-size: 0.8rem; color: var(--text-muted);">{{ $bg['company_name'] }}</td>
+                    <td style="font-size: 0.85rem;">{{ number_format($bg['goal']) }} pages</td>
+                    <td style="font-size: 0.85rem;">{{ number_format($bg['current_usage']) }} pages</td>
+                    <td>
+                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                            <div style="flex: 1; height: 8px; background: var(--bg); border-radius: 4px; overflow: hidden; min-width: 120px;">
+                                @php
+                                    $barWidth = min($bg['percentage'], 100);
+                                    $barColor = $bg['on_track'] ? 'var(--success)' : 'var(--danger)';
+                                @endphp
+                                <div style="height: 100%; width: {{ $barWidth }}%; background: {{ $barColor }}; border-radius: 4px; transition: width 0.5s ease;"></div>
+                            </div>
+                            <span style="font-size: 0.75rem; color: var(--text-muted); white-space: nowrap;">{{ $bg['percentage'] }}%</span>
+                        </div>
+                    </td>
+                    <td>
+                        @if($bg['on_track'])
+                            <span class="badge badge-success">✅ On Track</span>
+                        @else
+                            <span class="badge badge-danger">⚠️ Needs Attention</span>
+                            <div style="font-size: 0.7rem; color: var(--text-muted); margin-top: 2px;">
+                                Expected: ~{{ $bg['expected_progress'] }}%
+                            </div>
+                        @endif
+                    </td>
+                </tr>
+                @endforeach
+            </tbody>
+        </table>
+    </div>
+    <div style="padding: 0.5rem 1rem 0.75rem; font-size: 0.75rem; color: var(--text-muted); border-top: 1px solid var(--border);">
+        ⓘ Comparing current month's successful print jobs against the monthly page goal.
+        <a href="{{ route('admin.branches') }}" style="color: var(--primary);">Set goals for your branches →</a>
+    </div>
+</div>
+@else
+<div class="card" style="margin-bottom: 1.5rem; border-color: var(--info); opacity: 0.7;">
+    <div class="card-header">
+        <h2>🎯 Print Reduction Goals</h2>
+        <a href="{{ route('admin.branches') }}" class="btn btn-primary btn-sm">Set Goals</a>
+    </div>
+    <div style="text-align: center; padding: 1.5rem; color: var(--text-muted); font-size: 0.85rem;">
+        No print reduction goals configured. Set a <strong>monthly page goal</strong> for your branches to track printing reduction progress.
+    </div>
+</div>
+@endif
+
 {{-- Main Content Grid --}}
 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;" id="dashboard-grid">
 

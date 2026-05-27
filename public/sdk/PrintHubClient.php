@@ -1,5 +1,36 @@
 <?php
 
+/**
+ * PrintHubClient — PHP SDK for Print Hub (Multi-Branch Edition)
+ *
+ * A standalone PHP client library for integrating with Print Hub's REST API.
+ * This file can be required directly into any PHP project and provides
+ * branch-aware printing, template discovery, schema validation, preview,
+ * batch printing, job polling, printer pools, scheduling, document management,
+ * approvals, connectors, and formula editor capabilities.
+ *
+ * Requirements:
+ *   - PHP 8.0+
+ *   - guzzlehttp/guzzle (^7.0)
+ *   - psr/log (^1.0|^2.0|^3.0)
+ *
+ * Quick Start:
+ *   require_once 'PrintHubClient.php';
+ *
+ *   $client = new PrintHubClient('https://print-hub.example.com', 'your-api-key');
+ *   $client->setBranch('SDP-SBY');
+ *
+ *   $result = $client->printWithTemplate('invoice_sewa', [
+ *       'no_polisi' => 'B 1234 ABC',
+ *       'nama_penyewa' => 'John Doe',
+ *   ], 'REF-001');
+ *
+ * @package PrintHub
+ * @version 2.2
+ * @author Print Hub Team
+ * @link https://print-hub.example.com
+ */
+
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\ConnectException;
 use GuzzleHttp\Exception\TransferException;
@@ -8,8 +39,19 @@ use GuzzleHttp\Exception\RequestException;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
+/**
+ * Generic Print Hub exception.
+ */
 class PrintHubException extends RuntimeException {}
+
+/**
+ * Connection-level exception (network errors, timeouts).
+ */
 class PrintHubConnectionException extends PrintHubException {}
+
+/**
+ * Validation exception with detailed field-level errors.
+ */
 class PrintHubValidationException extends PrintHubException {
     public array $errors;
     public function __construct(string $message, array $errors = []) {

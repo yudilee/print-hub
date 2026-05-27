@@ -507,9 +507,27 @@
                 </a>
                 @endif
 
+                @if(auth()->user()?->isSuperAdmin())
+                <div class="nav-section">System</div>
+                <a href="{{ route('admin.backup.index') }}" class="nav-link {{ request()->routeIs('admin.backup*') ? 'active' : '' }}" {{ request()->routeIs('admin.backup*') ? 'aria-current="page"' : '' }}>
+                    <x-icon name="settings" size="18"/> Backup & Restore
+                </a>
+                <a href="{{ route('admin.mfa.setup') }}" class="nav-link {{ request()->routeIs('admin.mfa*') ? 'active' : '' }}" {{ request()->routeIs('admin.mfa*') ? 'aria-current="page"' : '' }}>
+                    <x-icon name="shield" size="18"/> Two-Factor Auth
+                </a>
+                @endif
+
+                <div class="nav-section">Scheduling & Docs</div>
+                <a href="{{ route('admin.scheduled-jobs.index') }}" class="nav-link {{ request()->routeIs('admin.scheduled-jobs*') ? 'active' : '' }}" {{ request()->routeIs('admin.scheduled-jobs*') ? 'aria-current="page"' : '' }}>
+                    <x-icon name="job" size="18"/> Scheduled Jobs
+                </a>
+                <a href="{{ route('admin.api-docs') }}" class="nav-link {{ request()->routeIs('admin.api-docs') ? 'active' : '' }}" {{ request()->routeIs('admin.api-docs') ? 'aria-current="page"' : '' }}>
+                    <x-icon name="docs" size="18"/> API Documentation
+                </a>
+
                 <div class="nav-section">Help</div>
                 <a href="{{ route('admin.sdk-docs') }}" class="nav-link {{ request()->routeIs('admin.sdk-docs') ? 'active' : '' }}" {{ request()->routeIs('admin.sdk-docs') ? 'aria-current="page"' : '' }}>
-                    <x-icon name="docs" size="18"/> Documentation
+                    <x-icon name="docs" size="18"/> SDK Docs
                 </a>
             </nav>
 

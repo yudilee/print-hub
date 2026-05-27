@@ -162,6 +162,13 @@
                 <input type="text" name="address" id="edit-address">
             </div>
             <div class="form-group">
+                <label for="edit-monthly-goal">Monthly Page Goal (Print Reduction)</label>
+                <input type="number" name="monthly_page_goal" id="edit-monthly-goal" min="0" step="1" placeholder="e.g. 5000">
+                <div style="font-size: 0.7rem; color: var(--text-muted); margin-top: 4px;">
+                    Set a target to track print reduction progress on the dashboard.
+                </div>
+            </div>
+            <div class="form-group">
                 <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
                     <input type="checkbox" name="is_active" id="edit-active" value="1" style="width: 18px; height: 18px;">
                     Active
@@ -181,6 +188,7 @@ function openEditModal(branch) {
     document.getElementById('edit-name').value = branch.name;
     document.getElementById('edit-code').value = branch.code;
     document.getElementById('edit-address').value = branch.address || '';
+    document.getElementById('edit-monthly-goal').value = branch.monthly_page_goal || '';
     document.getElementById('edit-active').checked = branch.is_active;
     document.getElementById('edit-modal').style.display = 'flex';
 }

@@ -67,13 +67,15 @@ class BranchController extends Controller
         }
 
         $data = $request->validate([
-            'name'      => 'required|string|max:255',
-            'code'      => 'required|string|max:30|unique:branches,code,' . $branch->id,
-            'address'   => 'nullable|string|max:500',
-            'is_active' => 'nullable|boolean',
+            'name'              => 'required|string|max:255',
+            'code'              => 'required|string|max:30|unique:branches,code,' . $branch->id,
+            'address'           => 'nullable|string|max:500',
+            'is_active'         => 'nullable|boolean',
+            'monthly_page_goal' => 'nullable|integer|min:0',
         ]);
 
         $data['is_active'] = $request->has('is_active');
+        $data['monthly_page_goal'] = $request->filled('monthly_page_goal') ? (int) $request->monthly_page_goal : null;
         $branch->update($data);
 
         return redirect()->route('admin.branches')->with('success', 'Branch updated successfully.');

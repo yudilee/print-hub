@@ -20,14 +20,16 @@ class Branch extends Model
         'code',
         'address',
         'is_active',
+        'monthly_page_goal',
         'bw_cost_per_page',
         'color_cost_per_page',
         'currency',
     ];
 
     protected $casts = [
-        'is_active'          => 'boolean',
-        'bw_cost_per_page'   => 'decimal:4',
+        'is_active'           => 'boolean',
+        'monthly_page_goal'   => 'integer',
+        'bw_cost_per_page'    => 'decimal:4',
         'color_cost_per_page' => 'decimal:4',
     ];
 

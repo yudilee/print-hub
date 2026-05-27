@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Branch;
 use App\Models\PrintAgent;
 use App\Models\PrintJob;
 use App\Models\PrintProfile;
@@ -88,6 +89,36 @@ class AdminController extends Controller
             ->take(5)
             ->get();
 
+        // ── Print Reduction Goals (Task 8) ──────────────────────────────────
+        $branchGoals = Branch::with('company')
+            ->whereNotNull('monthly_page_goal')
+            ->where('monthly_page_goal', '>', 0)
+            ->get()
+            ->map(function ($branch) {
+                // Get current month's print job count for this branch
+                $currentUsage = PrintJob::where('branch_id', $branch->id)
+                    ->whereYear('created_at', now()->year)
+                    ->whereMonth('created_at', now()->month)
+                    ->where('status', 'success')
+                    ->count();
+
+                $goal = $branch->monthly_page_goal;
+                $percentage = $goal > 0 ? round(($currentUsage / $goal) * 100) : 0;
+                $daysInMonth = now()->daysInMonth;
+                $dayOfMonth = now()->day;
+                $expectedProgress = $daysInMonth > 0 ? round(($dayOfMonth / $daysInMonth) * 100) : 0;
+
+                return [
+                    'branch'            => $branch,
+                    'goal'              => $goal,
+                    'current_usage'     => $currentUsage,
+                    'percentage'        => $percentage,
+                    'expected_progress' => $expectedProgress,
+                    'on_track'          => $percentage <= $expectedProgress,
+                    'company_name'      => $branch->company?->name ?? '—',
+                ];
+            });
+
         $stats = [
             'total_agents'    => $totalAgents,
             'online_agents'   => $onlineAgents,
@@ -105,7 +136,7 @@ class AdminController extends Controller
         return view('admin.dashboard', compact(
             'agents', 'agentsWithUptime', 'profiles', 'recentJobs', 'stats',
             'totalAgents', 'onlineAgents', 'offlineAgents', 'slaBreachJobs',
-            'recentFailures'
+            'recentFailures', 'branchGoals'
         ));
     }
 }

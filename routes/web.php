@@ -147,6 +147,7 @@ Route::middleware(['auth', 'session.activity'])->group(function () {
     Route::get('/jobs/search-parents', [JobController::class, 'searchParentJobs'])->name('admin.jobs.search-parents');
     Route::post('/jobs/validate-dependency', [JobController::class, 'validateDependency'])->name('admin.jobs.validate-dependency');
     Route::post('/jobs/{job}/update-dependency', [JobController::class, 'updateDependency'])->name('admin.jobs.update-dependency');
+    Route::get('/jobs/{job}/preview', [JobController::class, 'preview'])->name('admin.jobs.preview');
 
     // Client Apps
     Route::get('/clients', [ClientAppController::class, 'index'])->name('admin.clients');
@@ -270,4 +271,46 @@ Route::middleware(['auth', 'session.activity'])->group(function () {
     Route::post('/releases', [ReleaseController::class, 'store'])->name('admin.releases.store');
     Route::delete('/releases/{release}', [ReleaseController::class, 'destroy'])->name('admin.releases.destroy');
     Route::post('/releases/{release}/mark-latest', [ReleaseController::class, 'markLatest'])->name('admin.releases.mark-latest');
+
+    // ─────────────────────────────────────────────────────────
+    //  Scheduled Jobs UI (Task 2)
+    // ─────────────────────────────────────────────────────────
+    Route::get('/scheduled-jobs', [\App\Http\Controllers\Admin\ScheduledJobController::class, 'index'])->name('admin.scheduled-jobs.index');
+    Route::get('/scheduled-jobs/create', [\App\Http\Controllers\Admin\ScheduledJobController::class, 'create'])->name('admin.scheduled-jobs.create');
+    Route::post('/scheduled-jobs', [\App\Http\Controllers\Admin\ScheduledJobController::class, 'store'])->name('admin.scheduled-jobs.store');
+    Route::delete('/scheduled-jobs/{job}', [\App\Http\Controllers\Admin\ScheduledJobController::class, 'destroy'])->name('admin.scheduled-jobs.destroy');
+
+    // ─────────────────────────────────────────────────────────
+    //  API Documentation UI (Task 7 — Swagger)
+    // ─────────────────────────────────────────────────────────
+    Route::get('/api-docs', function () {
+        return view('admin.api-docs');
+    })->name('admin.api-docs');
+
+    // ─────────────────────────────────────────────────────────
+    //  Two-Factor Authentication (Task 6)
+    // ─────────────────────────────────────────────────────────
+    Route::get('/mfa/setup', [\App\Http\Controllers\Admin\MfaController::class, 'setup'])->name('admin.mfa.setup');
+    Route::post('/mfa/initiate', [\App\Http\Controllers\Admin\MfaController::class, 'initiate'])->name('admin.mfa.initiate');
+    Route::post('/mfa/verify', [\App\Http\Controllers\Admin\MfaController::class, 'verify'])->name('admin.mfa.verify');
+    Route::post('/mfa/disable', [\App\Http\Controllers\Admin\MfaController::class, 'disable'])->name('admin.mfa.disable');
+    Route::post('/mfa/cancel-setup', [\App\Http\Controllers\Admin\MfaController::class, 'cancelSetup'])->name('admin.mfa.cancel-setup');
+    Route::post('/mfa/regenerate', [\App\Http\Controllers\Admin\MfaController::class, 'regenerate'])->name('admin.mfa.regenerate');
+
+    // ─────────────────────────────────────────────────────────
+    //  Backup & Restore UI (Task 5)
+    // ─────────────────────────────────────────────────────────
+    Route::get('/backup', [\App\Http\Controllers\Admin\BackupController::class, 'index'])->name('admin.backup.index');
+    Route::post('/backup/export', [\App\Http\Controllers\Admin\BackupController::class, 'export'])->name('admin.backup.export');
+    Route::post('/backup/import', [\App\Http\Controllers\Admin\BackupController::class, 'import'])->name('admin.backup.import');
+    Route::get('/backup/download/{filename}', [\App\Http\Controllers\Admin\BackupController::class, 'download'])->name('admin.backup.download');
+    Route::delete('/backup/{filename}', [\App\Http\Controllers\Admin\BackupController::class, 'destroy'])->name('admin.backup.delete');
+});
+
+// ───────────────────────────────────────────────────────────────
+//  MFA Challenge Routes (Task 6) — outside 'auth' middleware
+// ───────────────────────────────────────────────────────────────
+Route::middleware('guest')->group(function () {
+    Route::get('/mfa/challenge', [\App\Http\Controllers\Auth\MfaChallengeController::class, 'showChallenge'])->name('mfa.challenge');
+    Route::post('/mfa/challenge', [\App\Http\Controllers\Auth\MfaChallengeController::class, 'verify'])->name('mfa.challenge.verify');
 });

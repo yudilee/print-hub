@@ -141,6 +141,9 @@
                     @if($job->file_path)
                         <br><a href="{{ route('admin.jobs.download', $job) }}" style="font-size: 0.7rem; color: var(--primary); text-decoration: underline;" target="_blank">View PDF</a>
                     @endif
+                    @if(in_array($job->status, ['queued', 'pending', 'scheduled', 'processing']))
+                        <br><button onclick="previewJob('{{ $job->job_id }}')" style="font-size: 0.7rem; color: var(--info); background: none; border: none; cursor: pointer; text-decoration: underline; padding: 0;" title="Preview this job's PDF">👁 Preview</button>
+                    @endif
                 </td>
                 <td id="job-status-{{ $job->job_id }}">
                     @if($job->status === 'success')
@@ -177,6 +180,10 @@
                         <button class="btn btn-sm btn-secondary" style="padding: 2px 6px; font-size: 0.65rem;"
                                 onclick="openDependencyModal('{{ $job->job_id }}')"
                                 title="View/Edit Dependencies">🔗 Deps</button>
+                        @if(in_array($job->status, ['queued', 'pending', 'scheduled', 'processing']))
+                        <button class="btn btn-sm" style="padding: 2px 6px; font-size: 0.65rem; background: var(--info); color: white; border: none; border-radius: 3px; cursor: pointer;"
+                                onclick="previewJob('{{ $job->job_id }}')" title="Preview PDF">👁 Preview</button>
+                        @endif
                     </div>
                 </td>
             </tr>
@@ -662,5 +669,66 @@
         tablist.closest('.filter-bar').querySelector('[name=status]').value = '';
         tablist.closest('.filter-bar').querySelector('[name=scheduled_filter]').value = '';
     }
+
+    // ── Print Preview Modal (Task 4) ─────────────────────────
+    let previewIframe = null;
+    function previewJob(jobId) {
+        // Remove existing preview modal if any
+        closePreviewModal();
+
+        const overlay = document.createElement('div');
+        overlay.id = 'preview-overlay';
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:9999;display:flex;align-items:center;justify-content:center;';
+
+        const modal = document.createElement('div');
+        modal.className = 'card';
+        modal.style.cssText = 'width:90%;max-width:900px;height:90%;display:flex;flex-direction:column;padding:0;overflow:hidden;';
+
+        modal.innerHTML = `
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:1rem 1.5rem;border-bottom:1px solid var(--border);flex-shrink:0;">
+                <h2 style="font-size:1rem;font-weight:600;">Print Preview — <code class="mono">${jobId}</code></h2>
+                <button onclick="closePreviewModal()" style="background:none;border:none;color:var(--text-muted);font-size:1.5rem;cursor:pointer;padding:0.25rem;" title="Close preview">&times;</button>
+            </div>
+            <div style="flex:1;display:flex;align-items:center;justify-content:center;background:var(--bg);min-height:0;">
+                <div class="spinner" style="width:32px;height:32px;border-width:3px;"></div>
+                <span style="margin-left:0.75rem;color:var(--text-muted);font-size:0.9rem;">Loading preview...</span>
+            </div>
+        `;
+
+        overlay.appendChild(modal);
+        document.body.appendChild(overlay);
+
+        // Fetch the preview PDF
+        const previewUrl = '{{ route("admin.jobs.preview", "") }}/' + jobId;
+        const contentDiv = modal.querySelector('div[style*="flex:1"]');
+
+        fetch(previewUrl)
+            .then(r => {
+                if (!r.ok) throw new Error('Preview failed (HTTP ' + r.status + ')');
+                return r.blob();
+            })
+            .then(blob => {
+                const url = URL.createObjectURL(blob);
+                contentDiv.innerHTML = `<iframe src="${url}" style="width:100%;height:100%;border:none;" title="Print Preview"></iframe>`;
+            })
+            .catch(err => {
+                contentDiv.innerHTML = `<div style="text-align:center;color:var(--danger);padding:2rem;">
+                    <div style="font-size:2rem;margin-bottom:0.5rem;">❌</div>
+                    <p>${err.message}</p>
+                </div>`;
+            });
+    }
+
+    function closePreviewModal() {
+        const existing = document.getElementById('preview-overlay');
+        if (existing) {
+            existing.remove();
+        }
+    }
+
+    // Close preview on Escape key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') closePreviewModal();
+    });
 </script>
 @endsection

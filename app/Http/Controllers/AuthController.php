@@ -27,6 +27,17 @@ class AuthController extends Controller
         $user = User::where('email', $request->email)->first();
         
         if ($user && Hash::check($request->password, $user->password)) {
+            // Check if user has MFA enabled
+            $mfaToken = \App\Models\MfaToken::where('user_id', $user->id)
+                ->where('is_enabled', true)
+                ->first();
+
+            if ($mfaToken) {
+                // Store user ID in session and redirect to MFA challenge
+                session(['mfa:user:id' => $user->id, 'mfa:remember' => $request->boolean('remember')]);
+                return redirect()->route('mfa.challenge');
+            }
+
             $this->completeLogin($user, $request);
             return redirect()->intended(route('admin.dashboard'));
         }

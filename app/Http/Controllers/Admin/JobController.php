@@ -476,4 +476,49 @@ class JobController extends Controller
 
         return array_unique($ids);
     }
+
+    // ──────────────────────────────────────────────────────────
+    //  Print Preview (Task 4)
+    // ──────────────────────────────────────────────────────────
+
+    /**
+     * Preview a print job's PDF content.
+     *
+     * If the job has a stored file_path, return the PDF directly.
+     * Otherwise, attempt to generate a preview using the template
+     * engine and the stored template_data.
+     */
+    public function preview(PrintJob $job)
+    {
+        // If file exists on disk, serve it directly
+        if ($job->file_path && \Illuminate\Support\Facades\Storage::exists($job->file_path)) {
+            $fullPath = storage_path('app/private/' . $job->file_path);
+            $realBase = realpath(storage_path('app/private'));
+            $realFile = realpath($fullPath);
+
+            if ($realFile && str_starts_with($realFile, $realBase)) {
+                return response()->file($realFile, [
+                    'Content-Type' => 'application/pdf',
+                ]);
+            }
+        }
+
+        // Try to generate a preview using the template + data
+        if ($job->template_name && !empty($job->template_data)) {
+            $template = \App\Models\PrintTemplate::where('name', $job->template_name)->first();
+            if ($template) {
+                try {
+                    $engine = app(\App\Services\ContinuousFormEngine::class);
+                    $pdf = $engine->generate($template, $job->template_data ?? [], $job->options ?? []);
+                    return response($pdf, 200, [
+                        'Content-Type' => 'application/pdf',
+                    ]);
+                } catch (\Exception $e) {
+                    abort(500, 'Preview generation failed: ' . $e->getMessage());
+                }
+            }
+        }
+
+        abort(404, 'No preview available for this job.');
+    }
 }
