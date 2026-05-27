@@ -3126,7 +3126,7 @@ try {
                 <li>Generate client SDKs in any language using <a href="https://openapi-generator.tech" target="_blank">OpenAPI Generator</a></li>
                 <li>Import into API tools like <a href="https://insomnia.rest" target="_blank">Insomnia</a>, <a href="https://www.postman.com" target="_blank">Postman</a>, or <a href="https://swagger.io/tools/swagger-ui/" target="_blank">Swagger UI</a></li>
                 <li>Validate API requests and responses automatically</li>
-                <li>Generate interactive API documentation</li>
+                <li><strong>Test endpoints interactively</strong> using the live Swagger UI below</li>
             </ul>
 
             <div class="code-block-wrapper">
@@ -3150,6 +3150,38 @@ npx @openapitools/openapi-generator-cli generate \
     -o ./printhub-client-ts</code></pre>
             </div>
 
+            <h3>Interactive API Playground</h3>
+            <p>Try any endpoint directly from your browser. Click "Try it out" on any endpoint below, fill in the parameters, and execute.</p>
+            <div id="swagger-ui" style="margin-top: 1rem; min-height: 600px; background: var(--bg); border-radius: 8px; border: 1px solid var(--border);">
+                <div style="display:flex; align-items:center; justify-content:center; height:600px; color:var(--text-muted);">
+                    <div class="spinner" style="margin-right:8px;"></div> Loading API specification...
+                </div>
+            </div>
+
+            <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css">
+            <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
+            <script>
+                document.addEventListener('DOMContentLoaded', function() {
+                    setTimeout(function() {
+                        SwaggerUIBundle({
+                            url: '{{ asset('sdk/openapi.yaml') }}',
+                            dom_id: '#swagger-ui',
+                            deepLinking: true,
+                            presets: [
+                                SwaggerUIBundle.presets.apis,
+                            ],
+                            defaultModelsExpandDepth: -1,
+                            defaultModelExpandDepth: 2,
+                            docExpansion: 'list',
+                            filter: true,
+                            showExtensions: true,
+                            syntaxHighlight: { theme: 'monokai' },
+                            requestSnippetsEnabled: true,
+                        });
+                    }, 100);
+                });
+            </script>
+
             <h3>Specification Overview</h3>
             <table>
                 <thead><tr><th>Section</th><th>Endpoints</th></tr></thead>
@@ -3169,7 +3201,7 @@ npx @openapitools/openapi-generator-cli generate \
             </table>
 
             <div class="tip-box">
-                <strong>💡 Tip:</strong> The OpenAPI spec includes full JSON Schema definitions for all request/response bodies, making it ideal for code generation and API testing.
+                <strong>💡 Tip:</strong> The OpenAPI spec includes full JSON Schema definitions for all request/response bodies, making it ideal for code generation and API testing. Use the interactive playground above to test endpoints directly.
             </div>
         </section>
 

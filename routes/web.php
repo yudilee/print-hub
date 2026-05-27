@@ -280,13 +280,9 @@ Route::middleware(['auth', 'session.activity'])->group(function () {
     Route::post('/scheduled-jobs', [\App\Http\Controllers\Admin\ScheduledJobController::class, 'store'])->name('admin.scheduled-jobs.store');
     Route::delete('/scheduled-jobs/{job}', [\App\Http\Controllers\Admin\ScheduledJobController::class, 'destroy'])->name('admin.scheduled-jobs.destroy');
 
-    // ─────────────────────────────────────────────────────────
-    //  API Documentation UI (Task 7 — Swagger)
-    // ─────────────────────────────────────────────────────────
-    Route::get('/api-docs', function () {
-        return view('admin.api-docs');
-    })->name('admin.api-docs');
-
+    // ── API Docs — now integrated into the existing SDK Docs page (section 12) ──
+    // The separate /admin/api-docs route was removed to avoid duplication.
+    // Interactive Swagger UI is embedded in /admin/sdk-docs.
     // ─────────────────────────────────────────────────────────
     //  Two-Factor Authentication (Task 6)
     // ─────────────────────────────────────────────────────────
