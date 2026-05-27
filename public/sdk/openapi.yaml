@@ -1387,7 +1387,7 @@ components:
           example: "https://myapp.com/webhook/print-status"
         skip_validation:
           type: boolean
-          description: Skip schema validation (default: false)
+          description: "Skip schema validation (default: false)"
           default: false
         parameters:
           type: object
