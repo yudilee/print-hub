@@ -15,8 +15,7 @@ class JobController extends Controller
     {
         $query = PrintJob::with('agent.branch')
             ->with('dependsOn')
-            ->withCount('dependents')
-            ->latest();
+            ->withCount('dependents');
 
         // ── Status filter ────────────────────────────────────
         if ($request->filled('status')) {
@@ -62,11 +61,35 @@ class JobController extends Controller
             $query->where('job_id', $request->job_id);
         }
 
-        $jobs = $query->paginate(50);
+        // ── Sort order (Task 4.3) ────────────────────────────
+        $sortField = $request->get('sort', 'created_at');
+        $sortDirection = $request->get('direction', 'desc');
+
+        $allowedSorts = ['job_id', 'created_at', 'status', 'printer_name', 'type'];
+        if (in_array($sortField, $allowedSorts)) {
+            if ($sortField === 'agent') {
+                $query->orderBy(
+                    PrintAgent::select('name')
+                        ->whereColumn('print_agents.id', 'print_jobs.print_agent_id')
+                        ->limit(1),
+                    $sortDirection
+                );
+            } else {
+                $query->orderBy($sortField, $sortDirection);
+            }
+        } else {
+            $query->latest();
+        }
+
+        // ── Page size (Task 4.3) ─────────────────────────────
+        $perPage = (int) $request->get('per_page', 25);
+        $perPage = in_array($perPage, [10, 25, 50, 100]) ? $perPage : 25;
+
+        $jobs = $query->paginate($perPage)->withQueryString();
         $agents = PrintAgent::all();
         $branches = Branch::active()->get();
 
-        return view('admin.jobs', compact('jobs', 'agents', 'branches'));
+        return view('admin.jobs', compact('jobs', 'agents', 'branches', 'sortField', 'sortDirection', 'perPage'));
     }
 
     /**
@@ -218,6 +241,43 @@ class JobController extends Controller
         }
 
         return redirect()->back()->with('success', "{$count} failed job(s) have been re-queued for retry.");
+    }
+
+    /**
+     * Bulk retry selected jobs by job_id (Task 2.3).
+     */
+    public function bulkRetry(Request $request)
+    {
+        $data = $request->validate([
+            'job_ids'   => 'required|array',
+            'job_ids.*' => 'required|string|exists:print_jobs,job_id',
+        ]);
+
+        $count = 0;
+        foreach ($data['job_ids'] as $jobId) {
+            $job = PrintJob::where('job_id', $jobId)->first();
+            if (!$job) continue;
+
+            $newJob = $job->replicate();
+            $newJob->job_id = (string) Str::uuid();
+            $newJob->status = 'queued';
+            $newJob->error = null;
+            $newJob->agent_created_at = null;
+            $newJob->agent_completed_at = null;
+            $newJob->created_at = now();
+            $newJob->updated_at = now();
+
+            if ($job->file_path && \Illuminate\Support\Facades\Storage::exists($job->file_path)) {
+                $ext = pathinfo($job->file_path, PATHINFO_EXTENSION);
+                $newJob->file_path = "print_jobs/{$newJob->job_id}.{$ext}";
+                \Illuminate\Support\Facades\Storage::copy($job->file_path, $newJob->file_path);
+            }
+
+            $newJob->save();
+            $count++;
+        }
+
+        return redirect()->back()->with('success', "{$count} selected job(s) have been re-queued for retry.");
     }
     // ──────────────────────────────────────────────────────────
     //  Dependency UI Support (Item 13.2)

@@ -98,7 +98,7 @@
                             <form action="{{ route('admin.sessions.force-logout-user', $session->user_id) }}" method="POST"
                                   onsubmit="return confirm('Terminate ALL sessions for {{ $session->user->name }}?');">
                                 @csrf
-                                <button class="btn btn-sm btn-warning" title="Force logout all sessions for this user">🔓</button>
+                                <button class="btn btn-sm btn-warning" title="Force logout all sessions for this user" aria-label="Force logout {{ $session->user->name }}">🔓</button>
                             </form>
                         @endif
                     </div>

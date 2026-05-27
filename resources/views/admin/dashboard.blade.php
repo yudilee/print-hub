@@ -15,7 +15,7 @@
         </p>
     </div>
     <div style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.8rem; color: var(--text-muted);">
-        <span id="refresh-indicator" style="display: flex; align-items: center; gap: 0.35rem;">
+        <span id="refresh-indicator" style="display: flex; align-items: center; gap: 0.35rem;" aria-label="Dashboard auto-refreshes every 30 seconds" role="status" aria-live="polite">
             <span class="dot dot-green" style="animation: pulse 2s infinite;"></span> Auto-refreshing
         </span>
     </div>
@@ -166,14 +166,15 @@
         <a href="{{ route('admin.agents') }}" class="btn btn-primary btn-sm">Manage Agents</a>
     </div>
     <div style="overflow-x: auto;">
-        <table>
+        <table role="table">
+            <caption class="sr-only">Agent uptime summary</caption>
             <thead>
                 <tr>
-                    <th>Agent</th>
-                    <th>Status</th>
-                    <th>Uptime</th>
-                    <th>Last Seen</th>
-                    <th>Branch</th>
+                    <th scope="col">Agent</th>
+                    <th scope="col">Status</th>
+                    <th scope="col">Uptime</th>
+                    <th scope="col">Last Seen</th>
+                    <th scope="col">Branch</th>
                 </tr>
             </thead>
             <tbody>
@@ -265,6 +266,62 @@
     </div>
 </div>
 @endif
+
+{{-- Recent Failures Widget (Task 2.7) --}}
+<div class="card" style="margin-bottom: 1.5rem; {{ $recentFailures->count() > 0 ? 'border-color: var(--danger);' : '' }}">
+    <div class="card-header">
+        <h2>❌ Recent Failures</h2>
+        <div style="display: flex; gap: 0.5rem;">
+            @if($recentFailures->count() > 0)
+            <form action="{{ route('admin.jobs.retry-all-failed') }}" method="POST" style="display:inline;" onsubmit="return confirm('Retry ALL failed jobs?')">
+                @csrf
+                <button type="submit" class="btn btn-warning btn-sm">🔄 Retry All Failed</button>
+            </form>
+            @endif
+            <a href="{{ route('admin.jobs', ['status' => 'failed']) }}" class="btn btn-primary btn-sm">View All Failed</a>
+        </div>
+    </div>
+    @if($recentFailures->count() > 0)
+    <div style="overflow-x: auto;">
+        <table role="table">
+            <caption class="sr-only">Recent failed jobs</caption>
+            <thead>
+                <tr>
+                    <th scope="col">Job ID</th>
+                    <th scope="col">Agent</th>
+                    <th scope="col">Printer</th>
+                    <th scope="col">Error</th>
+                    <th scope="col">Time</th>
+                    <th scope="col">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach($recentFailures as $job)
+                <tr>
+                    <td><code class="mono" style="font-size: 0.75rem;">{{ $job->job_id }}</code></td>
+                    <td style="font-size: 0.8rem;">{{ $job->agent->name ?? '—' }}</td>
+                    <td style="font-size: 0.75rem; color: var(--text-muted);">{{ $job->printer_name }}</td>
+                    <td style="font-size: 0.75rem; color: var(--danger); max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ $job->error }}">
+                        {{ Str::limit($job->error, 60) ?? '—' }}
+                    </td>
+                    <td style="color: var(--text-muted); font-size: 0.75rem; white-space: nowrap;">{{ $job->created_at->diffForHumans() }}</td>
+                    <td>
+                        <form action="{{ route('admin.jobs.retry', $job) }}" method="POST" style="display:inline;" onsubmit="return confirm('Retry this job?')">
+                            @csrf
+                            <button type="submit" class="btn btn-sm" style="padding: 2px 6px; font-size: 0.65rem; background: var(--primary); color: white; border: none; border-radius: 3px; cursor: pointer;" title="Retry this job">Retry</button>
+                        </form>
+                    </td>
+                </tr>
+                @endforeach
+            </tbody>
+        </table>
+    </div>
+    @else
+    <div style="text-align: center; padding: 1.5rem; color: var(--text-muted); font-size: 0.85rem;">
+        ✅ No recent failures. All jobs running smoothly.
+    </div>
+    @endif
+</div>
 
 {{-- Main Content Grid --}}
 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;" id="dashboard-grid">

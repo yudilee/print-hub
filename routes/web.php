@@ -76,6 +76,7 @@ Route::middleware(['auth', 'session.activity'])->group(function () {
     Route::put('/agents/{agent}', [AgentController::class, 'update'])->name('admin.agents.update');
     Route::post('/agents/{agent}/regenerate-key', [AgentController::class, 'regenerateKey'])->name('admin.agents.regenerate-key');
     Route::delete('/agents/{agent}', [AgentController::class, 'destroy'])->name('admin.agents.destroy');
+    Route::get('/agents/{agent}/activity', [AgentController::class, 'activity'])->name('admin.agents.activity');
 
     // Printer Configs (Item 8.1)
     Route::get('/printer-configs', [PrinterConfigController::class, 'index'])->name('admin.printer-configs');
@@ -91,6 +92,7 @@ Route::middleware(['auth', 'session.activity'])->group(function () {
     Route::post('/profiles/{profile}/test-print', [ProfileController::class, 'testPrint'])->name('admin.profiles.test-print');
     Route::get('/profiles/{profile}/edit', [ProfileController::class, 'edit'])->name('admin.profiles.edit');
     Route::put('/profiles/{profile}', [ProfileController::class, 'update'])->name('admin.profiles.update');
+    Route::get('/profiles/{profile}/clone', [ProfileController::class, 'clone'])->name('admin.profiles.clone');
 
     // Templates
     Route::get('/templates', [TemplateController::class, 'index'])->name('admin.templates');
@@ -139,6 +141,7 @@ Route::middleware(['auth', 'session.activity'])->group(function () {
     Route::post('/jobs/{job}/status', [JobController::class, 'updateStatus'])->name('admin.jobs.status');
     Route::post('/jobs/{job}/retry', [JobController::class, 'retry'])->name('admin.jobs.retry');
     Route::post('/jobs/retry-all-failed', [JobController::class, 'retryAllFailed'])->name('admin.jobs.retry-all-failed');
+    Route::post('/jobs/bulk-retry', [JobController::class, 'bulkRetry'])->name('admin.jobs.bulk-retry');
     Route::get('/jobs/{job}/dependencies', [JobController::class, 'dependencies'])->name('admin.jobs.dependencies');
     Route::get('/jobs/search-parents', [JobController::class, 'searchParentJobs'])->name('admin.jobs.search-parents');
     Route::post('/jobs/validate-dependency', [JobController::class, 'validateDependency'])->name('admin.jobs.validate-dependency');
@@ -232,6 +235,10 @@ Route::middleware(['auth', 'session.activity'])->group(function () {
             return view('admin.sso.index');
         })->name('admin.sso-settings');
     });
+    
+    // Prometheus Metrics Endpoint (Task 3.5) — accessible without auth for monitoring systems
+    Route::get('/metrics', [\App\Http\Controllers\MetricsController::class, 'index']);
+    
 
     // IP Whitelist settings page (super-admin only)
     Route::middleware('role:super-admin')->group(function () {

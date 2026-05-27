@@ -61,7 +61,7 @@
                         @if(!$notification->isRead())
                             <form action="{{ route('admin.notifications.mark-read', $notification) }}" method="POST">
                                 @csrf
-                                <button type="submit" class="btn btn-sm btn-secondary" title="Mark as read">✓</button>
+                                <button type="submit" class="btn btn-sm btn-secondary" title="Mark as read" aria-label="Mark notification as read">✓</button>
                             </form>
                         @endif
                     </div>

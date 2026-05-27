@@ -18,7 +18,7 @@ class PrintProfile extends Model
     use BranchScopeable;
     protected $fillable = [
         'name', 'description', 'print_agent_id', 'branch_id', 'paper_size', 'orientation',
-        'copies', 'duplex', 'default_printer', 'extra_options',
+        'copies', 'duplex', 'default_printer', 'extra_options', 'cloned_from',
         'is_custom', 'custom_width', 'custom_height',
         'margin_top', 'margin_bottom', 'margin_left', 'margin_right',
         'tray_source', 'color_mode', 'print_quality', 'scaling_percentage',

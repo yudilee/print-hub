@@ -160,6 +160,21 @@ class ProfileController extends Controller
         return redirect()->route('admin.profiles')->with('success', 'Profile updated!');
     }
 
+    /**
+     * Clone an existing profile (Task 2.4).
+     */
+    public function clone(PrintProfile $profile)
+    {
+        $agents = PrintAgent::where('is_active', true)->get();
+        $branches = Branch::with('company')->active()->orderBy('name')->get();
+        $profiles = PrintProfile::with(['agent', 'branch.company'])->latest()->get();
+
+        return view('admin.profiles', compact('profiles', 'agents', 'branches'))->with([
+            'clonedProfile' => $profile,
+            'clonedFrom'    => $profile->id,
+        ]);
+    }
+
     public function destroy(PrintProfile $profile)
     {
         $this->logActivity('profile.deleted', $profile, ['name' => $profile->name]);

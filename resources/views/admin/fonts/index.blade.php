@@ -95,14 +95,14 @@
                 <td>
                     <div style="display: flex; gap: 6px; flex-wrap: wrap;">
                         <a href="{{ route('admin.fonts.download', $font) }}" class="btn btn-secondary btn-sm"
-                           style="text-decoration: none;" title="Download font file">⬇</a>
+                           style="text-decoration: none;" title="Download font file" aria-label="Download {{ $font->name }}">⬇</a>
                         <button class="btn btn-secondary btn-sm" onclick="openEditModal({{ json_encode($font) }})"
-                                title="Edit font metadata">✎</button>
+                                title="Edit font metadata" aria-label="Edit {{ $font->name }}">✎</button>
                         <form action="{{ route('admin.fonts.destroy', $font) }}" method="POST"
                               onsubmit="return confirm('Delete font \'{{ $font->name }}\'? The file will be retained on disk.')"
                               style="display: inline;">
                             @csrf @method('DELETE')
-                            <button class="btn btn-danger btn-sm" title="Soft-delete font">🗑</button>
+                            <button class="btn btn-danger btn-sm" title="Soft-delete font" aria-label="Delete {{ $font->name }}">🗑</button>
                         </form>
                     </div>
                 </td>

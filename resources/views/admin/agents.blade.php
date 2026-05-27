@@ -53,19 +53,20 @@
             <span style="position: absolute; left: 8px; top: 50%; transform: translateY(-50%); font-size: 0.8rem; opacity: 0.4;">🔍</span>
         </div>
     </div>
-    <table>
+    <table role="table">
+        <caption class="sr-only">Registered print agents</caption>
         <thead>
             <tr>
-                <th>Name</th>
-                <th>Branch</th>
-                <th>Location</th>
-                <th>Status</th>
-                <th>Printers</th>
-                <th>Capabilities</th>
-                <th>Last Seen</th>
-                <th>Key Age</th>
-                <th>Jobs</th>
-                <th>Actions</th>
+                <th scope="col">Name</th>
+                <th scope="col">Branch</th>
+                <th scope="col">Location</th>
+                <th scope="col">Status</th>
+                <th scope="col">Printers</th>
+                <th scope="col">Capabilities</th>
+                <th scope="col">Last Seen</th>
+                <th scope="col">Key Age</th>
+                <th scope="col">Jobs</th>
+                <th scope="col">Actions</th>
             </tr>
         </thead>
         <tbody>
@@ -164,6 +165,9 @@
                 <td>{{ $agent->jobs_count }}</td>
                 <td>
                     <div style="display: flex; gap: 6px;">
+                        <a href="{{ route('admin.agents.activity', $agent) }}" class="btn btn-secondary btn-sm" style="text-decoration: none;" title="View activity timeline">
+                            📋 Activity
+                        </a>
                         <button class="btn btn-secondary btn-sm" onclick="openEditModal({{ $agent->id }}, '{{ e($agent->name) }}', '{{ $agent->branch_id }}', '{{ e($agent->location ?? '') }}', '{{ e($agent->department ?? '') }}', {{ $agent->is_active ? 'true' : 'false' }})">
                             Edit
                         </button>

@@ -48,15 +48,16 @@
 {{-- Company List --}}
 <div class="card">
     <div class="card-header"><h2>All Companies ({{ $companies->count() }})</h2></div>
-    <table>
+    <table role="table">
+        <caption class="sr-only">Companies list</caption>
         <thead>
             <tr>
-                <th>Company</th>
-                <th>Code</th>
-                <th>Short Name</th>
-                <th>Branches</th>
-                <th>Status</th>
-                <th>Actions</th>
+                <th scope="col">Company</th>
+                <th scope="col">Code</th>
+                <th scope="col">Short Name</th>
+                <th scope="col">Branches</th>
+                <th scope="col">Status</th>
+                <th scope="col">Actions</th>
             </tr>
         </thead>
         <tbody>

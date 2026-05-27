@@ -79,6 +79,15 @@ class AdminController extends Controller
             ->take(20)
             ->get();
 
+        // ── Recent Failures (Task 2.7) ────────────────────────────────────
+        // Last 5 failed jobs for the Recent Failures widget
+        $recentFailures = PrintJob::with('agent')
+            ->where('status', 'failed')
+            ->when(! $isSuperAdmin && ! empty($visibleBranches), fn($q) => $q->whereIn('branch_id', $visibleBranches))
+            ->latest()
+            ->take(5)
+            ->get();
+
         $stats = [
             'total_agents'    => $totalAgents,
             'online_agents'   => $onlineAgents,
@@ -95,7 +104,8 @@ class AdminController extends Controller
 
         return view('admin.dashboard', compact(
             'agents', 'agentsWithUptime', 'profiles', 'recentJobs', 'stats',
-            'totalAgents', 'onlineAgents', 'offlineAgents', 'slaBreachJobs'
+            'totalAgents', 'onlineAgents', 'offlineAgents', 'slaBreachJobs',
+            'recentFailures'
         ));
     }
 }

@@ -23,7 +23,7 @@
 </div>
 
 {{-- Filters --}}
-<div class="filter-bar" x-data="{ statusFilter: '', scheduleFilter: '', dateFrom: '', dateTo: '' }">
+<div class="filter-bar" x-data="{ statusFilter: '', scheduleFilter: '', dateFrom: '', dateTo: '', perPage: '{{ $perPage ?? 25 }}' }">
     <form action="{{ route('admin.jobs') }}" method="GET" style="display:flex; gap:0.75rem; align-items:center; width:100%; flex-wrap: wrap;">
         <select name="status" x-model="statusFilter">
             <option value="">All Statuses</option>
@@ -65,46 +65,75 @@
                style="padding: 6px 10px; font-size: 0.8rem; background: var(--bg); border: 1px solid var(--border); color: var(--text); border-radius: 6px;">
         <button class="btn btn-primary btn-sm">Filter</button>
         <a href="{{ route('admin.jobs') }}" class="btn btn-sm" style="color: var(--text-muted);">Clear Filters</a>
+        <div style="display: flex; align-items: center; gap: 0.4rem; margin-left: auto;">
+            <label for="per_page" style="font-size: 0.75rem; color: var(--text-muted);">Per page:</label>
+            <select name="per_page" id="per_page" x-model="perPage" onchange="this.form.submit()" style="padding: 4px 8px; font-size: 0.75rem; background: var(--bg); border: 1px solid var(--border); color: var(--text); border-radius: 4px; width: auto;">
+                <option value="10" {{ ($perPage ?? 25) == 10 ? 'selected' : '' }}>10</option>
+                <option value="25" {{ ($perPage ?? 25) == 25 ? 'selected' : '' }}>25</option>
+                <option value="50" {{ ($perPage ?? 25) == 50 ? 'selected' : '' }}>50</option>
+                <option value="100" {{ ($perPage ?? 25) == 100 ? 'selected' : '' }}>100</option>
+            </select>
+        </div>
     </form>
-    <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;" x-data="{ quickFilter: '' }">
-        <button @click="quickFilter = ''; $el.closest('.filter-bar').querySelector('[name=status]').value = ''"
-                class="btn btn-sm" :class="quickFilter === '' ? 'btn-primary' : 'btn-secondary'">All</button>
-        <button @click="quickFilter = 'success'; $el.closest('.filter-bar').querySelector('[name=status]').value = 'success'"
-                class="btn btn-sm" :class="quickFilter === 'success' ? 'btn-success' : 'btn-secondary'">✓ Success</button>
-        <button @click="quickFilter = 'failed'; $el.closest('.filter-bar').querySelector('[name=status]').value = 'failed'"
-                class="btn btn-sm" :class="quickFilter === 'failed' ? 'btn-danger' : 'btn-secondary'">✗ Failed</button>
-        <button @click="quickFilter = 'pending'; $el.closest('.filter-bar').querySelector('[name=status]').value = 'pending'"
-                class="btn btn-sm" :class="quickFilter === 'pending' ? 'btn-warning' : 'btn-secondary'">⏳ Pending</button>
-        <button @click="quickFilter = 'scheduled'; $el.closest('.filter-bar').querySelector('[name=status]').value = 'scheduled'; $el.closest('.filter-bar').querySelector('[name=scheduled_filter]').value = 'scheduled'"
-                class="btn btn-sm" :class="quickFilter === 'scheduled' ? 'btn-info' : 'btn-secondary'">📅 Scheduled</button>
+    <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;" x-data="{ quickFilter: '' }" role="tablist" aria-label="Filter jobs by status" @keydown.left.prevent="navigateQuickFilter(-1, $el)" @keydown.right.prevent="navigateQuickFilter(1, $el)" @keydown.escape.prevent="clearQuickFilter($el)">
+        <button @click="quickFilter = ''; $el.closest('.filter-bar').querySelector('[name=status]').value = ''; updateActiveTab($el)"
+                class="btn btn-sm" :class="quickFilter === '' ? 'btn-primary' : 'btn-secondary'"
+                role="tab" tabindex="0" aria-selected="true">All</button>
+        <button @click="quickFilter = 'success'; $el.closest('.filter-bar').querySelector('[name=status]').value = 'success'; updateActiveTab($el)"
+                class="btn btn-sm" :class="quickFilter === 'success' ? 'btn-success' : 'btn-secondary'"
+                role="tab" tabindex="-1" aria-selected="false">✓ Success</button>
+        <button @click="quickFilter = 'failed'; $el.closest('.filter-bar').querySelector('[name=status]').value = 'failed'; updateActiveTab($el)"
+                class="btn btn-sm" :class="quickFilter === 'failed' ? 'btn-danger' : 'btn-secondary'"
+                role="tab" tabindex="-1" aria-selected="false">✗ Failed</button>
+        <button @click="quickFilter = 'pending'; $el.closest('.filter-bar').querySelector('[name=status]').value = 'pending'; updateActiveTab($el)"
+                class="btn btn-sm" :class="quickFilter === 'pending' ? 'btn-warning' : 'btn-secondary'"
+                role="tab" tabindex="-1" aria-selected="false">⏳ Pending</button>
+        <button @click="quickFilter = 'scheduled'; $el.closest('.filter-bar').querySelector('[name=status]').value = 'scheduled'; $el.closest('.filter-bar').querySelector('[name=scheduled_filter]').value = 'scheduled'; updateActiveTab($el)"
+                class="btn btn-sm" :class="quickFilter === 'scheduled' ? 'btn-info' : 'btn-secondary'"
+                role="tab" tabindex="-1" aria-selected="false">📅 Scheduled</button>
     </div>
 </div>
 
-<div class="card">
+<div class="card" x-data="{ expanded: null, selectedJobs: [], selectAll: false }">
     <div class="card-header">
         <h2>Jobs ({{ $jobs->total() }})</h2>
+        <div style="display: flex; gap: 0.5rem; align-items: center;">
+            <span x-show="selectedJobs.length > 0" x-cloak style="font-size: 0.8rem; color: var(--text-muted);" x-text="selectedJobs.length + ' selected'"></span>
+            <form x-show="selectedJobs.length > 0" x-cloak action="{{ route('admin.jobs.bulk-retry') }}" method="POST" style="display: inline;" @submit.prevent="if(confirm('Retry ' + selectedJobs.length + ' selected job(s)?')) $el.submit()">
+                @csrf
+                <template x-for="jobId in selectedJobs" :key="jobId">
+                    <input type="hidden" name="job_ids[]" :value="jobId">
+                </template>
+                <button type="submit" class="btn btn-warning btn-sm" x-text="'🔄 Retry Selected (' + selectedJobs.length + ')'"></button>
+            </form>
+        </div>
     </div>
-    <table>
+    <table role="table">
+        <caption class="sr-only">Print job history</caption>
         <thead>
             <tr>
-                <th>Job ID</th>
-                <th>Agent</th>
-                <th>Printer</th>
-                <th>Type</th>
-                <th>Status</th>
-                <th>Dependencies</th>
-                <th>Scheduled At</th>
-                <th>Recurrence</th>
-                <th>Options</th>
-                <th>Error</th>
-                <th>Time</th>
-                <th>Actions</th>
+                <th scope="col" style="width: 36px;">
+                    <input type="checkbox" x-model="selectAll" @change="selectedJobs = selectAll ? {{ $jobs->pluck('job_id')->map(fn($id) => "'$id'")->join(',') }} : []" style="width: 16px; height: 16px; cursor: pointer;" aria-label="Select all jobs">
+                </th>
+                <th scope="col" aria-sort="descending" style="cursor: pointer;" onclick="window.location.href='{{ request()->fullUrlWithQuery(['sort' => 'job_id', 'direction' => request('direction') === 'asc' ? 'desc' : 'asc']) }}'">Job ID ↕</th>
+                <th scope="col" style="cursor: pointer;" onclick="window.location.href='{{ request()->fullUrlWithQuery(['sort' => 'agent', 'direction' => request('direction') === 'asc' ? 'desc' : 'asc']) }}'">Agent ↕</th>
+                <th scope="col">Printer</th>
+                <th scope="col">Type</th>
+                <th scope="col">Status</th>
+                <th scope="col">Time</th>
+                <th scope="col">Actions</th>
             </tr>
         </thead>
         <tbody>
             @forelse($jobs as $job)
-            <tr id="job-row-{{ $job->job_id }}" style="transition: background-color 0.5s;">
-                <td><code class="mono">{{ $job->job_id }}</code></td>
+            <template x-if="true">
+            <tr id="job-row-{{ $job->job_id }}" style="transition: background-color 0.5s;" :class="{ 'expanded-row': expanded === '{{ $job->job_id }}' }">
+                <td>
+                    <input type="checkbox" value="{{ $job->job_id }}" x-model="selectedJobs" style="width: 16px; height: 16px; cursor: pointer;" :aria-label="'Select job {{ $job->job_id }}'">
+                </td>
+                <td>
+                    <code class="mono">{{ $job->job_id }}</code>
+                </td>
                 <td>{{ $job->agent->name ?? '—' }}</td>
                 <td style="font-size: 0.8rem;">{{ $job->printer_name }}</td>
                 <td>
@@ -118,11 +147,9 @@
                         <span class="badge badge-success">✓ Success</span>
                     @elseif($job->status === 'failed')
                         <span class="badge badge-danger">✗ Failed</span>
-                        <form action="{{ route('admin.jobs.retry', $job) }}" method="POST" style="display:inline; margin-left: 5px;" onsubmit="return confirm('Retry this job? A new job will be created and queued for processing.')">
+                        <form action="{{ route('admin.jobs.retry', $job) }}" method="POST" style="display:inline; margin-left: 5px;" onsubmit="return confirm('Retry this job?')">
                             @csrf
-                            <button type="submit" class="btn btn-sm" style="padding: 2px 5px; font-size: 0.65rem; background: var(--primary); color: white; border: none; border-radius: 3px; cursor: pointer;" title="Retry this job">
-                                Retry
-                            </button>
+                            <button type="submit" class="btn btn-sm" style="padding: 2px 5px; font-size: 0.65rem; background: var(--primary); color: white; border: none; border-radius: 3px; cursor: pointer;" title="Retry this job">Retry</button>
                         </form>
                     @elseif($job->status === 'scheduled' || $job->status === 'queued')
                         <span class="badge badge-info">{{ $job->status }}</span>
@@ -131,72 +158,83 @@
                         <form action="{{ route('admin.jobs.status', $job) }}" method="POST" style="display:inline; margin-left: 5px;">
                             @csrf
                             <input type="hidden" name="status" value="success">
-                            <button type="submit" class="btn btn-sm" style="padding: 2px 5px; font-size: 0.65rem; background: var(--success); color: white; border: none; border-radius: 3px; cursor: pointer;" title="Manually mark as success">
-                                Mark Success
-                            </button>
+                            <button type="submit" class="btn btn-sm" style="padding: 2px 5px; font-size: 0.65rem; background: var(--success); color: white; border: none; border-radius: 3px; cursor: pointer;" title="Manually mark as success">Mark Success</button>
                         </form>
                     @endif
-                </td>
-                <td style="font-size: 0.75rem;">
-                    @if($job->depends_on_job_id)
-                        <div style="display:flex; flex-direction:column; gap:2px;">
-                            <span style="color:var(--text-muted);">Depends on:</span>
-                            <a href="{{ route('admin.jobs', ['job_id' => $job->depends_on_job_id]) }}"
-                               style="font-family:monospace; font-size:0.7rem; color:var(--primary); text-decoration:underline;">
-                                {{ $job->dependsOn?->job_id ?? '#' . $job->depends_on_job_id }}
-                            </a>
-                            @if($job->dependency_type)
-                                <span style="font-size:0.65rem; color:var(--text-muted);">
-                                    ({{ str_replace('_', ' ', $job->dependency_type) }})
-                                </span>
-                            @endif
-                        </div>
-                    @elseif($job->dependents_count > 0)
-                        <span style="color:var(--text-muted); font-size:0.7rem;">
-                            {{ $job->dependents_count }} dependent(s)
-                        </span>
-                    @else
-                        <span style="color:var(--text-muted);">—</span>
-                    @endif
-                </td>
-                <td style="font-size: 0.8rem; white-space: nowrap;">
-                    @if($job->scheduled_at)
-                        <span style="color: var(--info);">{{ $job->scheduled_at->format('d M H:i') }}</span>
-                    @else
-                        <span style="color: var(--text-muted);">—</span>
-                    @endif
-                </td>
-                <td>
-                    @if($job->recurrence && $job->recurrence !== 'none')
-                        <span class="badge badge-info">{{ $job->recurrence }}</span>
-                    @else
-                        <span style="color: var(--text-muted);">—</span>
-                    @endif
-                </td>
-                <td style="font-size: 0.75rem; color: var(--text-muted);">
-                    @if($job->webhook_url)<div>Webhook: yes</div>@endif
-                    @if($job->options)
-                        @foreach($job->options as $k => $v)
-                            {{ $k }}={{ $v }}{{ !$loop->last ? ', ' : '' }}
-                        @endforeach
-                    @endif
-                </td>
-                <td id="job-error-{{ $job->job_id }}" style="font-size: 0.75rem; color: var(--danger); max-width: 200px; overflow: hidden; text-overflow: ellipsis;">
-                    {{ $job->error ?? '—' }}
                 </td>
                 <td style="color: var(--text-muted); font-size: 0.8rem; white-space: nowrap;">
                     {{ $job->created_at->format('d M H:i') }}
                 </td>
                 <td>
-                    <button class="btn btn-sm btn-secondary" style="padding: 2px 6px; font-size: 0.65rem;"
-                            onclick="openDependencyModal('{{ $job->job_id }}')"
-                            title="View/Edit Dependencies">
-                        🔗 Deps
-                    </button>
+                    <div style="display: flex; gap: 4px;">
+                        <button class="btn btn-sm btn-secondary" style="padding: 2px 6px; font-size: 0.65rem;"
+                                @click="expanded = expanded === '{{ $job->job_id }}' ? null : '{{ $job->job_id }}'"
+                                :aria-expanded="expanded === '{{ $job->job_id }}' ? 'true' : 'false'"
+                                :aria-label="expanded === '{{ $job->job_id }}' ? 'Collapse job details' : 'Expand job details'"
+                                title="View details">
+                            <span x-text="expanded === '{{ $job->job_id }}' ? '▲' : '▼'">▼</span> Details
+                        </button>
+                        <button class="btn btn-sm btn-secondary" style="padding: 2px 6px; font-size: 0.65rem;"
+                                onclick="openDependencyModal('{{ $job->job_id }}')"
+                                title="View/Edit Dependencies">🔗 Deps</button>
+                    </div>
+                </td>
+            </tr>
+            </template>
+            {{-- Expandable sub-row for job details (Task 2.2) --}}
+            <tr x-show="expanded === '{{ $job->job_id }}'" x-cloak style="background: var(--bg);">
+                <td colspan="8" style="padding: 0;">
+                    <div style="padding: 1rem 1.5rem; border-bottom: 1px solid var(--border); display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; font-size: 0.8rem;">
+                        <div>
+                            <h4 style="font-size: 0.8rem; font-weight: 600; color: var(--primary); margin-bottom: 0.5rem;">📋 Job Metadata</h4>
+                            <table style="width: auto; font-size: 0.78rem;">
+                                <tr><td style="padding: 2px 8px 2px 0; color: var(--text-muted);">Reference ID:</td><td>{{ $job->reference_id ?? '—' }}</td></tr>
+                                <tr><td style="padding: 2px 8px 2px 0; color: var(--text-muted);">Client:</td><td>{{ $job->client_app_id ?? '—' }}</td></tr>
+                                <tr><td style="padding: 2px 8px 2px 0; color: var(--text-muted);">Template:</td><td>{{ $job->template_name ?? '—' }}</td></tr>
+                                <tr><td style="padding: 2px 8px 2px 0; color: var(--text-muted);">Copies:</td><td>{{ $job->options['copies'] ?? 1 }}</td></tr>
+                                <tr><td style="padding: 2px 8px 2px 0; color: var(--text-muted);">Priority:</td><td>{{ $job->priority ?? '—' }}</td></tr>
+                                <tr><td style="padding: 2px 8px 2px 0; color: var(--text-muted);">Duplex:</td><td>{{ $job->options['duplex'] ?? '—' }}</td></tr>
+                            </table>
+                        </div>
+                        <div>
+                            <h4 style="font-size: 0.8rem; font-weight: 600; color: var(--primary); margin-bottom: 0.5rem;">⏱ Timestamps</h4>
+                            <table style="width: auto; font-size: 0.78rem;">
+                                <tr><td style="padding: 2px 8px 2px 0; color: var(--text-muted);">Created:</td><td>{{ $job->created_at->format('Y-m-d H:i:s') }}</td></tr>
+                                <tr><td style="padding: 2px 8px 2px 0; color: var(--text-muted);">Processing:</td><td>{{ $job->agent_created_at ? $job->agent_created_at->format('Y-m-d H:i:s') : '—' }}</td></tr>
+                                <tr><td style="padding: 2px 8px 2px 0; color: var(--text-muted);">Completed:</td><td>{{ $job->agent_completed_at ? $job->agent_completed_at->format('Y-m-d H:i:s') : '—' }}</td></tr>
+                                <tr><td style="padding: 2px 8px 2px 0; color: var(--text-muted);">Scheduled:</td><td>{{ $job->scheduled_at ? $job->scheduled_at->format('Y-m-d H:i:s') : '—' }}</td></tr>
+                            </table>
+                        </div>
+                        @if($job->error)
+                        <div style="grid-column: 1 / -1;">
+                            <h4 style="font-size: 0.8rem; font-weight: 600; color: var(--danger); margin-bottom: 0.5rem;">⚠️ Error Message</h4>
+                            <pre style="background: rgba(239,68,68,0.05); border: 1px solid rgba(239,68,68,0.2); padding: 0.75rem; border-radius: 6px; font-size: 0.75rem; color: var(--danger); white-space: pre-wrap; word-break: break-word; max-height: 150px; overflow-y: auto;">{{ $job->error }}</pre>
+                        </div>
+                        @endif
+                        @if($job->depends_on_job_id || $job->dependents_count > 0)
+                        <div>
+                            <h4 style="font-size: 0.8rem; font-weight: 600; color: var(--primary); margin-bottom: 0.5rem;">🔗 Dependency Info</h4>
+                            <div style="font-size: 0.78rem;">
+                                @if($job->depends_on_job_id)
+                                    <div>Depends on: <a href="{{ route('admin.jobs', ['job_id' => $job->depends_on_job_id]) }}" style="color: var(--primary); text-decoration: underline;">{{ $job->dependsOn?->job_id ?? '#' . $job->depends_on_job_id }}</a></div>
+                                @endif
+                                @if($job->dependents_count > 0)
+                                    <div>{{ $job->dependents_count }} dependent(s)</div>
+                                @endif
+                            </div>
+                        </div>
+                        @endif
+                        @if($job->file_path)
+                        <div>
+                            <h4 style="font-size: 0.8rem; font-weight: 600; color: var(--primary); margin-bottom: 0.5rem;">📄 Document</h4>
+                            <a href="{{ route('admin.jobs.download', $job) }}" class="btn btn-sm btn-primary" target="_blank" style="text-decoration: none;">📥 Download / View PDF</a>
+                        </div>
+                        @endif
+                    </div>
                 </td>
             </tr>
             @empty
-            <tr><td colspan="12">
+            <tr><td colspan="8">
                 <x-empty-state icon="📋" title="No jobs found" description="Jobs will appear here when print tasks are submitted through agents or the API." />
             </td></tr>
             @endforelse
@@ -594,6 +632,35 @@
                     }
                 }
             });
+    }
+
+    // ── Quick Filter Keyboard Navigation ─────────────────────
+    function updateActiveTab(btn) {
+        const tablist = btn.closest('[role="tablist"]');
+        if (!tablist) return;
+        tablist.querySelectorAll('[role="tab"]').forEach(t => {
+            t.setAttribute('tabindex', '-1');
+            t.setAttribute('aria-selected', 'false');
+        });
+        btn.setAttribute('tabindex', '0');
+        btn.setAttribute('aria-selected', 'true');
+        btn.focus();
+    }
+
+    function navigateQuickFilter(direction, tablist) {
+        const tabs = Array.from(tablist.querySelectorAll('[role="tab"]'));
+        const currentIdx = tabs.findIndex(t => t.getAttribute('aria-selected') === 'true');
+        let nextIdx = currentIdx + direction;
+        if (nextIdx < 0) nextIdx = tabs.length - 1;
+        if (nextIdx >= tabs.length) nextIdx = 0;
+        tabs[nextIdx].click();
+    }
+
+    function clearQuickFilter(tablist) {
+        const firstTab = tablist.querySelector('[role="tab"]');
+        if (firstTab) firstTab.click();
+        tablist.closest('.filter-bar').querySelector('[name=status]').value = '';
+        tablist.closest('.filter-bar').querySelector('[name=scheduled_filter]').value = '';
     }
 </script>
 @endsection

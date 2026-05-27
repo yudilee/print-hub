@@ -28,12 +28,66 @@ class PrintHubController extends Controller
 
         $agent = PrintAgent::findByKey($token);
         if ($agent && $agent->is_active) {
+            // ── IP Whitelist Enforcement (Task 4.1) ────────────
+            if (!empty($agent->allowed_ips)) {
+                $requestIp = $request->ip();
+                $allowed = false;
+                $ipList = is_array($agent->allowed_ips) ? $agent->allowed_ips : explode(',', $agent->allowed_ips);
+
+                foreach ($ipList as $allowedIp) {
+                    $allowedIp = trim($allowedIp);
+                    if (str_contains($allowedIp, '/')) {
+                        // CIDR notation support
+                        if ($this->ipInCidr($requestIp, $allowedIp)) {
+                            $allowed = true;
+                            break;
+                        }
+                    } else {
+                        // Exact IP match
+                        if ($requestIp === $allowedIp) {
+                            $allowed = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (!$allowed) {
+                    return null; // Will result in 403 from caller
+                }
+            }
+
             $agent->update([
                 'last_seen_at' => now(),
                 'ip_address'   => $request->ip(),
             ]);
         }
         return $agent;
+    }
+
+    /**
+     * Check if an IP address is within a CIDR range.
+     */
+    private function ipInCidr(string $ip, string $cidr): bool
+    {
+        $parts = explode('/', $cidr);
+        if (count($parts) !== 2) {
+            return $ip === $parts[0];
+        }
+
+        $subnetIp = $parts[0];
+        $prefix = (int) $parts[1];
+
+        $ipLong = ip2long($ip);
+        $subnetLong = ip2long($subnetIp);
+
+        if ($ipLong === false || $subnetLong === false) {
+            return false;
+        }
+
+        $mask = -1 << (32 - $prefix);
+        $mask = $mask & 0xFFFFFFFF;
+
+        return ($ipLong & $mask) === ($subnetLong & $mask);
     }
 
     private function unauthorized(): \Illuminate\Http\JsonResponse

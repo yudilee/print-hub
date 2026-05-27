@@ -92,7 +92,8 @@ class PrintAgent extends Model
             return $agent;
         }
 
-        // Fallback to bcrypt lookup for legacy bcrypt-hashed keys
+        // Fallback to bcrypt lookup for legacy bcrypt-hashed keys,
+        // then plaintext comparison for pre-migration legacy keys.
         $agent = static::get()
             ->first(function ($a) use ($rawKey, $sha256) {
                 try {
@@ -100,7 +101,8 @@ class PrintAgent extends Model
                         || ($a->key_hash_bcrypt && Hash::check($rawKey, $a->key_hash_bcrypt))
                         || $a->agent_key === $sha256;
                 } catch (\Exception $e) {
-                    return $a->agent_key === $sha256;
+                    return $a->agent_key === $sha256
+                        || $a->agent_key === $rawKey;
                 }
             });
 

@@ -42,6 +42,7 @@
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
+        [x-cloak] { display: none !important; }
 
         body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
@@ -163,6 +164,7 @@
         .stat-label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
 
         table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+        .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
         thead th {
             text-align: left;
             padding: 0.75rem 1rem;
@@ -179,6 +181,15 @@
             vertical-align: middle;
         }
         tbody tr:hover { background: var(--surface-hover); }
+        /* focus-visible outlines for all interactive elements */
+        :focus-visible {
+            outline: 2px solid var(--primary);
+            outline-offset: 2px;
+        }
+        button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, .btn:focus-visible, .nav-link:focus-visible {
+            outline: 2px solid var(--primary);
+            outline-offset: 2px;
+        }
 
         .badge {
             display: inline-block;
@@ -355,9 +366,9 @@
         /* Help tooltip */
         .help-tip {
             display: inline-flex; align-items: center; justify-content: center;
-            width: 16px; height: 16px; border-radius: 50%;
+            width: 18px; height: 18px; border-radius: 50%;
             background: var(--border); color: var(--text-muted);
-            font-size: 10px; font-weight: 700; cursor: help;
+            font-size: 11px; font-weight: 700; cursor: help;
             vertical-align: middle; margin-left: 4px;
             position: relative;
         }
@@ -365,7 +376,7 @@
             display: none; position: absolute; bottom: calc(100% + 8px); left: 50%;
             transform: translateX(-50%); width: 220px; padding: 0.6rem 0.75rem;
             background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
-            font-size: 0.78rem; color: var(--text); box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            font-size: 0.8rem; color: var(--text); box-shadow: 0 4px 20px rgba(0,0,0,0.3);
             z-index: 100; white-space: normal; font-weight: 400; line-height: 1.4;
         }
         .help-tip:hover .help-tip-popover { display: block; }
@@ -383,109 +394,109 @@
         })();
     </script>
     <button class="hamburger" onclick="toggleSidebar()" aria-label="Toggle menu" title="Menu">☰</button>
-    <div class="sidebar-overlay" onclick="toggleSidebar()"></div>
+    <div class="sidebar-overlay" onclick="toggleSidebar()" aria-hidden="true"></div>
 
     <div class="layout">
-        <aside class="sidebar" id="sidebar">
+        <aside class="sidebar" id="sidebar" role="navigation" aria-label="Main navigation">
             <div class="sidebar-brand" style="display: flex; justify-content: space-between; align-items: center;">
                 <div>
                     <h1>Print Hub</h1>
                     <small>Central Management</small>
                 </div>
-                <button type="button" onclick="toggleSidebar()" style="background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 0.9rem; padding: 4px; display: flex; align-items: center; justify-content: center; border-radius: 4px; transition: all 0.2s;" class="desktop-only-toggle" title="Collapse Menu">◀</button>
+                <button type="button" onclick="toggleSidebar()" style="background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 0.9rem; padding: 4px; display: flex; align-items: center; justify-content: center; border-radius: 4px; transition: all 0.2s;" class="desktop-only-toggle" title="Collapse Menu" aria-controls="sidebar" aria-expanded="true">◀</button>
             </div>
-            <nav>
-                <a href="{{ route('admin.dashboard') }}" class="nav-link {{ request()->routeIs('admin.dashboard') ? 'active' : '' }}">
+            <nav aria-label="Main navigation">
+                <a href="{{ route('admin.dashboard') }}" class="nav-link {{ request()->routeIs('admin.dashboard') ? 'active' : '' }}" {{ request()->routeIs('admin.dashboard') ? 'aria-current="page"' : '' }}>
                     <x-icon name="dashboard" size="18"/> Dashboard
                 </a>
-                <a href="{{ route('admin.monitoring') }}" class="nav-link {{ request()->routeIs('admin.monitoring') ? 'active' : '' }}">
+                <a href="{{ route('admin.monitoring') }}" class="nav-link {{ request()->routeIs('admin.monitoring') ? 'active' : '' }}" {{ request()->routeIs('admin.monitoring') ? 'aria-current="page"' : '' }}>
                     <x-icon name="monitor" size="18"/> Monitoring
                 </a>
-                <a href="{{ route('admin.agents') }}" class="nav-link {{ request()->routeIs('admin.agents') ? 'active' : '' }}">
+                <a href="{{ route('admin.agents') }}" class="nav-link {{ request()->routeIs('admin.agents') ? 'active' : '' }}" {{ request()->routeIs('admin.agents') ? 'aria-current="page"' : '' }}>
                     <x-icon name="agent" size="18"/> Agents
                 </a>
-                <a href="{{ route('admin.profiles') }}" class="nav-link {{ request()->routeIs('admin.profiles') ? 'active' : '' }}">
+                <a href="{{ route('admin.profiles') }}" class="nav-link {{ request()->routeIs('admin.profiles') ? 'active' : '' }}" {{ request()->routeIs('admin.profiles') ? 'aria-current="page"' : '' }}>
                     <x-icon name="queue" size="18"/> Print Queues
                 </a>
-                <a href="{{ route('admin.jobs') }}" class="nav-link {{ request()->routeIs('admin.jobs') ? 'active' : '' }}">
+                <a href="{{ route('admin.jobs') }}" class="nav-link {{ request()->routeIs('admin.jobs') ? 'active' : '' }}" {{ request()->routeIs('admin.jobs') ? 'aria-current="page"' : '' }}>
                     <x-icon name="job" size="18"/> Job History
                 </a>
-                <a href="{{ route('admin.templates') }}" class="nav-link {{ request()->routeIs('admin.templates*') ? 'active' : '' }}">
+                <a href="{{ route('admin.templates') }}" class="nav-link {{ request()->routeIs('admin.templates*') ? 'active' : '' }}" {{ request()->routeIs('admin.templates*') ? 'aria-current="page"' : '' }}>
                     <x-icon name="template" size="18"/> Print Templates
                 </a>
-                <a href="{{ route('admin.fonts') }}" class="nav-link {{ request()->routeIs('admin.fonts*') ? 'active' : '' }}">
+                <a href="{{ route('admin.fonts') }}" class="nav-link {{ request()->routeIs('admin.fonts*') ? 'active' : '' }}" {{ request()->routeIs('admin.fonts*') ? 'aria-current="page"' : '' }}>
                     <x-icon name="font" size="18"/> Fonts
                 </a>
 
                 <div class="nav-section">Printers</div>
-                <a href="{{ route('admin.pools') }}" class="nav-link {{ request()->routeIs('admin.pools*') ? 'active' : '' }}">
+                <a href="{{ route('admin.pools') }}" class="nav-link {{ request()->routeIs('admin.pools*') ? 'active' : '' }}" {{ request()->routeIs('admin.pools*') ? 'aria-current="page"' : '' }}>
                     <x-icon name="pool" size="18"/> Printer Pools
                 </a>
-                <a href="{{ route('admin.printer-configs') }}" class="nav-link {{ request()->routeIs('admin.printer-configs') ? 'active' : '' }}">
+                <a href="{{ route('admin.printer-configs') }}" class="nav-link {{ request()->routeIs('admin.printer-configs') ? 'active' : '' }}" {{ request()->routeIs('admin.printer-configs') ? 'aria-current="page"' : '' }}>
                     <x-icon name="settings" size="18"/> Printer Configs
                 </a>
 
                 <div class="nav-section">Documents</div>
-                <a href="{{ route('admin.documents') }}" class="nav-link {{ request()->routeIs('admin.documents') ? 'active' : '' }}">
+                <a href="{{ route('admin.documents') }}" class="nav-link {{ request()->routeIs('admin.documents') ? 'active' : '' }}" {{ request()->routeIs('admin.documents') ? 'aria-current="page"' : '' }}>
                     <x-icon name="document" size="18"/> Documents
                 </a>
                 @if(auth()->user()?->hasAnyRole(['super-admin', 'company-admin', 'branch-admin']))
-                <a href="{{ route('admin.approvals') }}" class="nav-link {{ request()->routeIs('admin.approvals') ? 'active' : '' }}">
+                <a href="{{ route('admin.approvals') }}" class="nav-link {{ request()->routeIs('admin.approvals') ? 'active' : '' }}" {{ request()->routeIs('admin.approvals') ? 'aria-current="page"' : '' }}>
                     <x-icon name="approval" size="18"/> Approvals
                 </a>
                 @endif
 
                 @if(auth()->user()?->isSuperAdmin())
-                <a href="{{ route('admin.clients') }}" class="nav-link {{ request()->routeIs('admin.clients') ? 'active' : '' }}">
+                <a href="{{ route('admin.clients') }}" class="nav-link {{ request()->routeIs('admin.clients') ? 'active' : '' }}" {{ request()->routeIs('admin.clients') ? 'aria-current="page"' : '' }}>
                     <x-icon name="clients" size="18"/> Client Apps
                 </a>
                 @endif
 
                 <div class="nav-section">Organization</div>
                 @if(auth()->user()?->isSuperAdmin())
-                <a href="{{ route('admin.companies') }}" class="nav-link {{ request()->routeIs('admin.companies') ? 'active' : '' }}">
+                <a href="{{ route('admin.companies') }}" class="nav-link {{ request()->routeIs('admin.companies') ? 'active' : '' }}" {{ request()->routeIs('admin.companies') ? 'aria-current="page"' : '' }}>
                     <x-icon name="company" size="18"/> Companies
                 </a>
                 @endif
                 @if(auth()->user()?->hasAnyRole(['super-admin', 'company-admin', 'branch-admin']))
-                <a href="{{ route('admin.branches') }}" class="nav-link {{ request()->routeIs('admin.branches*') ? 'active' : '' }}">
+                <a href="{{ route('admin.branches') }}" class="nav-link {{ request()->routeIs('admin.branches*') ? 'active' : '' }}" {{ request()->routeIs('admin.branches*') ? 'aria-current="page"' : '' }}>
                     <x-icon name="branch" size="18"/> Branches
                 </a>
                 @endif
 
                 <div class="nav-section">Access Control</div>
                 @if(auth()->user()?->hasAnyRole(['super-admin', 'company-admin']))
-                <a href="{{ route('admin.users') }}" class="nav-link {{ request()->routeIs('admin.users') ? 'active' : '' }}">
+                <a href="{{ route('admin.users') }}" class="nav-link {{ request()->routeIs('admin.users') ? 'active' : '' }}" {{ request()->routeIs('admin.users') ? 'aria-current="page"' : '' }}>
                     <x-icon name="users" size="18"/> Users
                 </a>
                 @endif
-                <a href="{{ route('admin.sessions') }}" class="nav-link {{ request()->routeIs('admin.sessions') ? 'active' : '' }}">
+                <a href="{{ route('admin.sessions') }}" class="nav-link {{ request()->routeIs('admin.sessions') ? 'active' : '' }}" {{ request()->routeIs('admin.sessions') ? 'aria-current="page"' : '' }}>
                     <x-icon name="sessions" size="18"/> Active Sessions
                 </a>
                 @if(auth()->user()?->hasAnyRole(['super-admin', 'company-admin', 'branch-admin']))
-                <a href="{{ route('admin.activity-logs') }}" class="nav-link {{ request()->routeIs('admin.activity-logs') ? 'active' : '' }}">
+                <a href="{{ route('admin.activity-logs') }}" class="nav-link {{ request()->routeIs('admin.activity-logs') ? 'active' : '' }}" {{ request()->routeIs('admin.activity-logs') ? 'aria-current="page"' : '' }}>
                     <x-icon name="activity" size="18"/> Activity Log
                 </a>
                 @endif
 
                 @if(auth()->user()?->isSuperAdmin())
                 <div class="nav-section">System</div>
-                <a href="{{ route('admin.settings') }}" class="nav-link {{ request()->routeIs('admin.settings') ? 'active' : '' }}">
+                <a href="{{ route('admin.settings') }}" class="nav-link {{ request()->routeIs('admin.settings') ? 'active' : '' }}" {{ request()->routeIs('admin.settings') ? 'aria-current="page"' : '' }}>
                     <x-icon name="settings" size="18"/> System Settings
                 </a>
-                <a href="{{ route('admin.webhooks.index') }}" class="nav-link {{ request()->routeIs('admin.webhooks*') ? 'active' : '' }}">
+                <a href="{{ route('admin.webhooks.index') }}" class="nav-link {{ request()->routeIs('admin.webhooks*') ? 'active' : '' }}" {{ request()->routeIs('admin.webhooks*') ? 'aria-current="page"' : '' }}>
                     <x-icon name="webhook" size="18"/> Webhooks
                 </a>
-                <a href="{{ route('admin.sso-settings') }}" class="nav-link {{ request()->routeIs('admin.sso-settings') ? 'active' : '' }}">
+                <a href="{{ route('admin.sso-settings') }}" class="nav-link {{ request()->routeIs('admin.sso-settings') ? 'active' : '' }}" {{ request()->routeIs('admin.sso-settings') ? 'aria-current="page"' : '' }}>
                     <x-icon name="sso" size="18"/> SSO Settings
                 </a>
-                <a href="{{ route('admin.ip-whitelist') }}" class="nav-link {{ request()->routeIs('admin.ip-whitelist') ? 'active' : '' }}">
+                <a href="{{ route('admin.ip-whitelist') }}" class="nav-link {{ request()->routeIs('admin.ip-whitelist') ? 'active' : '' }}" {{ request()->routeIs('admin.ip-whitelist') ? 'aria-current="page"' : '' }}>
                     <x-icon name="shield" size="18"/> IP Whitelist
                 </a>
                 @endif
 
                 <div class="nav-section">Help</div>
-                <a href="{{ route('admin.sdk-docs') }}" class="nav-link {{ request()->routeIs('admin.sdk-docs') ? 'active' : '' }}">
+                <a href="{{ route('admin.sdk-docs') }}" class="nav-link {{ request()->routeIs('admin.sdk-docs') ? 'active' : '' }}" {{ request()->routeIs('admin.sdk-docs') ? 'aria-current="page"' : '' }}>
                     <x-icon name="docs" size="18"/> Documentation
                 </a>
             </nav>
@@ -528,7 +539,7 @@
         </aside>
         <main class="main">
             @if($errors->any())
-                <div class="alert alert-error">
+                <div class="alert alert-error" role="alert" aria-live="assertive">
                     <ul style="margin: 0; padding-left: 1.2rem;">
                         @foreach($errors->all() as $error)
                             <li>{{ $error }}</li>
@@ -549,7 +560,7 @@
     </div>
 
     {{-- Toast container --}}
-    <div class="toast-container" id="toast-container"></div>
+    <div class="toast-container" id="toast-container" role="alert" aria-live="polite" aria-atomic="true"></div>
 
     <script>
         // Sidebar toggle for mobile

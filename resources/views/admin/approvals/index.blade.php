@@ -13,17 +13,18 @@
     <div class="card-header">
         <h2>Pending Jobs ({{ $pendingJobs->total() }})</h2>
     </div>
-    <table>
+    <table role="table">
+        <caption class="sr-only">Pending approvals list</caption>
         <thead>
             <tr>
-                <th>Job ID</th>
-                <th>Agent</th>
-                <th>Printer</th>
-                <th>Type</th>
-                <th>Reference</th>
-                <th>Template</th>
-                <th>Submitted At</th>
-                <th>Actions</th>
+                <th scope="col">Job ID</th>
+                <th scope="col">Agent</th>
+                <th scope="col">Printer</th>
+                <th scope="col">Type</th>
+                <th scope="col">Reference</th>
+                <th scope="col">Template</th>
+                <th scope="col">Submitted At</th>
+                <th scope="col">Actions</th>
             </tr>
         </thead>
         <tbody>

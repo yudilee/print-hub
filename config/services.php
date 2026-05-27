@@ -35,4 +35,30 @@ return [
         ],
     ],
 
+    // Notification alert channels (Task 3.7)
+    'notification_channels' => [
+        'email' => [
+            'enabled' => env('NOTIFICATION_EMAIL_ENABLED', false),
+            'recipients' => explode(',', (string) env('NOTIFICATION_EMAIL_RECIPIENTS', '')),
+        ],
+        'slack' => [
+            'enabled' => env('NOTIFICATION_SLACK_ENABLED', false),
+            'webhook_url' => env('NOTIFICATION_SLACK_WEBHOOK_URL', ''),
+            'channel' => env('NOTIFICATION_SLACK_CHANNEL', '#print-hub-alerts'),
+        ],
+        'telegram' => [
+            'enabled' => env('NOTIFICATION_TELEGRAM_ENABLED', false),
+            'bot_token' => env('NOTIFICATION_TELEGRAM_BOT_TOKEN', ''),
+            'chat_id' => env('NOTIFICATION_TELEGRAM_CHAT_ID', ''),
+        ],
+    ],
+
+    // Alert thresholds (Task 3.7)
+    'alert_thresholds' => [
+        'agent_offline_minutes' => env('ALERT_AGENT_OFFLINE_MINUTES', 5),
+        'job_failure_rate' => env('ALERT_JOB_FAILURE_RATE', 3),
+        'job_failure_window_minutes' => env('ALERT_JOB_FAILURE_WINDOW', 5),
+        'key_rotation_days' => env('ALERT_KEY_ROTATION_DAYS', 7),
+    ],
+
 ];

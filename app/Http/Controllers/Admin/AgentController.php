@@ -71,14 +71,29 @@ class AgentController extends Controller
     public function regenerateKey(PrintAgent $agent)
     {
         $rawKey = Str::random(32);
+        $hashedKey = PrintAgent::hashKey($rawKey);
         $agent->update([
-            'agent_key'          => PrintAgent::hashKey($rawKey),
+            'agent_key'          => $hashedKey,
+            'key_hash_bcrypt'    => $hashedKey,
             'last_key_rotated_at' => now(),
         ]);
 
         $this->logActivity('agent.key_regenerated', $agent, ['name' => $agent->name]);
 
         return redirect()->route('admin.agents')->with('success', "Agent key regenerated! Copy this key — it won't be shown again: <code style=\"background:var(--bg);padding:2px 6px;border-radius:4px;\">{$rawKey}</code>");
+    }
+
+    /**
+     * Show agent activity timeline (Task 2.6).
+     */
+    public function activity(PrintAgent $agent)
+    {
+        $activities = \App\Models\ActivityLog::where('subject_type', PrintAgent::class)
+            ->where('subject_id', $agent->id)
+            ->latest()
+            ->paginate(50);
+
+        return view('admin.agents.activity', compact('agent', 'activities'));
     }
 
     public function destroy(PrintAgent $agent)

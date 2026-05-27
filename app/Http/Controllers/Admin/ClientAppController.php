@@ -58,8 +58,10 @@ class ClientAppController extends Controller
     public function regenerateKey(ClientApp $client)
     {
         $rawKey = (string) Str::uuid();
+        $hashedKey = ClientApp::hashKey($rawKey);
         $client->update([
-            'api_key'            => ClientApp::hashKey($rawKey),
+            'api_key'            => $hashedKey,
+            'key_hash_bcrypt'    => $hashedKey,
             'last_key_rotated_at' => now(),
         ]);
 

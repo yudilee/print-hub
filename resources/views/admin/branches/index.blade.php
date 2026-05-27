@@ -75,18 +75,19 @@
 {{-- Branch List --}}
 <div class="card">
     <div class="card-header"><h2>Branches ({{ $branches->count() }})</h2></div>
-    <table>
+    <table role="table">
+        <caption class="sr-only">Branch list</caption>
         <thead>
             <tr>
-                <th>Branch</th>
-                <th>Code</th>
-                <th>Company</th>
-                <th>Agents</th>
-                <th>Queues</th>
-                <th>Users</th>
-                <th>Jobs</th>
-                <th>Status</th>
-                <th>Actions</th>
+                <th scope="col">Branch</th>
+                <th scope="col">Code</th>
+                <th scope="col">Company</th>
+                <th scope="col">Agents</th>
+                <th scope="col">Queues</th>
+                <th scope="col">Users</th>
+                <th scope="col">Jobs</th>
+                <th scope="col">Status</th>
+                <th scope="col">Actions</th>
             </tr>
         </thead>
         <tbody>

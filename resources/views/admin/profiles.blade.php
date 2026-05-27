@@ -15,6 +15,11 @@
     <form action="{{ route('admin.profiles.store') }}" method="POST">
         @csrf
         
+        {{-- Hidden cloned_from field for audit (Task 2.4) --}}
+        @if(isset($clonedFrom))
+        <input type="hidden" name="cloned_from" value="{{ $clonedFrom }}">
+        @endif
+        
         @if($errors->any())
             <div style="background: rgba(255, 50, 50, 0.1); border: 1px solid var(--danger); color: var(--danger); padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem;">
                 <ul style="margin: 0; padding-left: 1.2rem;">
@@ -50,7 +55,7 @@
                     <option value="A4">A4</option>
                     <option value="A5">A5</option>
                     <option value="Letter">Letter</option>
-                    <option value="Half Letter" selected>Half Letter (8.5" x 5.5")</option>
+                    <option value="Half Letter" {{ isset($clonedProfile) && $clonedProfile->paper_size == 'Half Letter' ? 'selected' : '' }}>Half Letter (8.5" x 5.5")</option>
                     <option value="Legal">Legal</option>
                     <option value="F4">F4 / Folio</option>
                     <option value="Statement">Statement</option>
@@ -546,18 +551,19 @@ document.addEventListener('DOMContentLoaded', initPerCopyWatermark);
 {{-- Profile List --}}
 <div class="card">
     <div class="card-header"><h2>Active Queues ({{ $profiles->count() }})</h2></div>
-    <table>
+    <table role="table">
+        <caption class="sr-only">Active print queues</caption>
         <thead>
             <tr>
-                <th>Queue Name</th>
-                <th>Branch</th>
-                <th>Description</th>
-                <th>Connected Agent</th>
-                <th>Printer Name</th>
-                <th>Paper</th>
-                <th>Orient.</th>
-                <th>Scaling</th>
-                <th>Actions</th>
+                <th scope="col">Queue Name</th>
+                <th scope="col">Branch</th>
+                <th scope="col">Description</th>
+                <th scope="col">Connected Agent</th>
+                <th scope="col">Printer Name</th>
+                <th scope="col">Paper</th>
+                <th scope="col">Orient.</th>
+                <th scope="col">Scaling</th>
+                <th scope="col">Actions</th>
             </tr>
         </thead>
         <tbody>
@@ -603,6 +609,9 @@ document.addEventListener('DOMContentLoaded', initPerCopyWatermark);
                     <div style="display: flex; gap: 8px;">
                         <a href="{{ route('admin.profiles.edit', $profile) }}" class="btn btn-secondary btn-sm" style="text-decoration: none;">
                             Edit
+                        </a>
+                        <a href="{{ route('admin.profiles.clone', $profile) }}" class="btn btn-secondary btn-sm" style="text-decoration: none;" title="Clone this queue">
+                            Clone
                         </a>
                         <button class="btn btn-secondary btn-sm" onclick="openTestModal('{{ $profile->id }}', '{{ $profile->name }}', '{{ $profile->agent->name ?? 'Any Online Agent' }}', '{{ $profile->default_printer ?: 'Default' }}')">
                             Test

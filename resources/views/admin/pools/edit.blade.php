@@ -96,7 +96,7 @@
                                     Active
                                 </label>
                             </div>
-                            <button type="button" class="btn btn-danger btn-sm" onclick="this.closest('.printer-row').remove()" style="margin-bottom: 0.5rem;">✕</button>
+                            <button type="button" class="btn btn-danger btn-sm" onclick="this.closest('.printer-row').remove()" style="margin-bottom: 0.5rem;" title="Remove printer" aria-label="Remove printer from pool">✕</button>
                         </div>
                     @endforeach
                 @endif
@@ -140,7 +140,7 @@ function addPrinterRow() {
                     Active
                 </label>
             </div>
-            <button type="button" class="btn btn-danger btn-sm" onclick="this.closest('.printer-row').remove()" style="margin-bottom: 0.5rem;">✕</button>
+            <button type="button" class="btn btn-danger btn-sm" onclick="this.closest('.printer-row').remove()" style="margin-bottom: 0.5rem;" title="Remove printer" aria-label="Remove printer from pool">✕</button>
         </div>
     `;
     container.insertAdjacentHTML('beforeend', html);

@@ -23,16 +23,17 @@
 @endif
 
 <div class="card">
-    <table>
+    <table role="table">
+        <caption class="sr-only">User management list</caption>
         <thead>
             <tr>
-                <th>Name</th>
-                <th>Email</th>
-                <th>Role</th>
-                <th>Branch / Company</th>
-                <th>Source</th>
-                <th>Created</th>
-                <th>Actions</th>
+                <th scope="col">Name</th>
+                <th scope="col">Email</th>
+                <th scope="col">Role</th>
+                <th scope="col">Branch / Company</th>
+                <th scope="col">Source</th>
+                <th scope="col">Created</th>
+                <th scope="col">Actions</th>
             </tr>
         </thead>
         <tbody>

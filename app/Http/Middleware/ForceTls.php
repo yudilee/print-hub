@@ -42,6 +42,14 @@ class ForceTls
             return redirect()->secure($request->getRequestUri());
         }
 
-        return $next($request);
+        /** @var Response $response */
+        $response = $next($request);
+
+        // Add HSTS header (Task 4.4)
+        if (app()->environment('production')) {
+            $response->headers->set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
+        }
+
+        return $response;
     }
 }
