@@ -22,6 +22,13 @@ RUN apt-get update && apt-get install -y \
     && docker-php-ext-install -j$(nproc) pdo pdo_pgsql pdo_sqlite mbstring xml zip bcmath \
     && a2enmod rewrite
 
+# Increase PHP upload / POST size limits to handle large base64-encoded print payloads
+RUN echo 'upload_max_filesize = 50M' > /usr/local/etc/php/conf.d/uploads.ini \
+    && echo 'post_max_size = 50M' >> /usr/local/etc/php/conf.d/uploads.ini \
+    && echo 'max_execution_time = 120' >> /usr/local/etc/php/conf.d/uploads.ini \
+    && echo 'max_input_time = 120' >> /usr/local/etc/php/conf.d/uploads.ini \
+    && echo 'memory_limit = 256M' >> /usr/local/etc/php/conf.d/uploads.ini
+
 # Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 ENV COMPOSER_MEMORY_LIMIT=-1

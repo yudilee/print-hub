@@ -16,13 +16,14 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->trustProxies(at: '*');
 
         $middleware->alias([
-            'role'           => \App\Http\Middleware\CheckRole::class,
-            'permission'     => \App\Http\Middleware\CheckPermission::class,
-            'session.activity' => \App\Http\Middleware\UpdateSessionActivity::class,
-            'auth.api-key'   => \App\Http\Middleware\AuthenticateApiKey::class,
-            'force.tls'      => \App\Http\Middleware\ForceTls::class,
-            'ip.whitelist'   => \App\Http\Middleware\IpWhitelist::class,
+            'role'            => \App\Http\Middleware\CheckRole::class,
+            'permission'      => \App\Http\Middleware\CheckPermission::class,
+            'session.activity'  => \App\Http\Middleware\UpdateSessionActivity::class,
+            'auth.api-key'    => \App\Http\Middleware\AuthenticateApiKey::class,
+            'force.tls'       => \App\Http\Middleware\ForceTls::class,
+            'ip.whitelist'    => \App\Http\Middleware\IpWhitelist::class,
             'throttle.api-key' => \App\Http\Middleware\ThrottleApiKeys::class,
+            'validate.post-size' => \App\Http\Middleware\ValidatePostSize::class,
         ]);
 
         // Apply TLS enforcement to web routes in production
@@ -30,9 +31,10 @@ return Application::configure(basePath: dirname(__DIR__))
             \App\Http\Middleware\ForceTls::class,
         ]);
 
-        // Apply IP whitelisting to API routes if configured
+        // Apply IP whitelisting and POST body size validation to API routes
         $middleware->api(prepend: [
             \App\Http\Middleware\IpWhitelist::class,
+            \App\Http\Middleware\ValidatePostSize::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
