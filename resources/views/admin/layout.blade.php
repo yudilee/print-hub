@@ -521,13 +521,10 @@
                 <a href="{{ route('admin.scheduled-jobs.index') }}" class="nav-link {{ request()->routeIs('admin.scheduled-jobs*') ? 'active' : '' }}" {{ request()->routeIs('admin.scheduled-jobs*') ? 'aria-current="page"' : '' }}>
                     <x-icon name="job" size="18"/> Scheduled Jobs
                 </a>
-                <a href="{{ route('admin.sdk-docs') }}#openapi" class="nav-link {{ request()->routeIs('admin.sdk-docs') ? 'active' : '' }}" {{ request()->routeIs('admin.sdk-docs') ? 'aria-current="page"' : '' }}>
-                    <x-icon name="docs" size="18"/> API Documentation
-                </a>
 
                 <div class="nav-section">Help</div>
-                <a href="{{ route('admin.sdk-docs') }}" class="nav-link {{ request()->routeIs('admin.sdk-docs') ? 'active' : '' }}" {{ request()->routeIs('admin.sdk-docs') ? 'aria-current="page"' : '' }}>
-                    <x-icon name="docs" size="18"/> SDK Docs
+                <a href="{{ route('admin.sdk-docs') }}#openapi" class="nav-link {{ request()->routeIs('admin.sdk-docs') ? 'active' : '' }}" {{ request()->routeIs('admin.sdk-docs') ? 'aria-current="page"' : '' }}>
+                    <x-icon name="docs" size="18"/> API & SDK Docs
                 </a>
             </nav>
 
