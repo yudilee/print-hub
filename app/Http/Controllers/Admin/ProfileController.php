@@ -94,7 +94,8 @@ class ProfileController extends Controller
     public function edit(PrintProfile $profile)
     {
         $agents = PrintAgent::where('is_active', true)->get();
-        return view('admin.edit_profile', compact('profile', 'agents'));
+        $branches = Branch::with('company')->active()->orderBy('name')->get();
+        return view('admin.edit_profile', compact('profile', 'agents', 'branches'));
     }
 
     public function update(Request $request, PrintProfile $profile)
@@ -102,6 +103,7 @@ class ProfileController extends Controller
         $data = $request->validate([
             'name'            => 'required|string|max:255|unique:print_profiles,name,' . $profile->id,
             'description'     => 'nullable|string|max:255',
+            'branch_id'       => 'required|exists:branches,id',
             'paper_size'      => 'required|string',
             'custom_width'    => 'nullable|numeric|required_if:paper_size,CUSTOM',
             'custom_height'   => 'nullable|numeric|required_if:paper_size,CUSTOM',

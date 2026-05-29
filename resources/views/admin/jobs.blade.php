@@ -126,7 +126,6 @@
         </thead>
         <tbody>
             @forelse($jobs as $job)
-            <template x-if="true">
             <tr id="job-row-{{ $job->job_id }}" style="transition: background-color 0.5s;" :class="{ 'expanded-row': expanded === '{{ $job->job_id }}' }">
                 <td>
                     <input type="checkbox" value="{{ $job->job_id }}" x-model="selectedJobs" style="width: 16px; height: 16px; cursor: pointer;" :aria-label="'Select job {{ $job->job_id }}'">
@@ -187,7 +186,6 @@
                     </div>
                 </td>
             </tr>
-            </template>
             {{-- Expandable sub-row for job details (Task 2.2) --}}
             <tr x-show="expanded === '{{ $job->job_id }}'" x-cloak style="background: var(--bg);">
                 <td colspan="8" style="padding: 0;">
