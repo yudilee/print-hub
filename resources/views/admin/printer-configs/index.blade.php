@@ -341,11 +341,11 @@
 
 <script>
 // ── Data ─────────────────────────────────────────────────────────
-const agentsData = @json($agents->map(fn($a) => [
+const agentsData = {!! json_encode($agents->map(fn($a) => [
     'id' => $a->id,
     'name' => $a->name,
     'printers' => $a->printers ?? [],
-]));
+])) !!};
 const configs = @json($configs->items());
 const editConfigId = @json(session('edit_config_id'));
 let isCustomPrinter = false;
