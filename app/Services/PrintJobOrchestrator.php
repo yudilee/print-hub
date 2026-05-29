@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\PrintAgent;
 use App\Models\PrintApprovalRule;
+use App\Models\PrinterConfig;
 use App\Models\PrintJob;
 use App\Models\PrintProfile;
 use App\Models\PrinterPool;
@@ -86,6 +87,10 @@ class PrintJobOrchestrator
 
     /**
      * Create a PrintJob record in the database.
+     *
+     * Printer Config overrides are applied automatically — options passed
+     * in $options (job-level) take highest priority, followed by the
+     * per-printer config, then the profile defaults.
      */
     public function createJob(
         string $filePath,
@@ -110,6 +115,11 @@ class PrintJobOrchestrator
     ): PrintJob {
         $jobId = pathinfo($filePath, PATHINFO_FILENAME);
 
+        // ── Printer Config Override ───────────────────────────
+        // Apply per-printer overrides BEFORE storing options in the DB.
+        // Priority: job-level options > printer config > profile defaults.
+        $mergedOptions = self::applyPrinterConfigOverrides($options, $agent->id, $printer);
+
         $data = [
             'job_id'           => $jobId,
             'print_agent_id'   => $agent->id,
@@ -122,7 +132,7 @@ class PrintJobOrchestrator
             'file_path'        => $filePath,
             'webhook_url'      => $webhookUrl,
             'reference_id'     => $referenceId,
-            'options'          => $options,
+            'options'          => $mergedOptions,
             'template_data'    => $templateData,
             'template_name'    => $templateName,
             'scheduled_at'     => $scheduledAt,
@@ -264,6 +274,38 @@ class PrintJobOrchestrator
         }
 
         return ['requires_approval' => false, 'rule' => null];
+    }
+
+    /**
+     * Apply per-printer configuration overrides to job options.
+     *
+     * Looks up an active PrinterConfig for the given agent + printer,
+     * then merges its config into $options. Job-level options always
+     * take priority (they are applied on top of the printer config).
+     *
+     * Priority chain:
+     *   1. $options (job-level, from request) — highest
+     *   2. PrinterConfig.config (per-printer override) — medium
+     *   3. Profile defaults (already resolved before this call) — lowest
+     *
+     * @param  array  $options      Job-level options (already merged with profile defaults)
+     * @param  int    $agentId      Print agent ID
+     * @param  string $printerName  Printer name on the agent
+     * @return array
+     */
+    public static function applyPrinterConfigOverrides(array $options, int $agentId, string $printerName): array
+    {
+        $config = PrinterConfig::where('print_agent_id', $agentId)
+            ->where('printer_name', $printerName)
+            ->where('is_active', true)
+            ->first();
+
+        if (! $config || empty($config->config)) {
+            return $options;
+        }
+
+        // Merge: printer config first, then job-level options on top so they win
+        return array_merge($config->config, $options);
     }
 
     /**
