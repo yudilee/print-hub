@@ -66,6 +66,27 @@ class AuthenticateApiKey
             ], 401);
         }
 
+        // Enforce client app IP whitelist if configured
+        if ($app->allowed_ips && is_array($app->allowed_ips) && count($app->allowed_ips) > 0) {
+            $clientIp = $request->ip();
+            $matched = false;
+            foreach ($app->allowed_ips as $allowed) {
+                if ($this->ipMatches($clientIp, $allowed)) {
+                    $matched = true;
+                    break;
+                }
+            }
+            if (!$matched) {
+                return response()->json([
+                    'success' => false,
+                    'error'   => [
+                        'code'    => 'IP_NOT_ALLOWED',
+                        'message' => 'Access denied: Client IP not whitelisted.',
+                    ],
+                ], 403);
+            }
+        }
+
         // Track last used timestamp
         $app->update(['last_used_at' => now()]);
 
@@ -73,5 +94,30 @@ class AuthenticateApiKey
         $request->attributes->set('client_app', $app);
 
         return $next($request);
+    }
+
+    /**
+     * Check if an IP matches an allowed entry (supports CIDR notation).
+     */
+    private function ipMatches(string $ip, string $allowed): bool
+    {
+        if (str_contains($allowed, '/')) {
+            [$subnet, $bits] = explode('/', $allowed, 2);
+            $bits = (int) $bits;
+
+            $ipLong    = ip2long($ip);
+            $subnetLong = ip2long($subnet);
+
+            if ($ipLong === false || $subnetLong === false) {
+                return false;
+            }
+
+            $mask = -1 << (32 - $bits);
+            $subnetLong &= $mask;
+
+            return ($ipLong & $mask) === $subnetLong;
+        }
+
+        return $ip === $allowed;
     }
 }

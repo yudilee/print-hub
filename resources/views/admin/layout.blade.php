@@ -419,13 +419,13 @@
                     <x-icon name="monitor" size="18"/> Monitoring
                 </a>
                 <a href="{{ route('admin.costs') }}" class="nav-link {{ request()->routeIs('admin.costs*') ? 'active' : '' }}" {{ request()->routeIs('admin.costs*') ? 'aria-current="page"' : '' }}>
-                    <x-icon name="settings" size="18"/> Cost Tracking
+                    <x-icon name="dollar" size="18"/> Cost Tracking
                 </a>
                 <a href="{{ route('admin.agents') }}" class="nav-link {{ request()->routeIs('admin.agents') ? 'active' : '' }}" {{ request()->routeIs('admin.agents') ? 'aria-current="page"' : '' }}>
                     <x-icon name="agent" size="18"/> Agents
                 </a>
                 <a href="{{ route('admin.releases') }}" class="nav-link {{ request()->routeIs('admin.releases*') ? 'active' : '' }}" {{ request()->routeIs('admin.releases*') ? 'aria-current="page"' : '' }}>
-                    <x-icon name="settings" size="18"/> Agent Releases
+                    <x-icon name="package" size="18"/> Agent Releases
                 </a>
                 <a href="{{ route('admin.profiles') }}" class="nav-link {{ request()->routeIs('admin.profiles') ? 'active' : '' }}" {{ request()->routeIs('admin.profiles') ? 'aria-current="page"' : '' }}>
                     <x-icon name="queue" size="18"/> Print Queues
@@ -445,7 +445,7 @@
                     <x-icon name="pool" size="18"/> Printer Pools
                 </a>
                 <a href="{{ route('admin.printer-configs') }}" class="nav-link {{ request()->routeIs('admin.printer-configs') ? 'active' : '' }}" {{ request()->routeIs('admin.printer-configs') ? 'aria-current="page"' : '' }}>
-                    <x-icon name="settings" size="18"/> Printer Configs
+                    <x-icon name="sliders" size="18"/> Printer Configs
                 </a>
 
                 <div class="nav-section">Documents</div>
@@ -510,7 +510,7 @@
                 @if(auth()->user()?->isSuperAdmin())
                 <div class="nav-section">System</div>
                 <a href="{{ route('admin.backup.index') }}" class="nav-link {{ request()->routeIs('admin.backup*') ? 'active' : '' }}" {{ request()->routeIs('admin.backup*') ? 'aria-current="page"' : '' }}>
-                    <x-icon name="settings" size="18"/> Backup & Restore
+                    <x-icon name="database" size="18"/> Backup & Restore
                 </a>
                 <a href="{{ route('admin.mfa.setup') }}" class="nav-link {{ request()->routeIs('admin.mfa*') ? 'active' : '' }}" {{ request()->routeIs('admin.mfa*') ? 'aria-current="page"' : '' }}>
                     <x-icon name="shield" size="18"/> Two-Factor Auth

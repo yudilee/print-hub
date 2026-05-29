@@ -18,7 +18,7 @@ use Illuminate\Support\Facades\Hash;
 class ClientApp extends Model
 {
     protected $fillable = [
-        'name', 'api_key', 'is_active', 'last_used_at', 'allowed_origins', 'last_key_rotated_at',
+        'name', 'api_key', 'is_active', 'last_used_at', 'allowed_origins', 'allowed_ips', 'last_key_rotated_at',
         'webhook_events', 'webhook_retry_count', 'webhook_timeout', 'webhook_secret', 'key_hash_bcrypt',
     ];
 
@@ -29,6 +29,7 @@ class ClientApp extends Model
         'last_used_at'        => 'datetime',
         'last_key_rotated_at' => 'datetime',
         'allowed_origins'     => 'array',
+        'allowed_ips'         => 'array',
         'webhook_events'      => 'array',
         'webhook_retry_count' => 'integer',
         'webhook_timeout'     => 'integer',

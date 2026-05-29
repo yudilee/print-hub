@@ -699,7 +699,7 @@
         document.body.appendChild(overlay);
 
         // Fetch the preview PDF
-        const previewUrl = '{{ route("admin.jobs.preview", "") }}/' + jobId;
+        const previewUrl = '/jobs/' + jobId + '/preview';
         const contentDiv = modal.querySelector('div[style*="flex:1"]');
 
         fetch(previewUrl)
