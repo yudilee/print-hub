@@ -42,14 +42,15 @@ class ClientAppController extends Controller
         $rawKey = (string) Str::uuid();
 
         ClientApp::create([
-            'name'               => $data['name'],
-            'api_key'            => ClientApp::hashKey($rawKey),
-            'allowed_origins'    => $origins,
-            'webhook_url'        => $data['webhook_url'] ?? null,
-            'webhook_secret'     => $data['webhook_secret'] ?? null,
+            'name'                => $data['name'],
+            'api_key'             => ClientApp::hashKey($rawKey),
+            'key_hash_bcrypt'     => \Illuminate\Support\Facades\Hash::make($rawKey),
+            'allowed_origins'     => $origins,
+            'webhook_url'         => $data['webhook_url'] ?? null,
+            'webhook_secret'      => $data['webhook_secret'] ?? null,
             'webhook_retry_count' => $data['webhook_retry_count'] ?? 3,
-            'webhook_timeout'    => $data['webhook_timeout'] ?? 5,
-            'webhook_events'     => $webhookEvents,
+            'webhook_timeout'     => $data['webhook_timeout'] ?? 5,
+            'webhook_events'      => $webhookEvents,
         ]);
 
         return redirect()->route('admin.clients')->with('success', "Client app registered! Copy this API key — it won't be shown again: <code style=\"background:var(--bg);padding:2px 6px;border-radius:4px;\">{$rawKey}</code>");
@@ -61,7 +62,7 @@ class ClientAppController extends Controller
         $hashedKey = ClientApp::hashKey($rawKey);
         $client->update([
             'api_key'            => $hashedKey,
-            'key_hash_bcrypt'    => $hashedKey,
+            'key_hash_bcrypt'    => \Illuminate\Support\Facades\Hash::make($rawKey),
             'last_key_rotated_at' => now(),
         ]);
 

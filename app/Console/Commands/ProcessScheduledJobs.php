@@ -87,6 +87,7 @@ class ProcessScheduledJobs extends Command
             'branch_id'          => $job->branch_id,
             'document_id'        => $job->document_id,
             'printer_name'       => $job->printer_name,
+            'pool_id'            => $job->pool_id,
             'type'               => $job->type,
             'priority'           => $job->priority,
             'status'             => 'scheduled',

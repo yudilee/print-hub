@@ -71,7 +71,7 @@ class WebhookService
                 'max_attempts'  => $app->webhook_retry_count ?: 3,
             ]);
 
-            $this->deliver($delivery);
+            \App\Jobs\DeliverWebhookJob::dispatch($delivery);
         }
     }
 

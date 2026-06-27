@@ -135,6 +135,7 @@ class PrintHubController extends Controller
                 'name'               => $p->name,
                 'description'        => $p->description,
                 'printer'            => $p->default_printer ?? '',
+                'pool_id'            => $p->pool_id,
                 'print_agent_id'     => $p->print_agent_id,
                 'branch_id'          => $p->branch_id,
                 'paper_size'         => $p->paper_size,
@@ -195,14 +196,17 @@ class PrintHubController extends Controller
         $agent = $this->authenticateAgent($request);
         if (! $agent) return $this->unauthorized();
 
-        // Reset stale processing jobs (agent may have crashed)
-        PrintJob::where('status', 'processing')
-            ->where('created_at', '<', now()->subMinutes(10))
-            ->update(['status' => 'pending']);
+        // Reset stale processing jobs for this specific agent (agent may have crashed)
+        PrintJob::where('print_agent_id', $agent->id)
+            ->where('status', 'processing')
+            ->whereNotNull('dispatched_at')
+            ->where('dispatched_at', '<', now()->subMinutes(5))
+            ->update(['status' => 'pending', 'dispatched_at' => null]);
 
-        // Exclude jobs pending approval — only return approved or auto_approved
+        // Exclude jobs pending approval and already leased/dispatched jobs
         $jobs = PrintJob::where('print_agent_id', $agent->id)
-            ->where('status', 'pending')
+            ->whereIn('status', ['pending', 'queued'])
+            ->whereNull('dispatched_at')
             ->whereIn('approval_status', ['approved', 'auto_approved'])
             ->orderBy('priority', 'desc')
             ->orderBy('created_at', 'asc')
@@ -229,9 +233,21 @@ class PrintHubController extends Controller
                 }
             }
 
+            $printerName = $job->printer_name;
+            if (!$printerName && $job->pool_id) {
+                try {
+                    $orchestrator = new \App\Services\PrintJobOrchestrator();
+                    $printerName = $orchestrator->selectPrinterFromPool($job->pool_id, $job->print_agent_id);
+                    $job->update(['printer_name' => $printerName]);
+                } catch (\RuntimeException $e) {
+                    Log::error("Failed to select printer from pool {$job->pool_id} for job {$job->id}: " . $e->getMessage());
+                    $printerName = 'Default';
+                }
+            }
+
             return [
                 'job_id'           => $job->job_id,
-                'printer'          => $job->printer_name,
+                'printer'          => $printerName,
                 'type'             => $job->type,
                 'priority'         => $job->priority,
                 'options'          => $job->options,
@@ -245,8 +261,11 @@ class PrintHubController extends Controller
             ];
         });
 
-        // Mark as Processing — agent has acknowledged the jobs
-        PrintJob::whereIn('id', $jobs->pluck('id'))->update(['status' => 'processing']);
+        // Mark as Processing and set dispatched_at — agent has acknowledged the jobs
+        PrintJob::whereIn('id', $jobs->pluck('id'))->update([
+            'status'        => 'processing',
+            'dispatched_at' => now(),
+        ]);
 
         return ApiResponse::success(['jobs' => $queue]);
     }

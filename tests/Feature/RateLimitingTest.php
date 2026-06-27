@@ -95,7 +95,7 @@ class RateLimitingTest extends TestCase
         // Create a second client app
         $clientApp2 = ClientApp::create([
             'name'      => 'Second App',
-            'api_key'   => hash('sha256', 'second-key-here'),
+            'api_key'   => hash('sha256', 'second-api-key-32-characters-long'),
             'is_active' => true,
         ]);
 
@@ -104,7 +104,7 @@ class RateLimitingTest extends TestCase
             ->getJson('/api/v1/test');
         $response1->assertOk();
 
-        $response2 = $this->withHeaders(['X-API-Key' => 'second-key-here'])
+        $response2 = $this->withHeaders(['X-API-Key' => 'second-api-key-32-characters-long'])
             ->getJson('/api/v1/test');
         $response2->assertOk();
     }

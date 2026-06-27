@@ -121,7 +121,7 @@ class ApiKeyScopingTest extends TestCase
 
     public function test_invalid_client_app_key_is_rejected()
     {
-        $response = $this->withHeaders(['X-API-Key' => 'invalid-key-that-does-not-exist'])
+        $response = $this->withHeaders(['X-API-Key' => 'invalid-key-that-does-not-exist-32-chars'])
             ->getJson('/api/v1/test');
 
         $response->assertStatus(401);

@@ -49,6 +49,36 @@ class PoolController extends Controller
             'active'      => 'nullable|boolean',
         ]);
 
+        // Branch and agent validation
+        if ($request->has('printers') && !empty($request->input('printers'))) {
+            $printerNames = collect($request->input('printers'))->pluck('name')->filter()->unique()->all();
+            $activeAgents = PrintAgent::where('is_active', true)->get();
+            $branchIds = [];
+
+            foreach ($printerNames as $printerName) {
+                $ownerAgents = $activeAgents->filter(function ($agent) use ($printerName) {
+                    return in_array($printerName, $agent->printers ?? []);
+                });
+
+                if ($ownerAgents->isEmpty()) {
+                    return redirect()->back()
+                        ->withErrors(['printers' => "Printer '{$printerName}' does not exist on any active agent."])
+                        ->withInput();
+                }
+
+                foreach ($ownerAgents as $oa) {
+                    $branchIds[] = $oa->branch_id;
+                }
+            }
+
+            $uniqueBranchIds = array_unique($branchIds);
+            if (count($uniqueBranchIds) > 1) {
+                return redirect()->back()
+                    ->withErrors(['printers' => 'All printers in the pool must belong to agents in the same branch.'])
+                    ->withInput();
+            }
+        }
+
         $data['active'] = $request->has('active');
 
         $pool = PrinterPool::create($data);
@@ -84,6 +114,36 @@ class PoolController extends Controller
             'strategy'    => 'required|string|in:round_robin,least_busy,random,failover',
             'active'      => 'nullable|boolean',
         ]);
+
+        // Branch and agent validation
+        if ($request->has('printers') && !empty($request->input('printers'))) {
+            $printerNames = collect($request->input('printers'))->pluck('name')->filter()->unique()->all();
+            $activeAgents = PrintAgent::where('is_active', true)->get();
+            $branchIds = [];
+
+            foreach ($printerNames as $printerName) {
+                $ownerAgents = $activeAgents->filter(function ($agent) use ($printerName) {
+                    return in_array($printerName, $agent->printers ?? []);
+                });
+
+                if ($ownerAgents->isEmpty()) {
+                    return redirect()->back()
+                        ->withErrors(['printers' => "Printer '{$printerName}' does not exist on any active agent."])
+                        ->withInput();
+                }
+
+                foreach ($ownerAgents as $oa) {
+                    $branchIds[] = $oa->branch_id;
+                }
+            }
+
+            $uniqueBranchIds = array_unique($branchIds);
+            if (count($uniqueBranchIds) > 1) {
+                return redirect()->back()
+                    ->withErrors(['printers' => 'All printers in the pool must belong to agents in the same branch.'])
+                    ->withInput();
+            }
+        }
 
         $data['active'] = $request->has('active');
 

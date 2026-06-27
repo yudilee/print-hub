@@ -18,7 +18,7 @@ class PrintProfile extends Model
     use BranchScopeable;
     protected $fillable = [
         'name', 'description', 'print_agent_id', 'branch_id', 'paper_size', 'orientation',
-        'copies', 'duplex', 'default_printer', 'extra_options', 'cloned_from',
+        'copies', 'duplex', 'default_printer', 'pool_id', 'extra_options', 'cloned_from',
         'is_custom', 'custom_width', 'custom_height',
         'margin_top', 'margin_bottom', 'margin_left', 'margin_right',
         'tray_source', 'color_mode', 'print_quality', 'scaling_percentage',
@@ -80,5 +80,10 @@ class PrintProfile extends Model
     public function branch(): BelongsTo
     {
         return $this->belongsTo(Branch::class);
+    }
+
+    public function pool(): BelongsTo
+    {
+        return $this->belongsTo(PrinterPool::class, 'pool_id');
     }
 }

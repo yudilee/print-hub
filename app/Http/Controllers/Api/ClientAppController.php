@@ -665,7 +665,8 @@ class ClientAppController extends Controller
         }
 
         // 4. Resolve printer (pool_id takes precedence over printer_name)
-        $poolId = $data['pool_id'] ?? null;
+        $orchestrator = new PrintJobOrchestrator();
+        $poolId = $data['pool_id'] ?? ($profile ? $profile->pool_id : null);
         if ($poolId) {
             try {
                 $printer = $orchestrator->selectPrinterFromPool((int) $poolId, $agent->id);
@@ -682,14 +683,13 @@ class ClientAppController extends Controller
             $templateModel = PrintTemplate::where('name', $data['template'])->first();
             if ($templateModel && $templateModel->exists) {
                 $printData = $templateModel->resolveParameters(
-                    $data['parameters'] ?? [],
-                    $printData
+                     $data['parameters'] ?? [],
+                     $printData
                 );
             }
         }
 
         // 5. Generate document
-        $orchestrator        = new PrintJobOrchestrator();
         $validationWarnings  = [];
 
         if (! empty($data['template'])) {

@@ -17,10 +17,11 @@ class ProfileController extends Controller
 
     public function index()
     {
-        $profiles = PrintProfile::with(['agent', 'branch.company'])->latest()->get();
+        $profiles = PrintProfile::with(['agent', 'branch.company', 'pool'])->latest()->get();
         $agents = PrintAgent::where('is_active', true)->get();
         $branches = Branch::with('company')->active()->orderBy('name')->get();
-        return view('admin.profiles', compact('profiles', 'agents', 'branches'));
+        $pools = \App\Models\PrinterPool::where('active', true)->orderBy('name')->get();
+        return view('admin.profiles', compact('profiles', 'agents', 'branches', 'pools'));
     }
 
     public function store(Request $request)
@@ -40,8 +41,9 @@ class ProfileController extends Controller
             'orientation'     => 'required|string',
             'copies'          => 'required|integer|min:1',
             'duplex'          => 'required|string',
-            'print_agent_id'  => 'required|exists:print_agents,id',
-            'default_printer'   => 'required|string|max:255',
+            'print_agent_id'  => 'nullable|exists:print_agents,id',
+            'default_printer'   => 'nullable|required_without:pool_id|string|max:255',
+            'pool_id'           => 'nullable|required_without:default_printer|exists:printer_pools,id',
             'fit_to_page'       => 'nullable|boolean',
             'use_inches'        => 'nullable',
             'tray_source'       => 'nullable|string|max:100',
@@ -95,7 +97,8 @@ class ProfileController extends Controller
     {
         $agents = PrintAgent::where('is_active', true)->get();
         $branches = Branch::with('company')->active()->orderBy('name')->get();
-        return view('admin.edit_profile', compact('profile', 'agents', 'branches'));
+        $pools = \App\Models\PrinterPool::where('active', true)->orderBy('name')->get();
+        return view('admin.edit_profile', compact('profile', 'agents', 'branches', 'pools'));
     }
 
     public function update(Request $request, PrintProfile $profile)
@@ -114,8 +117,9 @@ class ProfileController extends Controller
             'orientation'     => 'required|string',
             'copies'          => 'required|integer|min:1',
             'duplex'          => 'required|string',
-            'print_agent_id'  => 'required|exists:print_agents,id',
-            'default_printer'   => 'required|string|max:255',
+            'print_agent_id'  => 'nullable|exists:print_agents,id',
+            'default_printer'   => 'nullable|required_without:pool_id|string|max:255',
+            'pool_id'           => 'nullable|required_without:default_printer|exists:printer_pools,id',
             'fit_to_page'       => 'nullable|boolean',
             'use_inches'        => 'nullable',
             'tray_source'       => 'nullable|string|max:100',
@@ -169,9 +173,10 @@ class ProfileController extends Controller
     {
         $agents = PrintAgent::where('is_active', true)->get();
         $branches = Branch::with('company')->active()->orderBy('name')->get();
-        $profiles = PrintProfile::with(['agent', 'branch.company'])->latest()->get();
+        $pools = \App\Models\PrinterPool::where('active', true)->orderBy('name')->get();
+        $profiles = PrintProfile::with(['agent', 'branch.company', 'pool'])->latest()->get();
 
-        return view('admin.profiles', compact('profiles', 'agents', 'branches'))->with([
+        return view('admin.profiles', compact('profiles', 'agents', 'branches', 'pools'))->with([
             'clonedProfile' => $profile,
             'clonedFrom'    => $profile->id,
         ]);
@@ -199,13 +204,27 @@ class ProfileController extends Controller
             return redirect()->back()->with('error', 'No online agent available to process the test print.');
         }
 
+        $poolId = null;
+        if ($profile->pool_id) {
+            try {
+                $orchestrator = new \App\Services\PrintJobOrchestrator();
+                $printer = $orchestrator->selectPrinterFromPool($profile->pool_id, $agent->id);
+                $poolId = $profile->pool_id;
+            } catch (\RuntimeException $e) {
+                return redirect()->back()->with('error', 'Printer Pool Error: ' . $e->getMessage());
+            }
+        } else {
+            $printer = $profile->default_printer ?: 'Default';
+        }
+
         $jobId = (string) Str::uuid();
         $path = $request->file('file')->storeAs('print_jobs', "{$jobId}.pdf", 'local');
 
         PrintJob::create([
             'job_id'          => $jobId,
             'print_agent_id'  => $agent->id,
-            'printer_name'    => $profile->default_printer ?: 'Default',
+            'printer_name'    => $printer,
+            'pool_id'         => $poolId,
             'type'            => 'pdf',
             'status'          => 'pending',
             'file_path'       => $path,

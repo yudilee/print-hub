@@ -26,6 +26,7 @@ class PrintJob extends Model
         'approval_status', 'approved_by', 'approved_at', 'rejected_reason', 'requires_approval',
         'pool_id',
         'depends_on_job_id', 'dependency_type',
+        'dispatched_at', 'retried_from_job_id', 'retry_count',
     ];
 
     protected $casts = [
@@ -39,6 +40,7 @@ class PrintJob extends Model
         'recurrence_count'     => 'integer',
         'approved_at'          => 'datetime',
         'requires_approval'    => 'boolean',
+        'dispatched_at'        => 'datetime',
     ];
 
     // ── Relationships ────────────────────────────────────────
@@ -77,6 +79,22 @@ class PrintJob extends Model
     public function dependents(): HasMany
     {
         return $this->hasMany(self::class, 'depends_on_job_id');
+    }
+
+    /**
+     * The original job this job was retried from.
+     */
+    public function retriedFrom(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'retried_from_job_id');
+    }
+
+    /**
+     * Retries of this job.
+     */
+    public function retries(): HasMany
+    {
+        return $this->hasMany(self::class, 'retried_from_job_id');
     }
 
     // ── Scopes ───────────────────────────────────────────────

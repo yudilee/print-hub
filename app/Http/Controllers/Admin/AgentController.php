@@ -34,11 +34,12 @@ class AgentController extends Controller
         $rawKey = Str::random(32);
 
         PrintAgent::create([
-            'name'       => $data['name'],
-            'agent_key'  => PrintAgent::hashKey($rawKey),
-            'branch_id'  => $data['branch_id'] ?? null,
-            'location'   => $data['location'] ?? null,
-            'department' => $data['department'] ?? null,
+            'name'            => $data['name'],
+            'agent_key'       => PrintAgent::hashKey($rawKey),
+            'key_hash_bcrypt' => \Illuminate\Support\Facades\Hash::make($rawKey),
+            'branch_id'       => $data['branch_id'] ?? null,
+            'location'        => $data['location'] ?? null,
+            'department'      => $data['department'] ?? null,
         ]);
 
         $this->logActivity('agent.created', null, ['name' => $data['name']]);
@@ -74,7 +75,7 @@ class AgentController extends Controller
         $hashedKey = PrintAgent::hashKey($rawKey);
         $agent->update([
             'agent_key'          => $hashedKey,
-            'key_hash_bcrypt'    => $hashedKey,
+            'key_hash_bcrypt'    => \Illuminate\Support\Facades\Hash::make($rawKey),
             'last_key_rotated_at' => now(),
         ]);
 

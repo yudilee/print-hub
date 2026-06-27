@@ -60,6 +60,9 @@ class AgentSelectionServiceTest extends TestCase
 
     public function test_select_throws_when_pinned_agent_is_offline()
     {
+        // Delete the online agent so there is no fallback online agent
+        $this->onlineAgent->delete();
+
         $profile = new PrintProfile([
             'name'           => 'test-queue',
             'print_agent_id' => $this->offlineAgent->id,
@@ -67,7 +70,7 @@ class AgentSelectionServiceTest extends TestCase
         $profile->setRelation('agent', $this->offlineAgent);
 
         $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessage('offline');
+        $this->expectExceptionMessage('No online agent');
 
         AgentSelectionService::select(null, $profile, null, 'test-queue');
     }

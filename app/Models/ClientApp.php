@@ -74,12 +74,17 @@ class ClientApp extends Model
         }
 
         // Fallback to bcrypt lookup for legacy bcrypt-hashed keys
+        // We optimize this by only calling Hash::check if the value starts with '$2'.
         $app = static::get()
             ->first(function ($a) use ($rawKey, $sha256) {
                 try {
-                    return Hash::check($rawKey, $a->api_key)
-                        || ($a->key_hash_bcrypt && Hash::check($rawKey, $a->key_hash_bcrypt))
-                        || $a->api_key === $sha256;
+                    if (str_starts_with($a->api_key, '$2') && Hash::check($rawKey, $a->api_key)) {
+                        return true;
+                    }
+                    if ($a->key_hash_bcrypt && str_starts_with($a->key_hash_bcrypt, '$2') && Hash::check($rawKey, $a->key_hash_bcrypt)) {
+                        return true;
+                    }
+                    return $a->api_key === $sha256;
                 } catch (\Exception $e) {
                     return $a->api_key === $sha256;
                 }

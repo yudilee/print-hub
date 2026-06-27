@@ -89,6 +89,12 @@ class ContinuousFormEngine
                 $rows = $this->resolveValue($tableElement['key'], $data) ?: [];
             }
 
+            // Guardrail: row limit
+            $maxRows = config('print.max_rows', 10000);
+            if (count($rows) > $maxRows) {
+                throw new \RuntimeException("PDF generation exceeded row limit of {$maxRows} (got " . count($rows) . " rows).");
+            }
+
             if (empty($rows) || !$tableElement) {
                 // Static single page with sections
                 $this->renderSectionedPage();
@@ -106,6 +112,12 @@ class ContinuousFormEngine
             $rows = [];
             if ($tableElement) {
                 $rows = $this->resolveValue($tableElement['key'], $data) ?: [];
+            }
+
+            // Guardrail: row limit
+            $maxRows = config('print.max_rows', 10000);
+            if (count($rows) > $maxRows) {
+                throw new \RuntimeException("PDF generation exceeded row limit of {$maxRows} (got " . count($rows) . " rows).");
             }
 
             if (empty($rows) || !$tableElement) {
@@ -309,6 +321,12 @@ class ContinuousFormEngine
         ) : [];
 
         while ($rowIndex < $totalRows) {
+            // Guardrail: Page count limit
+            $maxPages = config('print.max_pages', 200);
+            if ($this->pdf->PageNo() > $maxPages) {
+                throw new \RuntimeException("PDF generation exceeded page limit of {$maxPages}.");
+            }
+
             // ── Group header detection ──────────────────────────
             if ($hasGrouping) {
                 $groupChanged = false;
@@ -596,6 +614,12 @@ class ContinuousFormEngine
         $currentY += $headerHeight;
 
         foreach ($rows as $index => $rowData) {
+            // Guardrail: Page count limit
+            $maxPages = config('print.max_pages', 200);
+            if ($this->pdf->PageNo() > $maxPages) {
+                throw new \RuntimeException("PDF generation exceeded page limit of {$maxPages}.");
+            }
+
             // Page break check
             if ($currentY + $rowHeight > ($this->template->paper_height_mm - $bottomPadding)) {
                 $this->resetRunningTotalsOnPage();
@@ -741,11 +765,14 @@ class ContinuousFormEngine
         $tempPath = tempnam(sys_get_temp_dir(), 'barcode_') . '.png';
         file_put_contents($tempPath, $imageData);
 
-        // Place in PDF
-        $this->pdf->Image($tempPath, (float)($el['x'] ?? 0), (float)($el['y'] ?? 0), (float)($el['width'] ?? 80), (float)($el['height_mm'] ?? 20));
-
-        // Clean up
-        unlink($tempPath);
+        try {
+            // Place in PDF
+            $this->pdf->Image($tempPath, (float)($el['x'] ?? 0), (float)($el['y'] ?? 0), (float)($el['width'] ?? 80), (float)($el['height_mm'] ?? 20));
+        } finally {
+            if (file_exists($tempPath)) {
+                unlink($tempPath);
+            }
+        }
 
         // Show human-readable text if enabled
         if (!empty($el['showText'])) {
@@ -777,10 +804,14 @@ class ContinuousFormEngine
         $tempPath = tempnam(sys_get_temp_dir(), 'qrcode_') . '.png';
         file_put_contents($tempPath, $imageData);
 
-        $size = (float)($el['size'] ?? 25);
-        $this->pdf->Image($tempPath, (float)($el['x'] ?? 0), (float)($el['y'] ?? 0), $size, $size);
-
-        unlink($tempPath);
+        try {
+            $size = (float)($el['size'] ?? 25);
+            $this->pdf->Image($tempPath, (float)($el['x'] ?? 0), (float)($el['y'] ?? 0), $size, $size);
+        } finally {
+            if (file_exists($tempPath)) {
+                unlink($tempPath);
+            }
+        }
     }
 
     // ── Rotation ──────────────────────────────────────────────

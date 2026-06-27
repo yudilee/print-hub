@@ -256,14 +256,22 @@
                     </div>
                 </div>
 
-                {{-- Block 2: Physical Device Assignment --}}
+                {{-- Block 2: Physical Assignment & Routing --}}
                 <div class="panel-section" style="border-color: rgba(245, 158, 11, 0.4); background: rgba(245, 158, 11, 0.02);">
                     <h3 class="panel-section-title" style="color: var(--warning);">
                         🖥️ 2. Physical Assignment & Routing
                     </h3>
                     <div style="display: flex; flex-direction: column; gap: 0.55rem;">
                         <div class="compact-group">
-                            <label for="print_agent_id">Target Workstation / Agent <span style="color: var(--danger);">*</span></label>
+                            <label for="routing_type">Routing Type</label>
+                            <select id="routing_type" onchange="toggleRoutingType(this.value)" style="width: 100%; padding: 0.4rem 0.55rem; background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 4px;">
+                                <option value="single" {{ !old('pool_id') && !(isset($clonedProfile) && $clonedProfile->pool_id) ? 'selected' : '' }}>Single Printer Device</option>
+                                <option value="pool" {{ old('pool_id') || (isset($clonedProfile) && $clonedProfile->pool_id) ? 'selected' : '' }}>Printer Pool</option>
+                            </select>
+                        </div>
+                        
+                        <div class="compact-group" id="agent_group">
+                            <label for="print_agent_id">Target Workstation / Agent <span class="required-asterisk" style="color: var(--danger);">*</span></label>
                             <select name="print_agent_id" id="print_agent_id" required onchange="updatePrinterDropdown(this.value); updateAdvancedOptions(this.value);">
                                 <option value="">-- Select Agent --</option>
                                 @foreach($agents as $agent)
@@ -277,11 +285,24 @@
                             </select>
                             <div id="agent-capability-summary" style="font-size: 0.68rem; color: var(--text-muted); margin-top: 3px; min-height: 12px; line-height: 1.2;"></div>
                         </div>
-                        <div class="compact-group">
+
+                        <div class="compact-group" id="printer_group">
                             <label for="default_printer">Target Printer Device <span style="color: var(--danger);">*</span></label>
                             <div id="printer_input_container">
                                 <input type="text" name="default_printer" id="default_printer" required placeholder="e.g. Brother-HL-L2360D" value="{{ isset($clonedProfile) ? $clonedProfile->default_printer : old('default_printer') }}">
                             </div>
+                        </div>
+
+                        <div class="compact-group" id="pool_group" style="display: none;">
+                            <label for="pool_id">Target Printer Pool <span style="color: var(--danger);">*</span></label>
+                            <select name="pool_id" id="pool_id" style="width: 100%; padding: 0.4rem 0.55rem; background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 4px;">
+                                <option value="">-- Select Printer Pool --</option>
+                                @foreach($pools as $pool)
+                                    <option value="{{ $pool->id }}" {{ (isset($clonedProfile) && $clonedProfile->pool_id == $pool->id) || old('pool_id') == $pool->id ? 'selected' : '' }}>
+                                        {{ $pool->name }}
+                                    </option>
+                                @endforeach
+                            </select>
                         </div>
                     </div>
                 </div>
@@ -552,7 +573,9 @@
                         @endif
                     </td>
                     <td style="vertical-align: middle;">
-                        @if($profile->default_printer)
+                        @if($profile->pool)
+                            <span class="badge badge-info" style="font-size: 0.7rem; padding: 2px 6px; font-weight: 600; background: var(--info); color: white; border-radius: 4px;">📋 Pool: {{ $profile->pool->name }}</span>
+                        @elseif($profile->default_printer)
                             <code class="mono" style="font-size: 0.72rem; background: var(--bg); border: 1px solid var(--border); padding: 1px 4px; border-radius: 3px; color: var(--text);">{{ $profile->default_printer }}</code>
                         @else
                             <span style="color: var(--text-muted); font-style: italic; font-size: 0.74rem;">OS Default</span>
@@ -579,7 +602,7 @@
                             <a href="{{ route('admin.profiles.clone', $profile) }}" class="btn btn-secondary btn-sm" style="text-decoration: none; padding: 3px 6px; font-size: 0.7rem; border-radius: 3px;" title="Clone this queue">
                                 Clone
                             </a>
-                            <button class="btn btn-secondary btn-sm" onclick="openTestModal('{{ $profile->id }}', '{{ $profile->name }}', '{{ $profile->agent->name ?? 'Any Online Agent' }}', '{{ $profile->default_printer ?: 'Default' }}')" style="padding: 3px 6px; font-size: 0.7rem; border-radius: 3px;" title="Test print job">
+                            <button class="btn btn-secondary btn-sm" onclick="openTestModal('{{ $profile->id }}', '{{ $profile->name }}', '{{ $profile->agent->name ?? 'Any Online Agent' }}', '{{ $profile->pool ? 'Pool: ' . $profile->pool->name : ($profile->default_printer ?: 'Default') }}')" style="padding: 3px 6px; font-size: 0.7rem; border-radius: 3px;" title="Test print job">
                                 Test
                             </button>
                             <form action="{{ route('admin.profiles.destroy', $profile) }}" method="POST" onsubmit="return confirm('Delete this queue?')" style="display: inline;">
@@ -952,6 +975,44 @@ function closeTestModal() {
     }
 }
 
+function toggleRoutingType(type) {
+    const agentGroup = document.getElementById('agent_group');
+    const printerGroup = document.getElementById('printer_group');
+    const poolGroup = document.getElementById('pool_group');
+    const agentSelect = document.getElementById('print_agent_id');
+    const printerInput = document.getElementById('default_printer');
+    const poolSelect = document.getElementById('pool_id');
+    const asterisk = agentGroup ? agentGroup.querySelector('.required-asterisk') : null;
+
+    if (type === 'single') {
+        if (agentGroup) agentGroup.style.display = 'block';
+        if (printerGroup) printerGroup.style.display = 'block';
+        if (poolGroup) poolGroup.style.display = 'none';
+
+        if (agentSelect) agentSelect.required = true;
+        if (printerInput) printerInput.required = true;
+        if (poolSelect) {
+            poolSelect.required = false;
+            poolSelect.value = '';
+        }
+        if (asterisk) asterisk.style.display = 'inline';
+    } else {
+        if (agentGroup) agentGroup.style.display = 'block';
+        if (printerGroup) printerGroup.style.display = 'none';
+        if (poolGroup) poolGroup.style.display = 'block';
+
+        if (agentSelect) {
+            agentSelect.required = false;
+        }
+        if (printerInput) {
+            printerInput.required = false;
+            printerInput.value = '';
+        }
+        if (poolSelect) poolSelect.required = true;
+        if (asterisk) asterisk.style.display = 'none';
+    }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     const agentSelect = document.getElementById('print_agent_id');
     if (agentSelect && agentSelect.value) {
@@ -966,6 +1027,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }, 100);
         @endif
+    }
+    
+    const routingType = document.getElementById('routing_type');
+    if (routingType) {
+        toggleRoutingType(routingType.value);
     }
     
     const paperSize = document.getElementById('paper_size');

@@ -83,15 +83,39 @@
 
                 @if(count($existingPrinters) > 0)
                     @foreach($existingPrinters as $idx => $pp)
-                        @php $ppData = $pp instanceof \App\Models\PrinterPoolPrinter ? $pp : (object) $pp; @endphp
+                        @php 
+                            $ppData = $pp instanceof \App\Models\PrinterPoolPrinter ? $pp : (object) $pp; 
+                            $ownerAgent = $agents->first(function($a) use ($ppData) {
+                                return in_array($ppData->printer_name, $a->printers ?? []);
+                            });
+                            $ownerAgentId = $ownerAgent ? $ownerAgent->id : '';
+                        @endphp
                         <div class="printer-row" style="display: flex; gap: 0.75rem; align-items: flex-end; margin-bottom: 0.75rem; padding: 0.75rem; background: var(--bg); border-radius: 6px; border: 1px solid var(--border);">
-                            <div class="form-group" style="flex: 2; margin-bottom: 0;">
-                                <label>Printer Name</label>
-                                <input type="text" name="printers[{{ $idx }}][name]" value="{{ old('printers.' . $idx . '.name', $ppData->printer_name) }}" required placeholder="e.g. Printer-01" list="printer-list">
+                            <div class="form-group" style="flex: 1.5; margin-bottom: 0;">
+                                <label>Target Workstation / Agent</label>
+                                <select class="agent-select" onchange="updateRowPrinters(this)" required style="width: 100%; padding: 0.4rem 0.55rem; background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 4px;">
+                                    <option value="">-- Select Agent --</option>
+                                    @foreach($agents as $agent)
+                                        <option value="{{ $agent->id }}" data-branch="{{ $agent->branch_id }}" {{ $ownerAgentId == $agent->id ? 'selected' : '' }}>
+                                            {{ $agent->name }} ({{ $agent->branch->name ?? 'No Branch' }})
+                                        </option>
+                                    @endforeach
+                                </select>
                             </div>
-                            <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                            <div class="form-group" style="flex: 1.5; margin-bottom: 0;">
+                                <label>Printer Name</label>
+                                <select name="printers[{{ $idx }}][name]" class="printer-select" required style="width: 100%; padding: 0.4rem 0.55rem; background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 4px;">
+                                    <option value="">-- Select Printer --</option>
+                                    @if($ownerAgent)
+                                        @foreach($ownerAgent->printers as $printer)
+                                            <option value="{{ $printer }}" {{ $ppData->printer_name == $printer ? 'selected' : '' }}>{{ $printer }}</option>
+                                        @endforeach
+                                    @endif
+                                </select>
+                            </div>
+                            <div class="form-group" style="flex: 0.8; margin-bottom: 0;">
                                 <label>Priority</label>
-                                <input type="number" name="printers[{{ $idx }}][priority]" value="{{ old('printers.' . $idx . '.priority', $ppData->priority ?? $idx) }}" min="0" placeholder="0">
+                                <input type="number" name="printers[{{ $idx }}][priority]" value="{{ old('printers.' . $idx . '.priority', $ppData->priority ?? $idx) }}" min="0" placeholder="0" style="width: 100%; padding: 0.4rem 0.55rem; background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 4px;">
                             </div>
                             <div class="form-group" style="flex: 1; margin-bottom: 0;">
                                 <label>Status</label>
@@ -106,31 +130,17 @@
                                         <span style="font-size: 0.8rem; color: var(--success);">Healthy</span>
                                     @else
                                         <span class="dot dot-red"></span>
-                                        <span style="font-size: 0.8rem; color: var(--danger);">
-                                            Unhealthy ({{ $failureCount }} failure{{ $failureCount !== 1 ? 's' : '' }})
-                                        </span>
+                                        <span style="font-size: 0.8rem; color: var(--danger);">Unhealthy</span>
                                     @endif
                                 </div>
-                                @if($lastHealthy)
-                                    <div style="font-size: 0.65rem; color: var(--text-muted); margin-top: 2px;">
-                                        Last healthy: {{ $lastHealthy }}
-                                    </div>
-                                @endif
-                                @if(!$isHealthy)
-                                    <form action="{{ route('admin.pools.reset-health', $pool) }}" method="POST" style="display: inline; margin-top: 2px;" data-confirm="Reset health for this printer?">
-                                        @csrf
-                                        <input type="hidden" name="printer_name" value="{{ $ppData->printer_name }}">
-                                        <button type="submit" class="btn btn-warning btn-sm" style="font-size: 0.65rem; padding: 0.15rem 0.4rem;">Reset Health</button>
-                                    </form>
-                                @endif
                             </div>
                             <div class="form-group" style="flex: 0.8; display: flex; align-items: center; padding-bottom: 0.5rem; margin-bottom: 0;">
-                                <label class="checkbox-container" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                <label class="checkbox-container" style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.8rem;">
                                     <input type="checkbox" name="printers[{{ $idx }}][active]" value="1" {{ old('printers.' . $idx . '.active', $ppData->active ?? true) ? 'checked' : '' }} style="width: 18px; height: 18px;">
                                     Active
                                 </label>
                             </div>
-                            <button type="button" class="btn btn-danger btn-sm" onclick="this.closest('.printer-row').remove()" style="margin-bottom: 0.5rem;" title="Remove printer" aria-label="Remove printer from pool">✕</button>
+                            <button type="button" class="btn btn-danger btn-sm" onclick="removeRow(this)" style="margin-bottom: 0.4rem;" title="Remove printer" aria-label="Remove printer from pool">✕</button>
                         </div>
                     @endforeach
                 @endif
@@ -143,15 +153,9 @@
                     <button type="submit" class="btn btn-warning btn-sm">🔄 Reset All Health</button>
                 </form>
             @endif
-
-            <datalist id="printer-list">
-                @foreach($allPrinters as $printerName)
-                    <option value="{{ $printerName }}">
-                @endforeach
-            </datalist>
         </fieldset>
 
-        <div style="display: flex; gap: 10px;">
+        <div style="display: flex; gap: 10px; margin-top: 1rem;">
             <button type="submit" class="btn btn-primary">{{ $pool->exists ? 'Update Pool' : 'Create Pool' }}</button>
             <a href="{{ route('admin.pools') }}" class="btn btn-secondary">Cancel</a>
         </div>
@@ -159,31 +163,129 @@
 </div>
 
 <script>
+// Dynamic data injected from PHP
+const agentPrinters = {
+    @foreach($agents as $agent)
+        "{{ $agent->id }}": {!! json_encode($agent->printers ?? []) !!},
+    @endforeach
+};
+
+const agentBranches = {
+    @foreach($agents as $agent)
+        "{{ $agent->id }}": "{{ $agent->branch_id }}",
+    @endforeach
+};
+
 let printerIdx = {{ count($existingPrinters) }};
 
 function addPrinterRow() {
     const container = document.getElementById('printers-container');
     const idx = printerIdx++;
+    
+    // Build agent options
+    let agentOptionsHtml = '<option value="">-- Select Agent --</option>';
+    @foreach($agents as $agent)
+        agentOptionsHtml += `<option value="{{ $agent->id }}" data-branch="{{ $agent->branch_id }}">{{ $agent->name }} ({{ $agent->branch->name ?? 'No Branch' }})</option>`;
+    @endforeach
+
     const html = `
         <div class="printer-row" style="display: flex; gap: 0.75rem; align-items: flex-end; margin-bottom: 0.75rem; padding: 0.75rem; background: var(--bg); border-radius: 6px; border: 1px solid var(--border);">
-            <div class="form-group" style="flex: 3; margin-bottom: 0;">
+            <div class="form-group" style="flex: 1.5; margin-bottom: 0;">
+                <label>Target Workstation / Agent</label>
+                <select class="agent-select" onchange="updateRowPrinters(this)" required style="width: 100%; padding: 0.4rem 0.55rem; background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 4px;">
+                    ${agentOptionsHtml}
+                </select>
+            </div>
+            <div class="form-group" style="flex: 1.5; margin-bottom: 0;">
                 <label>Printer Name</label>
-                <input type="text" name="printers[${idx}][name]" required placeholder="e.g. Printer-01" list="printer-list">
+                <select name="printers[${idx}][name]" class="printer-select" required style="width: 100%; padding: 0.4rem 0.55rem; background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 4px;">
+                    <option value="">-- Select Printer --</option>
+                </select>
+            </div>
+            <div class="form-group" style="flex: 0.8; margin-bottom: 0;">
+                <label>Priority</label>
+                <input type="number" name="printers[${idx}][priority]" value="${idx}" min="0" placeholder="0" style="width: 100%; padding: 0.4rem 0.55rem; background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 4px;">
             </div>
             <div class="form-group" style="flex: 1; margin-bottom: 0;">
-                <label>Priority</label>
-                <input type="number" name="printers[${idx}][priority]" value="${idx}" min="0" placeholder="0">
+                <label>Status</label>
+                <div style="display: flex; align-items: center; gap: 0.4rem; padding-top: 0.3rem;">
+                    <span class="dot dot-green"></span>
+                    <span style="font-size: 0.8rem; color: var(--success);">New</span>
+                </div>
             </div>
-            <div class="form-group" style="flex: 1; display: flex; align-items: center; padding-bottom: 0.5rem; margin-bottom: 0;">
-                <label class="checkbox-container" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+            <div class="form-group" style="flex: 0.8; display: flex; align-items: center; padding-bottom: 0.5rem; margin-bottom: 0;">
+                <label class="checkbox-container" style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.8rem;">
                     <input type="checkbox" name="printers[${idx}][active]" value="1" checked style="width: 18px; height: 18px;">
                     Active
                 </label>
             </div>
-            <button type="button" class="btn btn-danger btn-sm" onclick="this.closest('.printer-row').remove()" style="margin-bottom: 0.5rem;" title="Remove printer" aria-label="Remove printer from pool">✕</button>
+            <button type="button" class="btn btn-danger btn-sm" onclick="removeRow(this)" style="margin-bottom: 0.4rem;" title="Remove printer" aria-label="Remove printer from pool">✕</button>
         </div>
     `;
     container.insertAdjacentHTML('beforeend', html);
+    applyBranchRestrictions();
 }
+
+function updateRowPrinters(agentSelect) {
+    const row = agentSelect.closest('.printer-row');
+    const printerSelect = row.querySelector('.printer-select');
+    const agentId = agentSelect.value;
+
+    printerSelect.innerHTML = '<option value="">-- Select Printer --</option>';
+
+    if (agentId && agentPrinters[agentId]) {
+        agentPrinters[agentId].forEach(printer => {
+            const opt = document.createElement('option');
+            opt.value = printer;
+            opt.textContent = printer;
+            printerSelect.appendChild(opt);
+        });
+    }
+
+    applyBranchRestrictions();
+}
+
+function removeRow(button) {
+    button.closest('.printer-row').remove();
+    applyBranchRestrictions();
+}
+
+function applyBranchRestrictions() {
+    const rows = document.querySelectorAll('.printer-row');
+    let lockedBranchId = null;
+
+    // Find the first row that has an agent selected
+    for (let i = 0; i < rows.length; i++) {
+        const agentSelect = rows[i].querySelector('.agent-select');
+        if (agentSelect && agentSelect.value) {
+            lockedBranchId = agentBranches[agentSelect.value];
+            break;
+        }
+    }
+
+    // Apply branch lock: enable only agents in the same branch, disable others
+    rows.forEach(row => {
+        const agentSelect = row.querySelector('.agent-select');
+        if (agentSelect) {
+            const options = agentSelect.querySelectorAll('option');
+            options.forEach(opt => {
+                if (!opt.value) return; // skip placeholder
+                const branchId = opt.getAttribute('data-branch');
+                if (lockedBranchId === null || branchId === lockedBranchId) {
+                    opt.disabled = false;
+                    opt.style.opacity = '1';
+                } else {
+                    opt.disabled = true;
+                    opt.style.opacity = '0.5';
+                }
+            });
+        }
+    });
+}
+
+// Run initially to apply any pre-existing constraints
+document.addEventListener('DOMContentLoaded', () => {
+    applyBranchRestrictions();
+});
 </script>
 @endsection

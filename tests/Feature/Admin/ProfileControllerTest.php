@@ -105,7 +105,36 @@ class ProfileControllerTest extends TestCase
         $response = $this->actingAs($this->admin)
             ->post(route('admin.profiles.store'), []);
 
-        $response->assertSessionHasErrors(['name', 'branch_id', 'paper_size', 'orientation', 'copies', 'duplex', 'print_agent_id', 'default_printer']);
+        $response->assertSessionHasErrors(['name', 'branch_id', 'paper_size', 'orientation', 'copies', 'duplex', 'default_printer']);
+    }
+
+    public function test_store_creates_profile_with_printer_pool()
+    {
+        $pool = \App\Models\PrinterPool::create([
+            'name'     => 'My Pool',
+            'strategy' => 'round_robin',
+            'active'   => true,
+        ]);
+
+        $response = $this->actingAs($this->admin)
+            ->post(route('admin.profiles.store'), [
+                'name'            => 'Pool Profile',
+                'description'     => 'Using a pool',
+                'branch_id'       => $this->branch->id,
+                'paper_size'      => 'A4',
+                'orientation'     => 'portrait',
+                'copies'          => 1,
+                'duplex'          => 'none',
+                'pool_id'         => $pool->id,
+            ]);
+
+        $response->assertRedirect(route('admin.profiles'));
+        $this->assertDatabaseHas('print_profiles', [
+            'name'    => 'Pool Profile',
+            'pool_id' => $pool->id,
+            'default_printer' => null,
+            'print_agent_id'  => null,
+        ]);
     }
 
     public function test_store_validates_unique_name()

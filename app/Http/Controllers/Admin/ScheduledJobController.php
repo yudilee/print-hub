@@ -106,6 +106,7 @@ class ScheduledJobController extends Controller
             'print_agent_id'    => $profile->print_agent_id,
             'branch_id'         => $profile->branch_id,
             'printer_name'      => $profile->default_printer,
+            'pool_id'           => $profile->pool_id,
             'type'              => 'template',
             'priority'          => $data['priority'] ?? 2,
             'status'            => 'scheduled',

@@ -194,7 +194,10 @@ class JobController extends Controller
     {
         $newJob = $job->replicate();
         $newJob->job_id = (string) Str::uuid();
-        $newJob->status = 'queued';
+        $newJob->status = 'pending';
+        $newJob->dispatched_at = null;
+        $newJob->retried_from_job_id = $job->id;
+        $newJob->retry_count = $job->retry_count + 1;
         $newJob->error = null;
         $newJob->agent_created_at = null;
         $newJob->agent_completed_at = null;
@@ -213,7 +216,7 @@ class JobController extends Controller
     }
 
     /**
-     * Retry all failed jobs by resetting their status to 'queued' and clearing errors.
+     * Retry all failed jobs by resetting their status to 'pending' and clearing errors.
      */
     public function retryAllFailed()
     {
@@ -223,7 +226,10 @@ class JobController extends Controller
         foreach ($failedJobs as $job) {
             $newJob = $job->replicate();
             $newJob->job_id = (string) Str::uuid();
-            $newJob->status = 'queued';
+            $newJob->status = 'pending';
+            $newJob->dispatched_at = null;
+            $newJob->retried_from_job_id = $job->id;
+            $newJob->retry_count = $job->retry_count + 1;
             $newJob->error = null;
             $newJob->agent_created_at = null;
             $newJob->agent_completed_at = null;
@@ -260,7 +266,10 @@ class JobController extends Controller
 
             $newJob = $job->replicate();
             $newJob->job_id = (string) Str::uuid();
-            $newJob->status = 'queued';
+            $newJob->status = 'pending';
+            $newJob->dispatched_at = null;
+            $newJob->retried_from_job_id = $job->id;
+            $newJob->retry_count = $job->retry_count + 1;
             $newJob->error = null;
             $newJob->agent_created_at = null;
             $newJob->agent_completed_at = null;

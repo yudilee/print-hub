@@ -252,4 +252,42 @@ class PrinterPoolTest extends TestCase
         $selected = $orchestrator->selectPrinterFromPool($pool->id);
         $this->assertContains($selected, ['Printer A', 'Printer B']);
     }
+
+    public function test_pool_creation_fails_if_agents_are_in_different_branches()
+    {
+        $company = \App\Models\Company::create(['name' => 'Test Corp', 'code' => 'TC', 'is_active' => true]);
+        $branch1 = \App\Models\Branch::create(['company_id' => $company->id, 'name' => 'Branch One', 'code' => 'B1', 'is_active' => true]);
+        $branch2 = \App\Models\Branch::create(['company_id' => $company->id, 'name' => 'Branch Two', 'code' => 'B2', 'is_active' => true]);
+
+        $this->agent1->update(['branch_id' => $branch1->id]);
+        $this->agent2->update(['branch_id' => $branch2->id]);
+
+        $response = $this->actingAs($this->admin)
+            ->post(route('admin.pools.store'), [
+                'name'        => 'Cross Branch Pool',
+                'strategy'    => 'round_robin',
+                'active'      => true,
+                'printers'    => [
+                    ['name' => 'Printer A', 'priority' => 1],
+                    ['name' => 'Printer C', 'priority' => 2],
+                ],
+            ]);
+
+        $response->assertSessionHasErrors(['printers']);
+    }
+
+    public function test_pool_creation_fails_if_printer_does_not_exist_on_any_active_agent()
+    {
+        $response = $this->actingAs($this->admin)
+            ->post(route('admin.pools.store'), [
+                'name'        => 'Invalid Printer Pool',
+                'strategy'    => 'round_robin',
+                'active'      => true,
+                'printers'    => [
+                    ['name' => 'Nonexistent Printer', 'priority' => 1],
+                ],
+            ]);
+
+        $response->assertSessionHasErrors(['printers']);
+    }
 }

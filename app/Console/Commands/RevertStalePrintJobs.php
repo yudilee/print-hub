@@ -26,7 +26,8 @@ class RevertStalePrintJobs extends Command
         $cutoff   = Carbon::now()->subMinutes($minutes);
 
         $staleJobs = PrintJob::where('status', 'processing')
-            ->where('updated_at', '<', $cutoff)
+            ->whereNotNull('dispatched_at')
+            ->where('dispatched_at', '<', $cutoff)
             ->get();
 
         if ($staleJobs->isEmpty()) {
@@ -37,11 +38,12 @@ class RevertStalePrintJobs extends Command
         $count = 0;
         foreach ($staleJobs as $job) {
             $job->update([
-                'status' => 'pending',
-                'error'  => "Auto-reverted: job was stuck in 'processing' for over {$minutes} minutes.",
+                'status'        => 'pending',
+                'dispatched_at' => null,
+                'error'         => "Auto-reverted: job was stuck in 'processing' for over {$minutes} minutes.",
             ]);
             $count++;
-            $this->line("  ↩ Reverted job {$job->job_id} (last updated {$job->updated_at->diffForHumans()})");
+            $this->line("  ↩ Reverted job {$job->job_id} (dispatched {$job->dispatched_at->diffForHumans()})");
         }
 
         $this->info("Reverted {$count} stale job(s) back to 'pending'.");

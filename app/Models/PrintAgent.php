@@ -94,12 +94,18 @@ class PrintAgent extends Model
 
         // Fallback to bcrypt lookup for legacy bcrypt-hashed keys,
         // then plaintext comparison for pre-migration legacy keys.
+        // We optimize this by only calling Hash::check if the value starts with '$2'.
         $agent = static::get()
             ->first(function ($a) use ($rawKey, $sha256) {
                 try {
-                    return Hash::check($rawKey, $a->agent_key)
-                        || ($a->key_hash_bcrypt && Hash::check($rawKey, $a->key_hash_bcrypt))
-                        || $a->agent_key === $sha256;
+                    if (str_starts_with($a->agent_key, '$2') && Hash::check($rawKey, $a->agent_key)) {
+                        return true;
+                    }
+                    if ($a->key_hash_bcrypt && str_starts_with($a->key_hash_bcrypt, '$2') && Hash::check($rawKey, $a->key_hash_bcrypt)) {
+                        return true;
+                    }
+                    return $a->agent_key === $sha256
+                        || $a->agent_key === $rawKey;
                 } catch (\Exception $e) {
                     return $a->agent_key === $sha256
                         || $a->agent_key === $rawKey;
