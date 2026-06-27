@@ -22,6 +22,11 @@
             --info: #3b82f6;
             --toast-bg: #1a1d27;
             --toast-border: #2a2e3f;
+            --bg-secondary: #141620;
+            --bg-tertiary: #1f2335;
+            --bg-hover: rgba(255, 255, 255, 0.05);
+            --primary-glow: rgba(99, 102, 241, 0.15);
+            --success-glow: rgba(34, 197, 94, 0.15);
         }
 
         [data-theme="light"] {
@@ -39,6 +44,11 @@
             --info: #2563eb;
             --toast-bg: #ffffff;
             --toast-border: #d1d5db;
+            --bg-secondary: #f8f9fa;
+            --bg-tertiary: #e9ecef;
+            --bg-hover: rgba(0, 0, 0, 0.05);
+            --primary-glow: rgba(79, 70, 229, 0.08);
+            --success-glow: rgba(22, 163, 74, 0.08);
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; }

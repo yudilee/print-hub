@@ -32,34 +32,34 @@
             <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
                 <thead>
                     <tr style="background: var(--bg-tertiary, #e9ecef);">
-                        <th style="padding: 6px 8px; text-align: left; border: 1px solid #dee2e6;">Item</th>
-                        <th style="padding: 6px 8px; text-align: left; border: 1px solid #dee2e6;">Copies</th>
-                        <th style="padding: 6px 8px; text-align: left; border: 1px solid #dee2e6;">Duplex</th>
-                        <th style="padding: 6px 8px; text-align: left; border: 1px solid #dee2e6;">Color Mode</th>
-                        <th style="padding: 6px 8px; text-align: left; border: 1px solid #dee2e6;">Tray</th>
+                        <th style="padding: 6px 8px; text-align: left; border: 1px solid var(--border);">Item</th>
+                        <th style="padding: 6px 8px; text-align: left; border: 1px solid var(--border);">Copies</th>
+                        <th style="padding: 6px 8px; text-align: left; border: 1px solid var(--border);">Duplex</th>
+                        <th style="padding: 6px 8px; text-align: left; border: 1px solid var(--border);">Color Mode</th>
+                        <th style="padding: 6px 8px; text-align: left; border: 1px solid var(--border);">Tray</th>
                     </tr>
                 </thead>
                 <tbody>
                     <tr>
-                        <td style="padding: 6px 8px; border: 1px solid #dee2e6;">Queue "General-Receipts"</td>
-                        <td style="padding: 6px 8px; border: 1px solid #dee2e6;">1</td>
-                        <td style="padding: 6px 8px; border: 1px solid #dee2e6;">none</td>
-                        <td style="padding: 6px 8px; border: 1px solid #dee2e6;">grayscale</td>
-                        <td style="padding: 6px 8px; border: 1px solid #dee2e6;">(default)</td>
+                        <td style="padding: 6px 8px; border: 1px solid var(--border);">Queue "General-Receipts"</td>
+                        <td style="padding: 6px 8px; border: 1px solid var(--border);">1</td>
+                        <td style="padding: 6px 8px; border: 1px solid var(--border);">none</td>
+                        <td style="padding: 6px 8px; border: 1px solid var(--border);">grayscale</td>
+                        <td style="padding: 6px 8px; border: 1px solid var(--border);">(default)</td>
                     </tr>
-                    <tr style="background: rgba(13, 110, 253, 0.05);">
-                        <td style="padding: 6px 8px; border: 1px solid #dee2e6;">➕ Printer Config "Epson-WF-7720"</td>
-                        <td style="padding: 6px 8px; border: 1px solid #dee2e6;">2</td>
-                        <td style="padding: 6px 8px; border: 1px solid #dee2e6;">short-edge</td>
-                        <td style="padding: 6px 8px; border: 1px solid #dee2e6;"><strong>color</strong></td>
-                        <td style="padding: 6px 8px; border: 1px solid #dee2e6;">Tray 1</td>
+                    <tr style="background: var(--primary-glow, rgba(13, 110, 253, 0.05));">
+                        <td style="padding: 6px 8px; border: 1px solid var(--border);">➕ Printer Config "Epson-WF-7720"</td>
+                        <td style="padding: 6px 8px; border: 1px solid var(--border);">2</td>
+                        <td style="padding: 6px 8px; border: 1px solid var(--border);">short-edge</td>
+                        <td style="padding: 6px 8px; border: 1px solid var(--border);"><strong>color</strong></td>
+                        <td style="padding: 6px 8px; border: 1px solid var(--border);">Tray 1</td>
                     </tr>
-                    <tr style="background: rgba(25, 135, 84, 0.08);">
-                        <td style="padding: 6px 8px; border: 1px solid #dee2e6; font-weight: 600;">✅ Final (job request: copies=3)</td>
-                        <td style="padding: 6px 8px; border: 1px solid #dee2e6; font-weight: 600;">3 ✅</td>
-                        <td style="padding: 6px 8px; border: 1px solid #dee2e6;">short-edge</td>
-                        <td style="padding: 6px 8px; border: 1px solid #dee2e6; font-weight: 600;">color</td>
-                        <td style="padding: 6px 8px; border: 1px solid #dee2e6;">Tray 1</td>
+                    <tr style="background: var(--success-glow, rgba(25, 135, 84, 0.08));">
+                        <td style="padding: 6px 8px; border: 1px solid var(--border); font-weight: 600;">✅ Final (job request: copies=3)</td>
+                        <td style="padding: 6px 8px; border: 1px solid var(--border); font-weight: 600;">3 ✅</td>
+                        <td style="padding: 6px 8px; border: 1px solid var(--border);">short-edge</td>
+                        <td style="padding: 6px 8px; border: 1px solid var(--border); font-weight: 600;">color</td>
+                        <td style="padding: 6px 8px; border: 1px solid var(--border);">Tray 1</td>
                     </tr>
                 </tbody>
             </table>
@@ -216,7 +216,7 @@
             </div>
 
             {{-- Structured Config Fields --}}
-            <fieldset style="border: 1px solid var(--border-color, #dee2e6); border-radius: 6px; padding: 1rem; margin-top: 1rem;">
+            <fieldset style="border: 1px solid var(--border); border-radius: 6px; padding: 1rem; margin-top: 1rem;">
                 <legend style="font-weight: 600; font-size: 0.9rem; padding: 0 6px;">Override Options</legend>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
                     <div class="form-group" style="margin-bottom: 0;">
