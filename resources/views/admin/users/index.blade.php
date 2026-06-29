@@ -254,7 +254,7 @@ function resetPassword(id, name) {
 </script>
 
 <style>
-.modal { border:none; border-radius:8px; padding:0; background:transparent; }
+.modal { border:none; border-radius:8px; padding:0; background:transparent; margin: auto; }
 .modal::backdrop { background: rgba(0,0,0,0.5); backdrop-filter: blur(2px); }
 .modal-content { background: var(--surface); padding: 24px; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); width:100%; }
 .modal[open] { animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
