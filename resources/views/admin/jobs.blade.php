@@ -188,14 +188,74 @@
                                 <div><span class="text-slate-500">Duplex:</span> <span class="text-slate-200">{{ $job->options['duplex'] ?? 'None' }}</span></div>
                             </div>
                             <div class="p-3.5 rounded-xl bg-slate-900 border border-slate-800 space-y-1.5">
-                                <div class="font-bold text-white pb-1 border-b border-slate-800">Timestamps</div>
+                                <div class="font-bold text-white pb-1 border-b border-slate-800">Timestamps & Callbacks</div>
                                 <div><span class="text-slate-500">Created:</span> <span class="font-mono text-slate-300">{{ $job->created_at->format('Y-m-d H:i:s') }}</span></div>
+                                <div><span class="text-slate-500">Dispatched:</span> <span class="font-mono text-slate-300">{{ $job->dispatched_at ? $job->dispatched_at->format('Y-m-d H:i:s') : '—' }}</span></div>
                                 <div><span class="text-slate-500">Completed:</span> <span class="font-mono text-slate-300">{{ $job->agent_completed_at ? $job->agent_completed_at->format('Y-m-d H:i:s') : '—' }}</span></div>
+                                @if($job->webhook_url)
+                                <div><span class="text-slate-500">Webhook:</span> <span class="font-mono text-blue-400 truncate block text-[10px]">{{ $job->webhook_url }}</span></div>
+                                @endif
                                 @if($job->error)
                                 <div class="mt-2 p-2 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400 font-mono text-[11px]">
                                     {{ $job->error }}
                                 </div>
                                 @endif
+                            </div>
+                        </div>
+
+                        {{-- Visual Pipeline Waterfall Trace --}}
+                        <div class="mt-4 p-3.5 rounded-xl bg-slate-900 border border-slate-800">
+                            <div class="font-bold text-white pb-2 mb-3 border-b border-slate-800 flex items-center justify-between">
+                                <span class="flex items-center gap-1.5">
+                                    <span class="w-2 h-2 rounded-full bg-blue-500"></span>
+                                    <span>Pipeline Execution Trace</span>
+                                </span>
+                                <span class="text-[10px] text-slate-500 font-mono">UUID: {{ $job->job_id }}</span>
+                            </div>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2.5 text-center text-xs">
+                                {{-- Step 1: Ingestion --}}
+                                <div class="p-2.5 rounded-lg bg-slate-950 border border-slate-800 flex flex-col items-center">
+                                    <div class="w-6 h-6 rounded-full bg-blue-500/20 text-blue-400 font-bold flex items-center justify-center text-[10px] mb-1">1</div>
+                                    <div class="font-semibold text-slate-200 text-[11px]">API Ingestion</div>
+                                    <div class="text-[10px] text-slate-500 mt-0.5">{{ $job->created_at->format('H:i:s') }}</div>
+                                    <span class="badge badge-success text-[9px] mt-1.5">Validated</span>
+                                </div>
+
+                                {{-- Step 2: Render & Orchestration --}}
+                                <div class="p-2.5 rounded-lg bg-slate-950 border border-slate-800 flex flex-col items-center">
+                                    <div class="w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-400 font-bold flex items-center justify-center text-[10px] mb-1">2</div>
+                                    <div class="font-semibold text-slate-200 text-[11px]">Document Render</div>
+                                    <div class="text-[10px] text-slate-500 mt-0.5">{{ strtoupper($job->type) }} Document</div>
+                                    <span class="badge badge-success text-[9px] mt-1.5">Ready</span>
+                                </div>
+
+                                {{-- Step 3: Workstation Dispatch --}}
+                                <div class="p-2.5 rounded-lg bg-slate-950 border border-slate-800 flex flex-col items-center">
+                                    <div class="w-6 h-6 rounded-full bg-amber-500/20 text-amber-400 font-bold flex items-center justify-center text-[10px] mb-1">3</div>
+                                    <div class="font-semibold text-slate-200 text-[11px]">Agent Workstation</div>
+                                    <div class="text-[10px] text-slate-400 mt-0.5 truncate max-w-[120px]" title="{{ $job->agent->name ?? 'Unassigned' }}">{{ $job->agent->name ?? 'Unassigned' }}</div>
+                                    @if($job->status === 'success')
+                                        <span class="badge badge-success text-[9px] mt-1.5">Dispatched</span>
+                                    @elseif($job->dispatched_at)
+                                        <span class="badge badge-info text-[9px] mt-1.5">Leased</span>
+                                    @else
+                                        <span class="badge badge-warning text-[9px] mt-1.5">Queued</span>
+                                    @endif
+                                </div>
+
+                                {{-- Step 4: Spooler Execution --}}
+                                <div class="p-2.5 rounded-lg bg-slate-950 border border-slate-800 flex flex-col items-center">
+                                    <div class="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 font-bold flex items-center justify-center text-[10px] mb-1">4</div>
+                                    <div class="font-semibold text-slate-200 text-[11px]">Physical Spool</div>
+                                    <div class="text-[10px] text-slate-400 mt-0.5 truncate max-w-[120px]" title="{{ $job->printer_name ?? 'Default' }}">{{ $job->printer_name ?? 'Default' }}</div>
+                                    @if($job->status === 'success')
+                                        <span class="badge badge-success text-[9px] mt-1.5">Printed</span>
+                                    @elseif($job->status === 'failed')
+                                        <span class="badge badge-danger text-[9px] mt-1.5">Spool Failed</span>
+                                    @else
+                                        <span class="badge badge-secondary text-[9px] mt-1.5">Pending</span>
+                                    @endif
+                                </div>
                             </div>
                         </div>
                     </td>

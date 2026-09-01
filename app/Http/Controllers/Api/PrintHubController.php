@@ -116,6 +116,46 @@ class PrintHubController extends Controller
     }
 
     // -------------------------------------------------------------------------
+    // POST /api/print-hub/telemetry
+    // Agent syncs discovered local printers, driver capabilities, and hardware status.
+    // -------------------------------------------------------------------------
+
+    public function telemetry(Request $request)
+    {
+        $agent = $this->authenticateAgent($request);
+        if (! $agent) return $this->unauthorized();
+
+        $data = $request->validate([
+            'printers'        => 'nullable|array',
+            'capabilities'    => 'nullable|array',
+            'hardware_status' => 'nullable|array',
+        ]);
+
+        $updates = [
+            'last_seen_at'      => now(),
+            'last_telemetry_at' => now(),
+        ];
+
+        if (isset($data['printers'])) {
+            $updates['printers'] = $data['printers'];
+        }
+        if (isset($data['capabilities'])) {
+            $updates['capabilities'] = $data['capabilities'];
+        }
+        if (isset($data['hardware_status'])) {
+            $updates['hardware_status'] = $data['hardware_status'];
+        }
+
+        $agent->update($updates);
+
+        return ApiResponse::success([
+            'status'            => 'ok',
+            'agent_id'          => $agent->id,
+            'last_telemetry_at' => $agent->last_telemetry_at?->toIso8601String(),
+        ]);
+    }
+
+    // -------------------------------------------------------------------------
     // GET /api/print-hub/profiles
     // Agent pulls its printer profiles.
     // -------------------------------------------------------------------------

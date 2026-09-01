@@ -133,11 +133,36 @@
 
 ### Data Flow
 
-1. **Client app** submits print request with `template` + `data` (or raw `document_base64`)
-2. **Print Hub** validates data against the template's bound schema and generates PDF via the Continuous Form Engine (FPDF)
-3. **Job** is stored and assigned to an online print agent (routing priority: explicit agent → profile → branch → global)
-4. **Print agent** polls `/api/print-hub/queue`, downloads the PDF, sends to physical printer
-5. **Agent** reports status back; webhook is fired if configured
+1. **Client App (e.g. Odoo ERP, POS, Custom App)** submits print request with JSON `data` + `template` (or pre-rendered QWeb `document_base64`).
+2. **Print Hub** authenticates API key, scopes to branch, generates PDF via Continuous Form Engine (or stores base64).
+3. **Instant WebSocket Push** broadcasts `job.queued` over Laravel Reverb to the target branch workstation (`agent.{id}`) in < 50ms.
+4. **Print Agent (TrayPrint)** immediately leases the job, spools raw/vector bytes directly to physical printer driver with zero browser dialogs.
+5. **Agent** reports status and telemetry (`success`, `paper_out`, `paper_jam`); signed HMAC webhooks notify Odoo/ERP back asynchronously.
+
+---
+
+## 🏢 Direct Odoo ERP Printing Integration
+
+Print Hub allows Odoo ERP to print directly to physical dot-matrix, laser, and thermal printers without downloading PDFs or prompting print dialogs:
+
+```python
+# Sample Odoo Python direct print action
+import base64, requests
+
+pdf_content, _ = self.env.ref('stock.action_report_delivery')._render_qweb_pdf(self.ids)
+requests.post(
+    'https://your-hub.com/api/v1/print',
+    headers={'X-API-Key': 'your-odoo-api-key', 'Content-Type': 'application/json'},
+    json={
+        'document_base64': base64.b64encode(pdf_content).decode('utf-8'),
+        'branch_code': 'SDP-MAIN',
+        'queue': 'surat_jalan_queue',
+        'reference_id': self.name,
+        'options': {'copies': 2}
+    },
+    timeout=10
+)
+```
 
 ---
 

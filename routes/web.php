@@ -220,7 +220,10 @@ Route::middleware(['auth', 'session.activity'])->group(function () {
 
     // SDK Documentation
     Route::get('/sdk-docs', function () {
-        return view('admin.sdk-docs');
+        $templates = \App\Models\PrintTemplate::all(['id', 'name', 'title', 'sample_data', 'paper_width_mm', 'paper_height_mm']);
+        $profiles = \App\Models\PrintProfile::with('branch')->get();
+        $clientApps = \App\Models\ClientApp::where('is_active', true)->get(['id', 'name']);
+        return view('admin.sdk-docs', compact('templates', 'profiles', 'clientApps'));
     })->name('admin.sdk-docs');
 
     // Cost Tracking (Feature 1)

@@ -257,4 +257,37 @@ class PrintHubControllerTest extends TestCase
         $job->refresh();
         $this->assertEquals('Printer A', $job->printer_name);
     }
+
+    public function test_agent_telemetry_sync()
+    {
+        $rawKey = Str::random(32);
+
+        $agent = PrintAgent::create([
+            'name' => 'Telemetry Agent',
+            'agent_key' => hash('sha256', $rawKey),
+            'ip_address' => '127.0.0.1',
+            'is_active' => true,
+        ]);
+
+        $telemetryData = [
+            'printers' => ['EPSON TM-T82', 'HP LaserJet Pro'],
+            'capabilities' => [
+                'EPSON TM-T82' => ['trays' => ['Roll Paper'], 'dpi' => [203]],
+            ],
+            'hardware_status' => [
+                'EPSON TM-T82' => ['state' => 'paper_out', 'message' => 'Roll paper empty'],
+            ],
+        ];
+
+        $response = $this->withHeader('X-Agent-Key', $rawKey)
+            ->postJson('/api/print-hub/telemetry', $telemetryData);
+
+        $response->assertStatus(200);
+        $response->assertJsonPath('data.status', 'ok');
+
+        $agent->refresh();
+        $this->assertEquals(['EPSON TM-T82', 'HP LaserJet Pro'], $agent->printers);
+        $this->assertNotNull($agent->last_telemetry_at);
+        $this->assertEquals('paper_out', $agent->hardware_status['EPSON TM-T82']['state']);
+    }
 }

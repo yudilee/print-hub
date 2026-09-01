@@ -154,6 +154,11 @@ class PrintJobOrchestrator
 
         $job = PrintJob::create($data);
 
+        // Dispatch instant WebSocket event to target agent workstation
+        if (!$job->requires_approval || in_array($job->approval_status, ['approved', 'auto_approved'])) {
+            event(new \App\Events\JobQueuedForAgent($job));
+        }
+
         // Dispatch job status event for new job
         event(new \App\Events\JobStatusUpdated($job));
 

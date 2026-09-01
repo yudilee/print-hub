@@ -17,6 +17,7 @@ Route::prefix('print-hub')->middleware(['throttle:120,1', 'throttle.api-key'])->
     Route::post('/status',                     [PrintHubController::class, 'updateStatus']);
     Route::get('/cors-origins',                [PrintHubController::class, 'getCorsOrigins']);
     Route::post('/heartbeat',                  [PrintHubController::class, 'heartbeat']);
+    Route::post('/telemetry',                  [PrintHubController::class, 'telemetry']);
     Route::get('/agent/version',               [PrintHubController::class, 'getAgentVersion']);
     Route::get('/jobs/{job_id}/download',       [PrintHubController::class, 'downloadJob'])->name('agent.job.download');
     Route::post('/diagnostics/crash',           [PrintHubController::class, 'reportCrash']);

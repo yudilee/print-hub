@@ -22,16 +22,18 @@ class PrintAgent extends Model
 {
     use BranchScopeable;
 
-    protected $fillable = ['name', 'agent_key', 'ip_address', 'allowed_ips', 'location', 'department', 'last_seen_at', 'is_active', 'printers', 'capabilities', 'branch_id', 'last_key_rotated_at', 'key_hash_bcrypt'];
+    protected $fillable = ['name', 'agent_key', 'ip_address', 'allowed_ips', 'location', 'department', 'last_seen_at', 'last_telemetry_at', 'is_active', 'printers', 'capabilities', 'hardware_status', 'branch_id', 'last_key_rotated_at', 'key_hash_bcrypt'];
 
     protected $hidden = ['agent_key'];
 
     protected $casts = [
         'last_seen_at'        => 'datetime',
+        'last_telemetry_at'   => 'datetime',
         'last_key_rotated_at' => 'datetime',
         'is_active'           => 'boolean',
         'printers'            => 'array',
         'capabilities'        => 'array',
+        'hardware_status'     => 'array',
     ];
 
     protected static function booted(): void

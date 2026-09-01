@@ -105,12 +105,32 @@
                     </td>
                     <td class="px-5 py-3.5">
                         @if(!empty($agent->printers))
-                            <div class="flex flex-wrap gap-1 max-w-xs">
-                                @foreach(array_slice($agent->printers, 0, 3) as $printer)
-                                    <span class="px-2 py-0.5 rounded-md bg-slate-950 border border-slate-800 text-[10px] font-mono text-slate-300">{{ $printer }}</span>
+                            <div class="flex flex-col gap-1.5 max-w-sm">
+                                @foreach(array_slice($agent->printers, 0, 4) as $printer)
+                                    @php
+                                        $hw = $agent->hardware_status[$printer] ?? null;
+                                        $hwState = $hw['state'] ?? 'ready';
+                                        $hwMsg = $hw['message'] ?? null;
+                                    @endphp
+                                    <div class="flex items-center gap-1.5">
+                                        <span class="px-2 py-0.5 rounded-md bg-slate-950 border border-slate-800 text-[10px] font-mono text-slate-300">{{ $printer }}</span>
+                                        @if($hwState === 'paper_out')
+                                            <span class="badge badge-danger text-[9px] px-1.5 py-0" title="{{ $hwMsg ?? 'Out of Paper' }}">Paper Out</span>
+                                        @elseif($hwState === 'paper_jam')
+                                            <span class="badge badge-danger text-[9px] px-1.5 py-0" title="{{ $hwMsg ?? 'Paper Jam' }}">Jam</span>
+                                        @elseif($hwState === 'low_toner')
+                                            <span class="badge badge-warning text-[9px] px-1.5 py-0" title="{{ $hwMsg ?? 'Low Toner' }}">Low Toner</span>
+                                        @elseif($hwState === 'door_open')
+                                            <span class="badge badge-warning text-[9px] px-1.5 py-0" title="{{ $hwMsg ?? 'Cover Open' }}">Door Open</span>
+                                        @elseif($hwState === 'offline')
+                                            <span class="badge badge-secondary text-[9px] px-1.5 py-0" title="{{ $hwMsg ?? 'Offline' }}">Offline</span>
+                                        @elseif($agent->isOnline())
+                                            <span class="badge badge-success text-[9px] px-1.5 py-0">Ready</span>
+                                        @endif
+                                    </div>
                                 @endforeach
-                                @if(count($agent->printers) > 3)
-                                    <span class="text-[10px] text-slate-500 font-mono">+{{ count($agent->printers) - 3 }} more</span>
+                                @if(count($agent->printers) > 4)
+                                    <span class="text-[10px] text-slate-500 font-mono">+{{ count($agent->printers) - 4 }} more</span>
                                 @endif
                             </div>
                         @else

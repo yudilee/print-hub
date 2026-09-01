@@ -20,8 +20,9 @@
                 <a href="#getting-started" class="toc-link" data-section="getting-started">2. Getting Started</a>
                 <a href="#gs-register" class="toc-link sub" data-section="gs-register">Register Client App</a>
                 <a href="#gs-quickstart" class="toc-link sub" data-section="gs-quickstart">Quick Start (cURL)</a>
-                <a href="#authentication" class="toc-link" data-section="authentication">3. Authentication</a>
-                <a href="#endpoints" class="toc-link" data-section="endpoints">4. API Endpoints</a>
+                <a href="#api-sandbox" class="toc-link" data-section="api-sandbox">3. Live API Sandbox & Simulator</a>
+                <a href="#authentication" class="toc-link" data-section="authentication">4. Authentication</a>
+                <a href="#endpoints" class="toc-link" data-section="endpoints">5. API Endpoints</a>
                 <a href="#ep-connection" class="toc-link sub" data-section="ep-connection">Connection & Health</a>
                 <a href="#ep-discovery" class="toc-link sub" data-section="ep-discovery">Discovery</a>
                 <a href="#ep-templates" class="toc-link sub" data-section="ep-templates">Templates</a>
@@ -33,17 +34,18 @@
                 <a href="#ep-connectors" class="toc-link sub" data-section="ep-connectors">Connectors</a>
                 <a href="#ep-agent-system" class="toc-link sub" data-section="ep-agent-system">Agent & System</a>
                 <a href="#ep-formula" class="toc-link sub" data-section="ep-formula">Formula Editor</a>
-                <a href="#print-flow" class="toc-link" data-section="print-flow">5. Print Job Flow</a>
-                <a href="#template-guide" class="toc-link" data-section="template-guide">6. Template Designer Guide</a>
-                <a href="#webhooks" class="toc-link" data-section="webhooks">7. Webhooks</a>
-                <a href="#errors" class="toc-link" data-section="errors">8. Error Reference</a>
-                <a href="#sdk-php" class="toc-link" data-section="sdk-php">9. SDK — PHP</a>
-                <a href="#sdk-python" class="toc-link" data-section="sdk-python">10. SDK — Python</a>
-                <a href="#sdk-nodejs" class="toc-link" data-section="sdk-nodejs">11. SDK — Node.js</a>
-                <a href="#openapi" class="toc-link" data-section="openapi">12. OpenAPI / Swagger</a>
-                <a href="#postman" class="toc-link" data-section="postman">13. Postman Collection</a>
-                <a href="#rate-limiting" class="toc-link" data-section="rate-limiting">14. Rate Limiting</a>
-                <a href="#trayprint" class="toc-link" data-section="trayprint">15. TrayPrint Agent</a>
+                <a href="#print-flow" class="toc-link" data-section="print-flow">6. Print Job Flow</a>
+                <a href="#template-guide" class="toc-link" data-section="template-guide">7. Template Designer Guide</a>
+                <a href="#webhooks" class="toc-link" data-section="webhooks">8. Webhooks</a>
+                <a href="#errors" class="toc-link" data-section="errors">9. Error Reference</a>
+                <a href="#sdk-php" class="toc-link" data-section="sdk-php">10. SDK — PHP</a>
+                <a href="#sdk-python" class="toc-link" data-section="sdk-python">11. SDK — Python</a>
+                <a href="#odoo-integration" class="toc-link" data-section="odoo-integration">12. Odoo ERP Direct Printing</a>
+                <a href="#sdk-nodejs" class="toc-link" data-section="sdk-nodejs">13. SDK — Node.js</a>
+                <a href="#openapi" class="toc-link" data-section="openapi">14. OpenAPI / Swagger</a>
+                <a href="#postman" class="toc-link" data-section="postman">15. Postman Collection</a>
+                <a href="#rate-limiting" class="toc-link" data-section="rate-limiting">16. Rate Limiting</a>
+                <a href="#trayprint" class="toc-link" data-section="trayprint">17. TrayPrint Agent</a>
             </nav>
             <div class="toc-download">
                 <a href="{{ asset('sdk/PrintHubClient.php') }}" class="btn btn-primary" style="width:100%;justify-content:center;text-decoration:none;margin-bottom:0.25rem;" download>
@@ -274,10 +276,106 @@ $result = $client->printWithTemplate(
         </section>
 
         {{-- ================================================================= --}}
-        {{-- 3. AUTHENTICATION --}}
+        {{-- 3. LIVE API SANDBOX & SIMULATOR --}}
+        {{-- ================================================================= --}}
+        <section class="card doc-section" id="api-sandbox">
+            <div class="card-header flex items-center justify-between">
+                <h2>3. Live API Sandbox & Simulator</h2>
+                <span class="badge badge-info">Interactive Playground</span>
+            </div>
+
+            <p>Test real-time print requests, validate JSON payloads against templates, and inspect raw API responses without leaving the documentation.</p>
+
+            <div class="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-4 text-xs">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    {{-- Client App / API Key --}}
+                    <div>
+                        <label class="block text-slate-400 font-semibold mb-1">Client App / Auth</label>
+                        <select id="sandbox-app-select" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-slate-200 text-xs focus:ring-1 focus:ring-blue-500">
+                            <option value="">-- Use Custom API Key below --</option>
+                            @if(isset($clientApps))
+                                @foreach($clientApps as $app)
+                                    <option value="{{ $app->name }}">{{ $app->name }}</option>
+                                @endforeach
+                            @endif
+                        </select>
+                        <input type="text" id="sandbox-api-key" placeholder="Enter X-API-Key" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-slate-200 text-xs mt-1.5 font-mono">
+                    </div>
+
+                    {{-- Target Queue / Profile --}}
+                    <div>
+                        <label class="block text-slate-400 font-semibold mb-1">Target Queue / Profile</label>
+                        <select id="sandbox-queue-select" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-slate-200 text-xs focus:ring-1 focus:ring-blue-500">
+                            <option value="">(None - Auto Route)</option>
+                            @if(isset($profiles))
+                                @foreach($profiles as $prof)
+                                    <option value="{{ $prof->name }}">{{ $prof->name }} ({{ $prof->branch->code ?? 'Global' }})</option>
+                                @endforeach
+                            @endif
+                        </select>
+                        <input type="text" id="sandbox-branch-code" placeholder="Branch Code (e.g. SDP-MAIN)" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-slate-200 text-xs mt-1.5 font-mono">
+                    </div>
+
+                    {{-- Template Selector --}}
+                    <div>
+                        <label class="block text-slate-400 font-semibold mb-1">Print Template</label>
+                        <select id="sandbox-template-select" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-slate-200 text-xs focus:ring-1 focus:ring-blue-500">
+                            <option value="">(Select a template to auto-fill)</option>
+                            @if(isset($templates))
+                                @foreach($templates as $tpl)
+                                    <option value="{{ $tpl->name }}" data-sample="{{ json_encode($tpl->sample_data ?? []) }}">{{ $tpl->title ?? $tpl->name }} ({{ $tpl->name }})</option>
+                                @endforeach
+                            @endif
+                        </select>
+                        <div class="flex items-center gap-2 mt-1.5">
+                            <input type="number" id="sandbox-copies" value="1" min="1" max="10" placeholder="Copies" class="w-1/2 bg-slate-900 border border-slate-700 rounded-lg p-2 text-slate-200 text-xs">
+                            <input type="number" id="sandbox-priority" value="2" min="0" max="10" placeholder="Priority (0-10)" class="w-1/2 bg-slate-900 border border-slate-700 rounded-lg p-2 text-slate-200 text-xs">
+                        </div>
+                    </div>
+                </div>
+
+                {{-- JSON Payload Editor --}}
+                <div>
+                    <div class="flex items-center justify-between mb-1">
+                        <label class="text-slate-400 font-semibold">JSON Data Payload</label>
+                        <button type="button" onclick="formatSandboxJson()" class="text-[11px] text-blue-400 hover:underline">Format JSON</button>
+                    </div>
+                    <textarea id="sandbox-json-payload" rows="6" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-slate-200 font-mono text-xs focus:ring-1 focus:ring-blue-500 leading-relaxed" placeholder='{\n  "no_invoice": "INV-1001",\n  "customer": "Hartono Motor",\n  "total": 500000\n}'></textarea>
+                </div>
+
+                {{-- Sandbox Action Buttons --}}
+                <div class="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-800">
+                    <button type="button" onclick="executeSandboxPrint(false)" id="sandbox-btn-print" class="btn btn-primary btn-sm flex items-center gap-1.5">
+                        <span>🚀 Execute Live Print</span>
+                    </button>
+                    <button type="button" onclick="executeSandboxPrint(true)" id="sandbox-btn-preview" class="btn btn-secondary btn-sm flex items-center gap-1.5">
+                        <span>👁 Generate PDF Preview</span>
+                    </button>
+                    <button type="button" onclick="executeSandboxTest()" id="sandbox-btn-test" class="btn btn-secondary btn-sm flex items-center gap-1.5">
+                        <span>⚡ Test Connection</span>
+                    </button>
+                    <span id="sandbox-status-indicator" class="ml-auto text-xs font-mono"></span>
+                </div>
+
+                {{-- Sandbox Response Viewer --}}
+                <div id="sandbox-response-container" class="hidden mt-3 p-3.5 rounded-xl bg-slate-900 border border-slate-800 space-y-2">
+                    <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+                        <div class="flex items-center gap-2">
+                            <span id="sandbox-res-badge" class="badge"></span>
+                            <span id="sandbox-res-time" class="text-slate-400 font-mono text-[11px]"></span>
+                        </div>
+                        <button type="button" onclick="copySandboxResponse()" class="text-[11px] text-slate-400 hover:text-white">📋 Copy</button>
+                    </div>
+                    <pre id="sandbox-res-body" class="font-mono text-[11px] text-slate-300 max-h-60 overflow-y-auto whitespace-pre-wrap leading-tight"></pre>
+                </div>
+            </div>
+        </section>
+
+        {{-- ================================================================= --}}
+        {{-- 4. AUTHENTICATION --}}
         {{-- ================================================================= --}}
         <section class="card doc-section" id="authentication">
-            <div class="card-header"><h2>3. Authentication</h2></div>
+            <div class="card-header"><h2>4. Authentication</h2></div>
 
             <p>Every request to the Client App API must include the <code>X-API-Key</code> header with a valid API key obtained from the admin panel.</p>
 
@@ -2811,10 +2909,162 @@ except PrintHubError as e:
         </section>
 
         {{-- ================================================================= --}}
-        {{-- 11. SDK — Node.js --}}
+        {{-- 12. ODOO ERP DIRECT PRINTING INTEGRATION --}}
+        {{-- ================================================================= --}}
+        <section class="card doc-section" id="odoo-integration">
+            <div class="card-header flex items-center justify-between">
+                <h2>12. Odoo ERP Direct Printing Integration</h2>
+                <span class="badge badge-success">ERP Module Guide</span>
+            </div>
+
+            <p>Standard Odoo generates PDF reports in the user's browser, requiring manual download and printing. With <strong>Print Hub</strong>, your Odoo consultant team can configure Odoo to <strong>spool documents straight to physical workstation printers (TrayPrint)</strong> across all company branches without any user intervention or browser popups.</p>
+
+            <div class="tip-box">
+                <strong>💡 Odoo Architecture Note:</strong> Odoo can either send the <strong>pre-rendered QWeb PDF binary</strong> as base64 or send <strong>raw model dictionary data</strong> to let Print Hub render high-speed continuous tractor-feed forms.
+            </div>
+
+            <h3>1. Configure Odoo System Parameters</h3>
+            <p>In Odoo (Settings → Technical → Parameters → System Parameters), add these 3 configuration keys:</p>
+            <table>
+                <thead><tr><th>Parameter Key</th><th>Sample Value</th><th>Description</th></tr></thead>
+                <tbody>
+                    <tr><td><code>printhub.url</code></td><td><code>{{ config('app.url') }}/api/v1/print</code></td><td>Print Hub unified print endpoint</td></tr>
+                    <tr><td><code>printhub.api_key</code></td><td><code>ph_live_...</code></td><td>API key created for Odoo Client App</td></tr>
+                    <tr><td><code>printhub.branch_code</code></td><td><code>SDP-MAIN</code></td><td>Default branch code (or mapped per company/warehouse)</td></tr>
+                </tbody>
+            </table>
+
+            <h3>2. Implementation Pattern A: Button / Workflow Action Hook</h3>
+            <p>Add a direct print method in your custom Odoo Python model (e.g. <code>stock.picking</code> or <code>account.move</code>):</p>
+            <div class="code-block-wrapper">
+                <button class="copy-btn" onclick="copyCode(this)" title="Copy to clipboard">📋</button>
+                <pre class="code-block"><code># -*- coding: utf-8 -*-
+import base64
+import requests
+import logging
+from odoo import models, api, _
+from odoo.exceptions import UserError
+
+_logger = logging.getLogger(__name__)
+
+class StockPicking(models.Model):
+    _inherit = 'stock.picking'
+
+    def action_direct_print_delivery_slip(self):
+        """Dispatches Delivery Slip directly to branch physical printer."""
+        self.ensure_one()
+        
+        # 1. Render standard Odoo QWeb PDF
+        report = self.env.ref('stock.action_report_delivery')
+        pdf_content, _ = report._render_qweb_pdf(self.ids)
+        
+        # 2. Retrieve Print Hub configuration
+        ICP = self.env['ir.config_parameter'].sudo()
+        hub_url = ICP.get_param('printhub.url', '{{ config('app.url') }}/api/v1/print')
+        api_key = ICP.get_param('printhub.api_key')
+        
+        if not api_key:
+            raise UserError(_("Print Hub API Key is not configured in System Parameters."))
+            
+        # 3. Resolve target branch from warehouse or company
+        branch_code = getattr(self.picking_type_id.warehouse_id, 'branch_code', None) \
+                      or getattr(self.company_id, 'branch_code', 'SDP-MAIN')
+
+        # 4. Construct payload
+        payload = {
+            "document_base64": base64.b64encode(pdf_content).decode('utf-8'),
+            "branch_code": branch_code,
+            "queue": "surat_jalan_queue",  # or printer name: "EPSON TM-T82"
+            "reference_id": self.name,
+            "priority": 3,
+            "options": {
+                "copies": 2
+            }
+        }
+        
+        try:
+            resp = requests.post(
+                hub_url,
+                json=payload,
+                headers={
+                    "X-API-Key": api_key,
+                    "Content-Type": "application/json"
+                },
+                timeout=12
+            )
+            
+            if resp.status_code in (200, 201):
+                data = resp.json()
+                return {
+                    'type': 'ir.actions.client',
+                    'tag': 'display_notification',
+                    'params': {
+                        'title': _('Print Job Dispatched'),
+                        'message': _('Document %s queued to physical printer (Job: %s)') % (self.name, data.get('data', {}).get('job_id', '')),
+                        'type': 'success',
+                        'sticky': False,
+                    }
+                }
+            else:
+                err_msg = resp.json().get('error', {}).get('message', resp.text)
+                raise UserError(_("Print Hub error: %s") % err_msg)
+                
+        except requests.exceptions.RequestException as e:
+            _logger.error("Failed to connect to Print Hub: %s", str(e))
+            raise UserError(_("Could not reach Print Hub server: %s") % str(e))</code></pre>
+            </div>
+
+            <h3>3. Implementation Pattern B: Template-Driven Invoicing (Continuous Form)</h3>
+            <p>If you want Print Hub's Continuous Form Engine to generate dot-matrix / thermal invoices directly from Odoo data dictionaries:</p>
+            <div class="code-block-wrapper">
+                <button class="copy-btn" onclick="copyCode(this)" title="Copy to clipboard">📋</button>
+                <pre class="code-block"><code>class AccountMove(models.Model):
+    _inherit = 'account.move'
+
+    def action_direct_print_invoice_template(self):
+        self.ensure_one()
+        
+        ICP = self.env['ir.config_parameter'].sudo()
+        hub_url = ICP.get_param('printhub.url', '{{ config('app.url') }}/api/v1/print')
+        api_key = ICP.get_param('printhub.api_key')
+        
+        # Build structured invoice data for Print Hub template
+        invoice_data = {
+            "no_invoice": self.name,
+            "tanggal": self.invoice_date.strftime('%d/%m/%Y') if self.invoice_date else '',
+            "customer": self.partner_id.name,
+            "alamat": self.partner_id.contact_address or '',
+            "items": [
+                {
+                    "item_name": line.name,
+                    "qty": line.quantity,
+                    "harga": line.price_unit,
+                    "subtotal": line.price_subtotal
+                }
+                for line in self.invoice_line_ids if not line.display_type
+            ],
+            "total": self.amount_total
+        }
+        
+        payload = {
+            "template": "invoice_sewa",
+            "data": invoice_data,
+            "branch_code": self.company_id.code or "SDP-MAIN",
+            "queue": "dotmatrix_invoice_queue",
+            "reference_id": self.name
+        }
+        
+        resp = requests.post(hub_url, json=payload, headers={"X-API-Key": api_key}, timeout=10)
+        resp.raise_for_status()
+        return True</code></pre>
+            </div>
+        </section>
+
+        {{-- ================================================================= --}}
+        {{-- 13. SDK — Node.js --}}
         {{-- ================================================================= --}}
         <section class="card doc-section" id="sdk-nodejs">
-            <div class="card-header"><h2>11. SDK — Node.js (ESM)</h2></div>
+            <div class="card-header"><h2>13. SDK — Node.js (ESM)</h2></div>
 
             <p>Print Hub provides a <strong>Node.js SDK client</strong> in ESM format. Requires Node.js 18+ (native <code>fetch</code>) or 16+ with <code>node-fetch</code>. The SDK uses modern <code>async/await</code>, automatic retry with exponential backoff, and typed error classes.</p>
 
@@ -4211,6 +4461,155 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     updateActiveSection();
+
+    // ── Sandbox Template Auto-Fill Listener ─────────────────────
+    const tplSelect = document.getElementById('sandbox-template-select');
+    if (tplSelect) {
+        tplSelect.addEventListener('change', function() {
+            const selectedOpt = tplSelect.options[tplSelect.selectedIndex];
+            const sampleJson = selectedOpt.getAttribute('data-sample');
+            if (sampleJson && sampleJson !== '[]' && sampleJson !== '{}') {
+                try {
+                    const parsed = JSON.parse(sampleJson);
+                    document.getElementById('sandbox-json-payload').value = JSON.stringify(parsed, null, 2);
+                } catch(e) {
+                    // Ignore parse errors
+                }
+            }
+        });
+    }
 });
+
+// ── Sandbox Functions ───────────────────────────────────────────
+function formatSandboxJson() {
+    const area = document.getElementById('sandbox-json-payload');
+    try {
+        const parsed = JSON.parse(area.value || '{}');
+        area.value = JSON.stringify(parsed, null, 2);
+    } catch(e) {
+        alert('Invalid JSON: ' + e.message);
+    }
+}
+
+function executeSandboxPrint(isPreview = false) {
+    const apiKey = document.getElementById('sandbox-api-key').value.trim();
+    if (!apiKey) {
+        alert('Please provide an API Key in the X-API-Key field.');
+        return;
+    }
+
+    const tplName = document.getElementById('sandbox-template-select').value;
+    const queueName = document.getElementById('sandbox-queue-select').value;
+    const branchCode = document.getElementById('sandbox-branch-code').value.trim();
+    const copies = parseInt(document.getElementById('sandbox-copies').value) || 1;
+    const priority = parseInt(document.getElementById('sandbox-priority').value) || 2;
+    const payloadText = document.getElementById('sandbox-json-payload').value.trim();
+
+    let dataObj = {};
+    if (payloadText) {
+        try {
+            dataObj = JSON.parse(payloadText);
+        } catch(e) {
+            alert('Invalid JSON in data payload: ' + e.message);
+            return;
+        }
+    }
+
+    const payload = {
+        template: tplName || undefined,
+        data: dataObj,
+        queue: queueName || undefined,
+        branch_code: branchCode || undefined,
+        priority: priority,
+        options: {
+            copies: copies
+        }
+    };
+
+    const endpoint = isPreview ? '/api/v1/preview' : '/api/v1/print';
+    const statusInd = document.getElementById('sandbox-status-indicator');
+    const resBox = document.getElementById('sandbox-response-container');
+    const resBadge = document.getElementById('sandbox-res-badge');
+    const resTime = document.getElementById('sandbox-res-time');
+    const resBody = document.getElementById('sandbox-res-body');
+
+    statusInd.textContent = 'Sending request...';
+    resBox.classList.remove('hidden');
+    const startTime = performance.now();
+
+    fetch(endpoint, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'X-API-Key': apiKey
+        },
+        body: JSON.stringify(payload)
+    })
+    .then(async res => {
+        const duration = Math.round(performance.now() - startTime);
+        const data = await res.json().catch(() => ({ status: res.status, statusText: res.statusText }));
+        
+        statusInd.textContent = '';
+        resTime.textContent = `${duration} ms`;
+        
+        if (res.ok) {
+            resBadge.className = 'badge badge-success';
+            resBadge.textContent = `${res.status} OK`;
+        } else {
+            resBadge.className = 'badge badge-danger';
+            resBadge.textContent = `${res.status} Error`;
+        }
+
+        resBody.textContent = JSON.stringify(data, null, 2);
+    })
+    .catch(err => {
+        statusInd.textContent = '';
+        resBadge.className = 'badge badge-danger';
+        resBadge.textContent = 'Network Failure';
+        resBody.textContent = err.message;
+    });
+}
+
+function executeSandboxTest() {
+    const apiKey = document.getElementById('sandbox-api-key').value.trim();
+    if (!apiKey) {
+        alert('Please enter an API Key to test connection.');
+        return;
+    }
+
+    const resBox = document.getElementById('sandbox-response-container');
+    const resBadge = document.getElementById('sandbox-res-badge');
+    const resTime = document.getElementById('sandbox-res-time');
+    const resBody = document.getElementById('sandbox-res-body');
+    const startTime = performance.now();
+
+    resBox.classList.remove('hidden');
+
+    fetch('/api/v1/test', {
+        headers: {
+            'Accept': 'application/json',
+            'X-API-Key': apiKey
+        }
+    })
+    .then(async res => {
+        const duration = Math.round(performance.now() - startTime);
+        const data = await res.json();
+        resTime.textContent = `${duration} ms`;
+        resBadge.className = res.ok ? 'badge badge-success' : 'badge badge-danger';
+        resBadge.textContent = `${res.status} ${res.statusText}`;
+        resBody.textContent = JSON.stringify(data, null, 2);
+    })
+    .catch(err => {
+        resBadge.className = 'badge badge-danger';
+        resBadge.textContent = 'Network Error';
+        resBody.textContent = err.message;
+    });
+}
+
+function copySandboxResponse() {
+    const text = document.getElementById('sandbox-res-body').textContent;
+    navigator.clipboard.writeText(text).then(() => alert('Response copied!'));
+}
 </script>
 @endsection
