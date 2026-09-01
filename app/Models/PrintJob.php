@@ -125,4 +125,20 @@ class PrintJob extends Model
     {
         return $query->where('approval_status', 'pending');
     }
+
+    /**
+     * Retrieve the model for a bound value (supports both numeric ID and UUID job_id).
+     */
+    public function resolveRouteBinding($value, $field = null)
+    {
+        if ($field) {
+            return parent::resolveRouteBinding($value, $field);
+        }
+
+        if (is_numeric($value)) {
+            return $this->where('id', $value)->first() ?? $this->where('job_id', $value)->first();
+        }
+
+        return $this->where('job_id', $value)->first();
+    }
 }

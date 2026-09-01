@@ -222,7 +222,10 @@
 <div id="dependency-modal" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-4 hidden">
     <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-xl w-full p-6 shadow-2xl">
         <div class="flex items-center justify-between pb-4 mb-4 border-b border-slate-800">
-            <h3 class="text-base font-bold text-white">Job Dependencies</h3>
+            <div>
+                <h3 class="text-base font-bold text-white">Job Dependencies & Sequence</h3>
+                <p class="text-xs text-slate-400">Upstream and downstream print execution chains</p>
+            </div>
             <button onclick="closeDependencyModal()" class="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition">
                 <x-icon name="x" size="18" />
             </button>
@@ -231,14 +234,28 @@
         <div id="dependency-loading" class="text-center py-8 text-xs text-slate-400">Loading dependencies...</div>
 
         <div id="dependency-content" class="space-y-4 hidden text-xs">
-            <div class="p-3 rounded-xl bg-slate-950 border border-slate-800">
-                <span class="text-slate-400">Job:</span> <span class="font-mono font-bold text-blue-400" id="dep-job-id"></span>
-                <span id="dep-job-status" class="ml-2 badge"></span>
+            <div class="p-3.5 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-between">
+                <div>
+                    <span class="text-slate-500 block text-[10px] uppercase font-bold tracking-wider mb-0.5">Current Job</span>
+                    <span class="font-mono font-bold text-blue-400 text-xs" id="dep-job-id"></span>
+                </div>
+                <span id="dep-job-status" class="badge"></span>
             </div>
 
-            <div>
-                <h4 class="font-bold text-white mb-2">Dependency Tree</h4>
-                <pre id="dep-chain-tree" class="p-3 rounded-xl bg-slate-950 border border-slate-800 font-mono text-[11px] text-slate-300"></pre>
+            {{-- Upstream / Parent Dependency --}}
+            <div class="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
+                <h4 class="font-bold text-amber-400 text-xs uppercase tracking-wider flex items-center gap-1.5">
+                    <span>⬆ Parent / Prerequisite Job</span>
+                </h4>
+                <div id="dep-parent-container" class="text-slate-300"></div>
+            </div>
+
+            {{-- Downstream / Dependent Jobs --}}
+            <div class="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
+                <h4 class="font-bold text-emerald-400 text-xs uppercase tracking-wider flex items-center gap-1.5">
+                    <span>⬇ Dependent / Child Jobs</span>
+                </h4>
+                <div id="dep-children-container" class="text-slate-300"></div>
             </div>
 
             <div class="pt-3 border-t border-slate-800 flex justify-end">
@@ -258,8 +275,13 @@
         loading.classList.remove('hidden');
         content.classList.add('hidden');
 
-        fetch(`/jobs/${jobId}/dependencies`)
-            .then(r => r.json())
+        fetch(`/jobs/${jobId}/dependencies`, {
+            headers: { 'Accept': 'application/json' }
+        })
+            .then(r => {
+                if (!r.ok) throw new Error('Network response error ' + r.status);
+                return r.json();
+            })
             .then(data => {
                 loading.classList.add('hidden');
                 content.classList.remove('hidden');
@@ -268,12 +290,44 @@
                     document.getElementById('dep-job-id').textContent = data.job.job_id;
                     const statusBadge = document.getElementById('dep-job-status');
                     statusBadge.textContent = data.job.status;
-                    statusBadge.className = 'badge ' + (data.job.status === 'success' ? 'badge-success' : 'badge-warning');
-                    document.getElementById('dep-chain-tree').textContent = JSON.stringify(data.parent_chain || [], null, 2);
+                    statusBadge.className = 'badge ' + (data.job.status === 'success' ? 'badge-success' : (data.job.status === 'failed' ? 'badge-danger' : 'badge-warning'));
+
+                    // Parent chain
+                    const parentContainer = document.getElementById('dep-parent-container');
+                    if (data.parent_chain && data.parent_chain.length > 0) {
+                        parentContainer.innerHTML = data.parent_chain.map(p => `
+                            <div class="flex items-center justify-between p-2 rounded-lg bg-slate-900 border border-slate-800 mt-1">
+                                <span class="font-mono text-xs text-blue-300 font-bold">${p.job_id}</span>
+                                <span class="badge ${p.status === 'success' ? 'badge-success' : (p.status === 'failed' ? 'badge-danger' : 'badge-info')} text-[10px]">${p.status}</span>
+                            </div>
+                        `).join('');
+                    } else if (data.job.depends_on_job_id) {
+                        parentContainer.innerHTML = `
+                            <div class="flex items-center justify-between p-2 rounded-lg bg-slate-900 border border-slate-800">
+                                <span class="font-mono text-xs text-blue-300 font-bold">${data.job.depends_on_job_id}</span>
+                                <span class="badge badge-info text-[10px]">${data.job.dependency_type || 'Required'}</span>
+                            </div>
+                        `;
+                    } else {
+                        parentContainer.innerHTML = `<span class="text-slate-500 italic text-xs">No prerequisite parent job (Independent execution)</span>`;
+                    }
+
+                    // Children / Dependents chain
+                    const childrenContainer = document.getElementById('dep-children-container');
+                    if (data.child_chain && data.child_chain.length > 0) {
+                        childrenContainer.innerHTML = data.child_chain.map(c => `
+                            <div class="flex items-center justify-between p-2 rounded-lg bg-slate-900 border border-slate-800 mt-1">
+                                <span class="font-mono text-xs text-emerald-300 font-bold">${c.job_id}</span>
+                                <span class="badge ${c.status === 'success' ? 'badge-success' : (c.status === 'failed' ? 'badge-danger' : 'badge-info')} text-[10px]">${c.status}</span>
+                            </div>
+                        `).join('');
+                    } else {
+                        childrenContainer.innerHTML = `<span class="text-slate-500 italic text-xs">No dependent child jobs waiting on this print</span>`;
+                    }
                 }
             })
-            .catch(() => {
-                loading.textContent = 'Failed to load dependencies.';
+            .catch(err => {
+                loading.textContent = 'Failed to load dependencies: ' + err.message;
             });
     };
 
