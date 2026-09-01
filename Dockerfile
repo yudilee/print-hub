@@ -20,7 +20,7 @@ RUN apt-get update && apt-get install -y \
     unzip \
     git \
     && docker-php-ext-install -j$(nproc) pdo pdo_pgsql pdo_sqlite mbstring xml zip bcmath \
-    && a2enmod rewrite
+    && a2enmod rewrite proxy proxy_http proxy_wstunnel
 
 # Increase PHP upload / POST size limits to handle large base64-encoded print payloads
 RUN echo 'upload_max_filesize = 50M' > /usr/local/etc/php/conf.d/uploads.ini \
@@ -42,10 +42,12 @@ COPY . .
 # Copy Vite build assets from node_assets stage
 COPY --from=node_assets /app/public/build ./public/build
 
-# Update Apache configuration to point to /public
+# Update Apache configuration to point to /public and enable Reverb WebSocket proxying
 ENV APACHE_DOCUMENT_ROOT /var/www/html/public
 RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/*.conf
 RUN sed -ri -e 's!/var/www/!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf /etc/apache2/conf-available/*.conf
+COPY docker/apache-reverb.conf /etc/apache2/conf-available/apache-reverb.conf
+RUN a2enconf apache-reverb
 
 # Set directory permissions for Laravel
 RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache

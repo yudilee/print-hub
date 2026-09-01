@@ -27,6 +27,10 @@ php artisan route:clear
 php artisan view:clear
 php artisan optimize
 
+# Start Laravel Reverb WebSocket daemon in the background
+echo "Starting Laravel Reverb WebSocket server..."
+php artisan reverb:start --host=127.0.0.1 --port=8080 &
+
 # Start Apache in the foreground (standard PHP-Apache entrypoint behavior)
 echo "Starting Apache..."
 exec apache2-foreground
