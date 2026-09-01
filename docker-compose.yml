@@ -3,7 +3,6 @@ version: '3.8'
 services:
   print-hub:
     build: .
-    container_name: print-hub
     restart: unless-stopped
     ports:
       - "8082:80"
@@ -30,7 +29,6 @@ services:
 
   print-hub-db:
     image: postgres:16-alpine
-    container_name: print-hub-db
     restart: unless-stopped
     ports:
       - "5432:5432"
