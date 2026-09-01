@@ -44,10 +44,8 @@ COPY --from=node_assets /app/public/build ./public/build
 
 # Update Apache configuration to point to /public and enable Reverb WebSocket proxying
 ENV APACHE_DOCUMENT_ROOT /var/www/html/public
-RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/*.conf
+COPY docker/000-default.conf /etc/apache2/sites-available/000-default.conf
 RUN sed -ri -e 's!/var/www/!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf /etc/apache2/conf-available/*.conf
-COPY docker/apache-reverb.conf /etc/apache2/conf-available/apache-reverb.conf
-RUN a2enconf apache-reverb
 
 # Set directory permissions for Laravel
 RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
