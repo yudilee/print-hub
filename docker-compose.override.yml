@@ -1,4 +1,0 @@
-services:
-  print-hub:
-    volumes:
-      - .:/var/www/html
