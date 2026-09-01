@@ -2,113 +2,109 @@
 @section('title', 'Agent Releases')
 
 @section('content')
-<x-breadcrumb :items="[['label' => 'Dashboard', 'url' => route('admin.dashboard')], ['label' => 'Agent Releases']]" />
+<x-breadcrumb :items="[['label' => 'Agent Software Updates']]" />
 
-<div class="page-header">
-    <h1>Agent Releases</h1>
-    <p>Manage auto-update releases for Print Agents across platforms</p>
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+    <div>
+        <h2 class="text-base sm:text-lg font-bold text-white">Agent Releases & Binary OTA</h2>
+        <p class="text-xs text-slate-400">Deploy updated workstation binaries (Windows, Linux, macOS) for automatic client updates</p>
+    </div>
 </div>
 
 {{-- Upload New Release Form --}}
-<div class="card">
-    <div class="card-header">
-        <h2>Upload New Release</h2>
-    </div>
+<div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 mb-6 shadow-xs">
+    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4 pb-2 border-b border-slate-800">
+        Publish Agent Release
+    </h3>
+
     <form action="{{ route('admin.releases.store') }}" method="POST" enctype="multipart/form-data">
         @csrf
-        <div class="form-row" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
-            <div class="form-group">
-                <label for="version">Version <span style="color: var(--danger);">*</span></label>
-                <input type="text" name="version" id="version" required placeholder="e.g. 3.1.0"
-                       value="{{ old('version') }}">
-                @error('version') <small style="color: var(--danger);">{{ $message }}</small> @enderror
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+            <div>
+                <label class="block text-xs font-semibold text-slate-400 mb-1">Semver Version <span class="text-rose-500">*</span></label>
+                <input type="text" name="version" required placeholder="e.g. 3.2.0" value="{{ old('version') }}"
+                    class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-blue-500 font-mono">
             </div>
 
-            <div class="form-group">
-                <label for="platform">Platform <span style="color: var(--danger);">*</span></label>
-                <select name="platform" id="platform" required>
+            <div>
+                <label class="block text-xs font-semibold text-slate-400 mb-1">Target Platform <span class="text-rose-500">*</span></label>
+                <select name="platform" required class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-blue-500">
                     <option value="">-- Select --</option>
-                    <option value="linux" @selected(old('platform') === 'linux')>Linux</option>
-                    <option value="windows" @selected(old('platform') === 'windows')>Windows</option>
-                    <option value="macos" @selected(old('platform') === 'macos')>macOS</option>
+                    <option value="linux" @selected(old('platform') === 'linux')>Linux (.deb, .rpm, .tar.gz)</option>
+                    <option value="windows" @selected(old('platform') === 'windows')>Windows (.exe, .msi, .zip)</option>
+                    <option value="macos" @selected(old('platform') === 'macos')>macOS (.dmg, .pkg, .tar.gz)</option>
                 </select>
-                @error('platform') <small style="color: var(--danger);">{{ $message }}</small> @enderror
             </div>
 
-            <div class="form-group">
-                <label for="channel">Channel <span style="color: var(--danger);">*</span></label>
-                <select name="channel" id="channel" required>
-                    <option value="">-- Select --</option>
+            <div>
+                <label class="block text-xs font-semibold text-slate-400 mb-1">Release Channel <span class="text-rose-500">*</span></label>
+                <select name="channel" required class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-blue-500">
                     <option value="stable" @selected(old('channel') === 'stable')>Stable</option>
                     <option value="beta" @selected(old('channel') === 'beta')>Beta</option>
                     <option value="alpha" @selected(old('channel') === 'alpha')>Alpha</option>
                 </select>
-                @error('channel') <small style="color: var(--danger);">{{ $message }}</small> @enderror
             </div>
 
-            <div class="form-group">
-                <label for="is_mandatory">Mandatory Update</label>
-                <label style="display: flex; align-items: center; gap: 0.5rem; margin-top: 0.5rem;">
-                    <input type="checkbox" name="is_mandatory" id="is_mandatory" value="1" @checked(old('is_mandatory'))>
-                    <span style="font-weight: 400;">Force update on next check</span>
+            <div class="pt-6">
+                <label class="inline-flex items-center gap-2 text-xs font-semibold text-slate-300 cursor-pointer">
+                    <input type="checkbox" name="is_mandatory" value="1" @checked(old('is_mandatory')) class="rounded border-slate-700 bg-slate-950 text-blue-600">
+                    <span>Mandatory Upgrade</span>
                 </label>
             </div>
         </div>
 
-        <div class="form-row" style="grid-template-columns: 2fr 1fr;">
-            <div class="form-group">
-                <label for="release_notes">Release Notes</label>
-                <textarea name="release_notes" id="release_notes" rows="3"
-                          placeholder="Describe what's new in this release...">{{ old('release_notes') }}</textarea>
-                @error('release_notes') <small style="color: var(--danger);">{{ $message }}</small> @enderror
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
+            <div class="lg:col-span-2">
+                <label class="block text-xs font-semibold text-slate-400 mb-1">Changelog / Release Notes</label>
+                <textarea name="release_notes" rows="2" placeholder="Summary of bugfixes and improvements..."
+                    class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-blue-500">{{ old('release_notes') }}</textarea>
             </div>
-
-            <div class="form-group">
-                <label for="installer_file">Installer File <span style="color: var(--danger);">*</span></label>
-                <input type="file" name="installer_file" id="installer_file" required accept=".exe,.msi,.deb,.rpm,.AppImage,.dmg,.pkg,.tar.gz,.zip">
-                <small style="color: var(--text-muted); display: block; margin-top: 4px;">
-                    Max 500MB. Accepted formats: .exe, .msi, .deb, .rpm, .AppImage, .dmg, .pkg, .tar.gz, .zip
-                </small>
-                @error('installer_file') <small style="color: var(--danger);">{{ $message }}</small> @enderror
+            <div>
+                <label class="block text-xs font-semibold text-slate-400 mb-1">Installer Package File <span class="text-rose-500">*</span></label>
+                <div class="p-2.5 rounded-xl bg-slate-950 border border-dashed border-slate-800 text-center">
+                    <input type="file" name="installer_file" required accept=".exe,.msi,.deb,.rpm,.AppImage,.dmg,.pkg,.tar.gz,.zip"
+                        class="text-xs text-slate-300 file:mr-2 file:py-1 file:px-2.5 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-500 cursor-pointer">
+                </div>
             </div>
         </div>
 
-        <button type="submit" class="btn btn-primary">📦 Upload Release</button>
+        <div class="flex justify-end">
+            <button type="submit" class="btn-primary btn-sm">
+                <x-icon name="plus" size="13" />
+                <span>Upload & Publish Release</span>
+            </button>
+        </div>
     </form>
 </div>
 
-{{-- Releases List --}}
-<div class="card">
-    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
-        <h2>All Releases ({{ $releases->count() }})</h2>
+{{-- Releases Table --}}
+<div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xs">
+    <div class="p-4 border-b border-slate-800 flex items-center justify-between">
+        <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider">
+            Available Releases: <span class="text-white font-mono font-bold">{{ $releases->count() }}</span>
+        </h3>
     </div>
 
-    @if($releases->isEmpty())
-        <x-empty-state icon="📦" title="No releases yet"
-            description="Upload your first agent installer above." />
-    @else
-        <table role="table">
-            <caption class="sr-only">Agent releases list</caption>
-            <thead>
+    <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm text-slate-300">
+            <thead class="bg-slate-950/60 text-xs uppercase text-slate-400 border-b border-slate-800 font-semibold tracking-wider">
                 <tr>
-                    <th scope="col">Version</th>
-                    <th scope="col">Platform</th>
-                    <th scope="col">Channel</th>
-                    <th scope="col">File</th>
-                    <th scope="col">Size</th>
-                    <th scope="col">SHA-256</th>
-                    <th scope="col">Mandatory</th>
-                    <th scope="col">Latest</th>
-                    <th scope="col">Uploaded By</th>
-                    <th scope="col">Date</th>
-                    <th scope="col">Actions</th>
+                    <th class="px-5 py-3.5">Version</th>
+                    <th class="px-5 py-3.5">Platform</th>
+                    <th class="px-5 py-3.5">Channel</th>
+                    <th class="px-5 py-3.5">File & Size</th>
+                    <th class="px-5 py-3.5">SHA-256 Checksum</th>
+                    <th class="px-5 py-3.5">Status</th>
+                    <th class="px-5 py-3.5 text-right">Actions</th>
                 </tr>
             </thead>
-            <tbody>
-                @foreach($releases as $release)
-                <tr>
-                    <td><strong>{{ $release->version }}</strong></td>
-                    <td>
+            <tbody class="divide-y divide-slate-800/60">
+                @forelse($releases as $release)
+                <tr class="hover:bg-slate-800/40 transition">
+                    <td class="px-5 py-3.5 font-mono font-bold text-blue-400 text-xs">
+                        v{{ $release->version }}
+                    </td>
+                    <td class="px-5 py-3.5 text-xs text-slate-300">
                         @switch($release->platform)
                             @case('linux') 🐧 Linux @break
                             @case('windows') 🪟 Windows @break
@@ -116,186 +112,49 @@
                             @default {{ $release->platform }}
                         @endswitch
                     </td>
-                    <td>
-                        <span style="
-                            display: inline-block;
-                            padding: 2px 8px;
-                            border-radius: 10px;
-                            font-size: 0.75rem;
-                            font-weight: 600;
-                            background: @switch($release->channel)
-                                @case('stable') var(--success) @break
-                                @case('beta') var(--warning) @break
-                                @case('alpha') var(--danger) @break
-                                @default var(--text-muted)
-                            @endswitch;
-                            color: #000;
-                        ">{{ ucfirst($release->channel) }}</span>
-                    </td>
-                    <td>
-                        <span title="{{ $release->file_original_name }}">
-                            {{ \Illuminate\Support\Str::limit($release->file_original_name, 25) }}
+                    <td class="px-5 py-3.5">
+                        <span class="badge {{ $release->channel === 'stable' ? 'badge-success' : ($release->channel === 'beta' ? 'badge-warning' : 'badge-danger') }} text-[10px] uppercase">
+                            {{ $release->channel }}
                         </span>
                     </td>
-                    <td>{{ $release->formatted_size }}</td>
-                    <td>
-                        <code style="font-size: 0.7rem; background: var(--bg); padding: 2px 6px; border-radius: 4px; cursor: help;"
-                              title="{{ $release->sha256_hash }}">
-                            {{ \Illuminate\Support\Str::limit($release->sha256_hash, 16) }}
-                        </code>
+                    <td class="px-5 py-3.5 text-xs">
+                        <span class="font-mono text-slate-300">{{ \Illuminate\Support\Str::limit($release->file_original_name, 25) }}</span>
+                        <span class="block text-[10px] text-slate-500 font-mono">{{ $release->formatted_size }}</span>
                     </td>
-                    <td>
-                        @if($release->is_mandatory)
-                            <span style="color: var(--warning); font-weight: 600;">⚠ Yes</span>
-                        @else
-                            <span style="color: var(--text-muted);">—</span>
-                        @endif
+                    <td class="px-5 py-3.5 font-mono text-[11px] text-slate-400">
+                        <span title="{{ $release->sha256_hash }}">{{ \Illuminate\Support\Str::limit($release->sha256_hash, 16) }}</span>
                     </td>
-                    <td>
+                    <td class="px-5 py-3.5">
                         @if($release->is_latest)
-                            <span style="
-                                display: inline-block;
-                                padding: 2px 8px;
-                                border-radius: 10px;
-                                font-size: 0.7rem;
-                                font-weight: 700;
-                                background: var(--primary);
-                                color: #fff;
-                            ">LATEST</span>
+                            <span class="badge badge-info text-[10px]">LATEST</span>
                         @else
-                            <span style="color: var(--text-muted);">—</span>
+                            <span class="text-slate-500 text-xs">—</span>
                         @endif
                     </td>
-                    <td>
-                        @if($release->uploader)
-                            {{ $release->uploader->name }}
-                        @else
-                            <span style="color: var(--text-muted);">—</span>
-                        @endif
-                    </td>
-                    <td style="white-space: nowrap; font-size: 0.8rem;">
-                        {{ $release->created_at->format('Y-m-d') }}
-                        <br><small style="color: var(--text-muted);">{{ $release->created_at->format('H:i') }}</small>
-                    </td>
-                    <td>
-                        <div style="display: flex; gap: 4px; flex-wrap: nowrap;">
+                    <td class="px-5 py-3.5 text-right">
+                        <div class="inline-flex items-center gap-1.5">
                             @if(!$release->is_latest)
-                            <form action="{{ route('admin.releases.mark-latest', $release) }}" method="POST" style="display:inline;">
+                            <form action="{{ route('admin.releases.mark-latest', $release) }}" method="POST" class="inline">
                                 @csrf
-                                <button type="submit" class="btn btn-sm btn-primary"
-                                        title="Mark as latest for {{ $release->platform }}"
-                                        onclick="return confirm('Set {{ $release->version }} as the latest {{ $release->platform }} release?')">
-                                    ★
-                                </button>
+                                <button type="submit" class="btn-secondary btn-sm" title="Mark as Latest" onclick="return confirm('Promote this release to latest?')">★</button>
                             </form>
                             @endif
-                            <form action="{{ route('admin.releases.destroy', $release) }}" method="POST" style="display:inline;">
-                                @csrf
-                                @method('DELETE')
-                                <button type="submit" class="btn btn-sm btn-danger"
-                                        title="Delete this release"
-                                        onclick="return confirm('Delete release {{ $release->version }} for {{ $release->platform }}? This cannot be undone.')">
-                                    🗑
-                                </button>
+                            <form action="{{ route('admin.releases.destroy', $release) }}" method="POST" class="inline" onsubmit="return confirm('Delete release?')">
+                                @csrf @method('DELETE')
+                                <button type="submit" class="btn-danger btn-sm">Delete</button>
                             </form>
                         </div>
                     </td>
                 </tr>
-                @endforeach
+                @empty
+                <tr>
+                    <td colspan="7">
+                        <x-empty-state icon="📦" title="No agent binaries published" description="Upload installer packages to enable automatic desktop agent updates." />
+                    </td>
+                </tr>
+                @endforelse
             </tbody>
         </table>
-    @endif
+    </div>
 </div>
-
-<style>
-    .form-row {
-        display: grid;
-        gap: 1rem;
-        margin-bottom: 1rem;
-    }
-
-    .form-group {
-        display: flex;
-        flex-direction: column;
-    }
-
-    .form-group label {
-        font-size: 0.8rem;
-        font-weight: 600;
-        margin-bottom: 0.35rem;
-        color: var(--text-muted);
-    }
-
-    .form-group input[type="text"],
-    .form-group input[type="file"],
-    .form-group select,
-    .form-group textarea {
-        padding: 8px 12px;
-        background: var(--bg);
-        border: 1px solid var(--border);
-        border-radius: 6px;
-        color: var(--text);
-        font-size: 0.85rem;
-        outline: none;
-        transition: border-color 0.15s;
-    }
-
-    .form-group input:focus,
-    .form-group select:focus,
-    .form-group textarea:focus {
-        border-color: var(--primary);
-    }
-
-    .form-group textarea {
-        resize: vertical;
-        min-height: 60px;
-        font-family: inherit;
-    }
-
-    .form-group input[type="checkbox"] {
-        width: 16px;
-        height: 16px;
-        accent-color: var(--primary);
-    }
-
-    .btn-sm {
-        padding: 4px 10px;
-        font-size: 0.8rem;
-        border: none;
-        border-radius: 6px;
-        cursor: pointer;
-        transition: opacity 0.15s;
-    }
-
-    .btn-sm:hover {
-        opacity: 0.8;
-    }
-
-    .btn-primary {
-        background: var(--primary);
-        color: #fff;
-    }
-
-    .btn-danger {
-        background: transparent;
-        color: var(--danger);
-        border: 1px solid var(--danger);
-    }
-
-    .btn-danger:hover {
-        background: var(--danger);
-        color: #fff;
-    }
-
-    .sr-only {
-        position: absolute;
-        width: 1px;
-        height: 1px;
-        padding: 0;
-        margin: -1px;
-        overflow: hidden;
-        clip: rect(0, 0, 0, 0);
-        border: 0;
-    }
-</style>
 @endsection

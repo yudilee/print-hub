@@ -1,247 +1,212 @@
 @extends('admin.layout')
-@section('title', 'Agents')
+@section('title', 'Print Agents')
 
 @section('content')
-<x-breadcrumb :items="[['label' => 'Dashboard', 'url' => route('admin.dashboard')], ['label' => 'Agents']]" />
+<x-breadcrumb :items="[['label' => 'Print Agents']]" />
 
-<div class="page-header">
-    <h1>Print Agents</h1>
-    <p>Manage the print agent applications installed on each workstation</p>
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+    <div>
+        <h2 class="text-base sm:text-lg font-bold text-white">Print Agents & Workstations</h2>
+        <p class="text-xs text-slate-400">Manage Trayprint connector nodes, device profiles, and auto-sync status</p>
+    </div>
 </div>
 
-{{-- Add Agent Form --}}
-<div class="card">
-    <div class="card-header">
-        <h2>Register New Agent</h2>
-    </div>
+{{-- Register Agent Card --}}
+<div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 mb-6 shadow-xs">
+    <h3 class="text-sm font-bold text-white mb-3">Register New Print Agent</h3>
     <form action="{{ route('admin.agents.store') }}" method="POST">
         @csrf
-        <div class="form-row" style="grid-template-columns: 2fr 2fr 1fr 1fr;">
-            <div class="form-group">
-                <label for="name">Agent Name <span style="color: var(--danger);">*</span></label>
-                <input type="text" name="name" id="name" required placeholder="e.g. PC Front Office">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+            <div>
+                <label for="name" class="block text-xs font-semibold text-slate-400 mb-1">Agent Name <span class="text-rose-500">*</span></label>
+                <input type="text" name="name" id="name" required placeholder="e.g. Front Desk PC"
+                    class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-blue-500">
             </div>
-            <div class="form-group">
-                <label for="branch_id">Branch</label>
-                <select name="branch_id" id="branch_id">
+            <div>
+                <label for="branch_id" class="block text-xs font-semibold text-slate-400 mb-1">Branch</label>
+                <select name="branch_id" id="branch_id"
+                    class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-blue-500">
                     <option value="">-- Global (All Branches) --</option>
                     @foreach($branches as $branch)
-                        <option value="{{ $branch->id }}">{{ $branch->company->code }} / {{ $branch->name }}</option>
+                        <option value="{{ $branch->id }}">{{ $branch->company->code ?? '' }} / {{ $branch->name }}</option>
                     @endforeach
                 </select>
             </div>
-            <div class="form-group">
-                <label for="location">Location</label>
-                <input type="text" name="location" id="location" placeholder="e.g. Lobby">
+            <div>
+                <label for="location" class="block text-xs font-semibold text-slate-400 mb-1">Location</label>
+                <input type="text" name="location" id="location" placeholder="e.g. Lobby counter"
+                    class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-blue-500">
             </div>
-            <div class="form-group">
-                <label for="department">Department</label>
-                <input type="text" name="department" id="department" placeholder="e.g. Service">
+            <div>
+                <label for="department" class="block text-xs font-semibold text-slate-400 mb-1">Department</label>
+                <input type="text" name="department" id="department" placeholder="e.g. Operations"
+                    class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-blue-500">
             </div>
         </div>
-        <button type="submit" class="btn btn-primary">+ Add Agent</button>
+        <button type="submit" class="btn-primary btn-sm">
+            <x-icon name="plus" size="13" />
+            <span>Register Agent</span>
+        </button>
     </form>
 </div>
 
-{{-- Agent List --}}
-<div class="card" x-data="{ search: '' }">
-    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
-        <h2>All Agents ({{ $agents->count() }})</h2>
-        <div style="position: relative;">
-            <input type="text" x-model="search" placeholder="🔍 Search agents..."
-                   style="padding: 6px 12px 6px 30px; font-size: 0.8rem; background: var(--bg); border: 1px solid var(--border); color: var(--text); border-radius: 6px; width: 220px; outline: none;">
-            <span style="position: absolute; left: 8px; top: 50%; transform: translateY(-50%); font-size: 0.8rem; opacity: 0.4;">🔍</span>
+{{-- Agent List Table Card --}}
+<div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xs" x-data="{ search: '' }">
+    <div class="p-4 border-b border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider">
+            Connected Agents: <span class="text-white font-mono font-bold">{{ $agents->count() }}</span>
+        </h3>
+        <div class="relative">
+            <x-icon name="search" size="14" class="text-slate-500 absolute left-3 top-2.5" />
+            <input type="text" x-model="search" placeholder="Search agents..."
+                class="pl-9 pr-4 py-1.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-blue-500 w-full sm:w-64">
         </div>
     </div>
-    <table role="table">
-        <caption class="sr-only">Registered print agents</caption>
-        <thead>
-            <tr>
-                <th scope="col">Name</th>
-                <th scope="col">Branch</th>
-                <th scope="col">Location</th>
-                <th scope="col">Status</th>
-                <th scope="col">Printers</th>
-                <th scope="col">Capabilities</th>
-                <th scope="col">Last Seen</th>
-                <th scope="col">Key Age</th>
-                <th scope="col">Jobs</th>
-                <th scope="col">Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            @forelse($agents as $agent)
-            <tr x-show="search === '' || $el.textContent.toLowerCase().includes(search.toLowerCase())">
-                <td>
-                    <strong>{{ $agent->name }}</strong>
-                    @if($agent->department)
-                        <br><span style="font-size: 0.75rem; color: var(--text-muted);">{{ $agent->department }}</span>
-                    @endif
-                </td>
-                <td>
-                    @if($agent->branch)
-                        <span class="badge badge-info">{{ $agent->branch->company->code ?? '' }}</span>
-                        <span style="font-size: 0.8rem;">{{ $agent->branch->name }}</span>
-                    @else
-                        <span style="color: var(--text-muted); font-style: italic;">Global</span>
-                    @endif
-                </td>
-                <td style="font-size: 0.8rem; color: var(--text-muted);">{{ $agent->location ?? '—' }}</td>
-                <td>
-                    @if(!$agent->is_active)
-                        <span class="badge badge-danger">Disabled</span>
-                    @elseif($agent->isOnline())
-                        <span class="dot dot-green"></span><span class="badge badge-success">Online</span>
-                    @else
-                        <span class="dot dot-red"></span><span class="badge badge-danger">Offline</span>
-                    @endif
-                </td>
-                <td>
-                    @if(!empty($agent->printers))
-                        <div style="display: flex; flex-wrap: wrap; gap: 3px;">
-                        @foreach($agent->printers as $printer)
-                            <code style="font-size: 0.7rem; padding: 1px 5px; background: var(--surface); border-radius: 3px;">{{ $printer }}</code>
-                        @endforeach
+
+    <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm text-slate-300">
+            <thead class="bg-slate-950/60 text-xs uppercase text-slate-400 border-b border-slate-800 font-semibold tracking-wider">
+                <tr>
+                    <th class="px-5 py-3.5">Agent Details</th>
+                    <th class="px-5 py-3.5">Branch / Org</th>
+                    <th class="px-5 py-3.5">Status</th>
+                    <th class="px-5 py-3.5">Installed Printers</th>
+                    <th class="px-5 py-3.5">Telemetry & Heartbeat</th>
+                    <th class="px-5 py-3.5 text-right">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-800/60">
+                @forelse($agents as $agent)
+                <tr x-show="search === '' || $el.textContent.toLowerCase().includes(search.toLowerCase())" class="hover:bg-slate-800/40 transition">
+                    <td class="px-5 py-3.5">
+                        <span class="font-bold text-white">{{ $agent->name }}</span>
+                        @if($agent->department || $agent->location)
+                            <div class="text-[10px] text-slate-400 mt-0.5">
+                                {{ $agent->department ?? 'General' }} {{ $agent->location ? '• ' . $agent->location : '' }}
+                            </div>
+                        @endif
+                    </td>
+                    <td class="px-5 py-3.5">
+                        @if($agent->branch)
+                            <span class="badge badge-info">{{ $agent->branch->company->code ?? '' }}</span>
+                            <span class="text-xs text-slate-200 ml-1">{{ $agent->branch->name }}</span>
+                        @else
+                            <span class="text-xs text-slate-500 italic">Global Node</span>
+                        @endif
+                    </td>
+                    <td class="px-5 py-3.5">
+                        @if(!$agent->is_active)
+                            <span class="badge badge-danger">Disabled</span>
+                        @elseif($agent->isOnline())
+                            <span class="badge badge-success"><span class="dot dot-green"></span> Online</span>
+                        @else
+                            <span class="badge badge-danger"><span class="dot dot-red"></span> Offline</span>
+                        @endif
+                    </td>
+                    <td class="px-5 py-3.5">
+                        @if(!empty($agent->printers))
+                            <div class="flex flex-wrap gap-1 max-w-xs">
+                                @foreach(array_slice($agent->printers, 0, 3) as $printer)
+                                    <span class="px-2 py-0.5 rounded-md bg-slate-950 border border-slate-800 text-[10px] font-mono text-slate-300">{{ $printer }}</span>
+                                @endforeach
+                                @if(count($agent->printers) > 3)
+                                    <span class="text-[10px] text-slate-500 font-mono">+{{ count($agent->printers) - 3 }} more</span>
+                                @endif
+                            </div>
+                        @else
+                            <span class="text-xs text-slate-500 italic">—</span>
+                        @endif
+                    </td>
+                    <td class="px-5 py-3.5 text-xs text-slate-400 font-mono">
+                        <div>Seen: {{ $agent->last_seen_at ? $agent->last_seen_at->diffForHumans() : 'Never' }}</div>
+                        <div class="text-[10px] text-slate-500">Jobs: {{ $agent->jobs_count ?? 0 }}</div>
+                    </td>
+                    <td class="px-5 py-3.5 text-right">
+                        <div class="inline-flex items-center gap-1.5">
+                            <a href="{{ route('admin.agents.activity', $agent) }}" class="btn-secondary btn-sm" title="Timeline">Activity</a>
+                            <button type="button" class="btn-secondary btn-sm"
+                                onclick="openEditModal({{ $agent->id }}, '{{ e($agent->name) }}', '{{ $agent->branch_id }}', '{{ e($agent->location ?? '') }}', '{{ e($agent->department ?? '') }}', {{ $agent->is_active ? 'true' : 'false' }})">
+                                Edit
+                            </button>
+                            <form action="{{ route('admin.agents.destroy', $agent) }}" method="POST" onsubmit="return confirm('Remove this agent?')" class="inline">
+                                @csrf @method('DELETE')
+                                <button type="submit" class="btn-danger btn-sm">Delete</button>
+                            </form>
                         </div>
-                    @else
-                        <span style="font-style: italic;">—</span>
-                    @endif
-                </td>
-                <td style="font-size: 0.75rem; max-width: 240px; cursor: pointer;" onclick="openCapsModal({{ $agent->id }})" title="Click to view full capabilities">
-                    @if($agent->capabilities && count($agent->capabilities) > 0)
-                        @php
-                            $printers = $agent->capabilities['printers'] ?? [];
-                            $printerCount = is_array($printers) ? count($printers) : 0;
-                            $allPaperSizes = [];
-                            $allDuplexModes = [];
-                            foreach ((array)$printers as $pc) {
-                                if (!empty($pc['paper_sizes'])) {
-                                    $allPaperSizes = array_merge($allPaperSizes, (array)$pc['paper_sizes']);
-                                }
-                                if (!empty($pc['duplex'])) {
-                                    $allDuplexModes[] = is_string($pc['duplex']) ? $pc['duplex'] : 'yes';
-                                }
-                            }
-                            $allPaperSizes = array_unique($allPaperSizes);
-                            $allDuplexModes = array_unique($allDuplexModes);
-                            $truncatedSizes = array_slice($allPaperSizes, 0, 4);
-                        @endphp
-                        <div style="display: flex; flex-direction: column; gap: 3px;">
-                            <div><strong style="color: var(--text);">🖨️ {{ $printerCount }} printer(s)</strong></div>
-                            @if(!empty($truncatedSizes))
-                                <div style="color: var(--text-muted); font-size: 0.7rem;">
-                                    📄 {{ implode(', ', $truncatedSizes) }}{{ count($allPaperSizes) > 4 ? '…' : '' }}
-                                </div>
-                            @endif
-                            @if(!empty($allDuplexModes))
-                                <div style="color: var(--text-muted); font-size: 0.7rem;">
-                                    🔁 Duplex: {{ implode(', ', $allDuplexModes) }}
-                                </div>
-                            @endif
-                            <div style="color: var(--primary); font-size: 0.65rem; margin-top: 2px;">👁️ View details</div>
-                        </div>
-                    @else
-                        <span style="font-style: italic; color: var(--text-muted); font-size: 0.75rem;">Not reported</span>
-                    @endif
-                </td>
-                <td style="font-size: 0.8rem; color: var(--text-muted);">
-                    {{ $agent->last_seen_at ? $agent->last_seen_at->diffForHumans() : 'Never' }}
-                    @if($agent->ip_address)
-                        <br><code style="font-size: 0.7rem;">{{ $agent->ip_address }}</code>
-                    @endif
-                </td>
-                <td style="font-size: 0.8rem; white-space: nowrap;">
-                    @php $keyAge = $agent->last_key_rotated_at ? $agent->last_key_rotated_at->diffInDays(now()) : null; @endphp
-                    @if(is_null($keyAge))
-                        <span style="color: var(--text-muted); font-style: italic;">N/A</span>
-                    @elseif($keyAge > ($keyRotationDays ?? 90))
-                        <span style="background: rgba(245,158,11,0.15); color: var(--warning); padding: 2px 8px; border-radius: 10px; font-size: 0.75rem; font-weight: 500;" title="Key hasn't been rotated in {{ $keyAge }} days (policy: {{ $keyRotationDays ?? 90 }} days)">
-                            ⚠️ {{ $keyAge }} days
-                        </span>
-                    @else
-                        {{ $keyAge }} days
-                    @endif
-                </td>
-                <td>{{ $agent->jobs_count }}</td>
-                <td>
-                    <div style="display: flex; gap: 6px;">
-                        <a href="{{ route('admin.agents.activity', $agent) }}" class="btn btn-secondary btn-sm" style="text-decoration: none;" title="View activity timeline">
-                            📋 Activity
-                        </a>
-                        <button class="btn btn-secondary btn-sm" onclick="openEditModal({{ $agent->id }}, '{{ e($agent->name) }}', '{{ $agent->branch_id }}', '{{ e($agent->location ?? '') }}', '{{ e($agent->department ?? '') }}', {{ $agent->is_active ? 'true' : 'false' }})">
-                            Edit
-                        </button>
-                        <form action="{{ route('admin.agents.destroy', $agent) }}" method="POST" onsubmit="return confirm('Remove this agent?')">
-                            @csrf @method('DELETE')
-                            <button class="btn btn-danger btn-sm">Remove</button>
-                        </form>
-                    </div>
-                </td>
-            </tr>
-            @empty
-            <tr><td colspan="10">
-                <x-empty-state icon="🖥️" title="No agents registered yet" description="Register your first print agent above to get started." actionText="+ Add Agent" :actionUrl="'#'" />
-            </td></tr>
-            @endforelse
-        </tbody>
-    </table>
+                    </td>
+                </tr>
+                @empty
+                <tr>
+                    <td colspan="6">
+                        <x-empty-state icon="🖥️" title="No print agents found" description="Register your first print agent to link local printers." />
+                    </td>
+                </tr>
+                @endforelse
+            </tbody>
+        </table>
+    </div>
 </div>
 
+{{-- Quick Setup Guide --}}
 @if($agents->count() > 0)
-<div class="card">
-    <div class="card-header"><h2>Quick Setup Guide</h2></div>
-    <p style="color: var(--text-muted); font-size: 0.85rem; line-height: 1.6;">
-        On the target workstation, open <code class="mono">config.json</code> inside the Trayprint folder and paste:
-    </p>
-    <pre style="background: var(--bg); padding: 1rem; border-radius: 6px; margin-top: 0.75rem; font-size: 0.8rem; overflow-x: auto; color: var(--text);">{
+<div class="mt-6 bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xs">
+    <h3 class="text-sm font-bold text-white mb-2">⚡ Quick Setup Guide</h3>
+    <p class="text-xs text-slate-400 mb-3">On the workstation, configure <code class="text-blue-400 font-mono">config.json</code> inside Trayprint directory:</p>
+    <pre class="p-3.5 rounded-xl bg-slate-950 border border-slate-800 font-mono text-xs text-slate-300 overflow-x-auto">{
   "hub_url": "{{ url('/') }}",
-  "agent_key": "<span style='color: var(--warning);'>PASTE_AGENT_KEY_HERE</span>"
+  "agent_key": "<span class="text-amber-400">PASTE_AGENT_KEY_HERE</span>"
 }</pre>
-    <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 0.75rem;">
-        Then restart the Trayprint application. It will automatically sync profiles and report jobs.
-    </p>
 </div>
 @endif
 
 {{-- Edit Agent Modal --}}
-<div id="edit-modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 1000; align-items: center; justify-content: center;">
-    <div class="card" style="width: 500px; padding: 2rem; max-height: 90vh; overflow-y: auto;">
-        <div class="card-header"><h2>Edit Agent</h2></div>
-        <form id="edit-form" method="POST">
+<div id="edit-modal" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-6 shadow-2xl">
+        <div class="flex items-center justify-between pb-4 mb-4 border-b border-slate-800">
+            <h3 class="text-base font-bold text-white">Edit Agent</h3>
+            <button onclick="closeEditModal()" class="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition">
+                <x-icon name="x" size="18" />
+            </button>
+        </div>
+
+        <form id="edit-form" method="POST" class="space-y-4">
             @csrf
             @method('PUT')
-            <div class="form-group">
-                <label for="edit_name">Agent Name <span style="color: var(--danger);">*</span></label>
-                <input type="text" name="name" id="edit_name" required>
+            <div>
+                <label for="edit_name" class="block text-xs font-semibold text-slate-400 mb-1">Agent Name <span class="text-rose-500">*</span></label>
+                <input type="text" name="name" id="edit_name" required class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-blue-500">
             </div>
-            <div class="form-group">
-                <label for="edit_branch_id">Branch</label>
-                <select name="branch_id" id="edit_branch_id">
+            <div>
+                <label for="edit_branch_id" class="block text-xs font-semibold text-slate-400 mb-1">Branch</label>
+                <select name="branch_id" id="edit_branch_id" class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-blue-500">
                     <option value="">-- Global (All Branches) --</option>
                     @foreach($branches as $branch)
-                        <option value="{{ $branch->id }}">{{ $branch->company->code }} / {{ $branch->name }}</option>
+                        <option value="{{ $branch->id }}">{{ $branch->company->code ?? '' }} / {{ $branch->name }}</option>
                     @endforeach
                 </select>
             </div>
-            <div class="form-group">
-                <label for="edit_location">Location</label>
-                <input type="text" name="location" id="edit_location" placeholder="e.g. Lobby">
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label for="edit_location" class="block text-xs font-semibold text-slate-400 mb-1">Location</label>
+                    <input type="text" name="location" id="edit_location" class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-blue-500">
+                </div>
+                <div>
+                    <label for="edit_department" class="block text-xs font-semibold text-slate-400 mb-1">Department</label>
+                    <input type="text" name="department" id="edit_department" class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-blue-500">
+                </div>
             </div>
-            <div class="form-group">
-                <label for="edit_department">Department</label>
-                <input type="text" name="department" id="edit_department" placeholder="e.g. Service">
-            </div>
-            <div class="form-group">
-                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                    <input type="checkbox" name="is_active" id="edit_is_active" value="1" style="width: 18px; height: 18px;" checked>
-                    Agent Active
+            <div>
+                <label class="inline-flex items-center gap-2 text-xs font-semibold text-slate-300 cursor-pointer">
+                    <input type="checkbox" name="is_active" id="edit_is_active" value="1" class="rounded border-slate-700 bg-slate-950 text-blue-600 focus:ring-0">
+                    <span>Agent Enabled & Active</span>
                 </label>
             </div>
-            <div style="display: flex; justify-content: space-between; margin-top: 1.5rem;">
-                <button type="button" class="btn btn-secondary" onclick="regenerateKey()">Regenerate Key</button>
-                <div style="display: flex; gap: 10px;">
-                    <button type="button" class="btn btn-secondary" onclick="closeEditModal()">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Save Changes</button>
+
+            <div class="pt-4 border-t border-slate-800 flex items-center justify-between">
+                <button type="button" class="btn-warning btn-sm" onclick="regenerateKey()">Regenerate Key</button>
+                <div class="flex items-center gap-2">
+                    <button type="button" class="btn-secondary btn-sm" onclick="closeEditModal()">Cancel</button>
+                    <button type="submit" class="btn-primary btn-sm">Save Changes</button>
                 </div>
             </div>
         </form>
@@ -259,11 +224,11 @@ function openEditModal(id, name, branchId, location, department, isActive) {
     document.getElementById('edit_department').value = department || '';
     document.getElementById('edit_is_active').checked = isActive;
     document.getElementById('edit-form').action = '/agents/' + id;
-    document.getElementById('edit-modal').style.display = 'flex';
+    document.getElementById('edit-modal').classList.remove('hidden');
 }
 
 function closeEditModal() {
-    document.getElementById('edit-modal').style.display = 'none';
+    document.getElementById('edit-modal').classList.add('hidden');
 }
 
 function regenerateKey() {
@@ -276,52 +241,5 @@ function regenerateKey() {
         form.submit();
     }
 }
-
-document.getElementById('edit-modal').addEventListener('click', function(e) {
-    if (e.target === this) closeEditModal();
-});
-
-// ── Capabilities Modal ──────────────────────────────────────
-@php
-$mappedAgents = $agents->map(fn($a) => [
-    'id' => $a->id,
-    'name' => $a->name,
-    'capabilities' => $a->capabilities,
-]);
-@endphp
-let agentsData = @json($mappedAgents);
-
-function openCapsModal(agentId) {
-    const agent = agentsData.find(a => a.id === agentId);
-    if (!agent) return;
-
-    document.getElementById('caps-modal-title').textContent = agent.name + ' — Capabilities';
-    const pre = document.getElementById('caps-modal-content');
-    pre.textContent = JSON.stringify(agent.capabilities, null, 2);
-    document.getElementById('caps-modal').style.display = 'flex';
-}
-
-function closeCapsModal() {
-    document.getElementById('caps-modal').style.display = 'none';
-}
-</script>
-
-{{-- Capabilities Modal --}}
-<div id="caps-modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 1000; align-items: center; justify-content: center;">
-    <div class="card" style="width: 700px; padding: 2rem; max-height: 90vh; overflow-y: auto;">
-        <div class="card-header">
-            <h2 id="caps-modal-title">Capabilities</h2>
-        </div>
-        <pre id="caps-modal-content" style="background: var(--bg); padding: 1rem; border-radius: 6px; font-size: 0.75rem; overflow-x: auto; max-height: 60vh; overflow-y: auto; border: 1px solid var(--border); white-space: pre-wrap; word-break: break-word;"></pre>
-        <div style="display: flex; justify-content: flex-end; margin-top: 1rem;">
-            <button type="button" class="btn btn-secondary" onclick="closeCapsModal()">Close</button>
-        </div>
-    </div>
-</div>
-
-<script>
-document.getElementById('caps-modal')?.addEventListener('click', function(e) {
-    if (e.target === this) closeCapsModal();
-});
 </script>
 @endsection

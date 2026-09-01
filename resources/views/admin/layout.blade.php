@@ -1,659 +1,387 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>@yield('title', 'Print Hub') — Central Print Management</title>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>@yield('title', 'Admin Portal') — Print Hub</title>
 
-        :root, [data-theme="dark"] {
-            --bg: #0f1117;
-            --surface: #1a1d27;
-            --surface-hover: #22263a;
-            --border: #2a2e3f;
-            --text: #e4e6ed;
-            --text-muted: #8b8fa3;
-            --primary: #6366f1;
-            --primary-hover: #818cf8;
-            --success: #22c55e;
-            --danger: #ef4444;
-            --warning: #f59e0b;
-            --info: #3b82f6;
-            --toast-bg: #1a1d27;
-            --toast-border: #2a2e3f;
-            --bg-secondary: #141620;
-            --bg-tertiary: #1f2335;
-            --bg-hover: rgba(255, 255, 255, 0.05);
-            --primary-glow: rgba(99, 102, 241, 0.15);
-            --success-glow: rgba(34, 197, 94, 0.15);
-        }
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-        [data-theme="light"] {
-            --bg: #f1f5f9;
-            --surface: #ffffff;
-            --surface-hover: #e8ecf4;
-            --border: #d1d5db;
-            --text: #0f172a;
-            --text-muted: #6b7280;
-            --primary: #4f46e5;
-            --primary-hover: #4338ca;
-            --success: #16a34a;
-            --danger: #dc2626;
-            --warning: #d97706;
-            --info: #2563eb;
-            --toast-bg: #ffffff;
-            --toast-border: #d1d5db;
-            --bg-secondary: #f8f9fa;
-            --bg-tertiary: #e9ecef;
-            --bg-hover: rgba(0, 0, 0, 0.05);
-            --primary-glow: rgba(79, 70, 229, 0.08);
-            --success-glow: rgba(22, 163, 74, 0.08);
-        }
-
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        [x-cloak] { display: none !important; }
-
-        body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-            background: var(--bg);
-            color: var(--text);
-            min-height: 100vh;
-        }
-
-        .layout { display: flex; min-height: 100vh; }
-        .sidebar {
-            width: 240px;
-            background: var(--surface);
-            border-right: 1px solid var(--border);
-            padding: 1.5rem 0;
-            position: fixed;
-            top: 0; left: 0; bottom: 0;
-            display: flex;
-            flex-direction: column;
-            z-index: 900;
-            transition: transform 0.25s ease;
-            overflow-y: auto;
-        }
-
-        /* Global Scrollbar Styling */
-        * {
-            scrollbar-width: thin;
-            scrollbar-color: var(--border) transparent;
-        }
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
-        ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
-        .main { margin-left: 240px; flex: 1; padding: 2rem; transition: margin-left 0.25s ease; }
-
-        body.sidebar-collapsed .sidebar {
-            transform: translateX(-240px);
-        }
-        body.sidebar-collapsed .main {
-            margin-left: 0;
-        }
-        body.sidebar-collapsed .hamburger {
-            display: block;
-        }
-
-        .sidebar-brand {
-            padding: 0 1.5rem 1.5rem;
-            border-bottom: 1px solid var(--border);
-            margin-bottom: 1rem;
-        }
-        .sidebar-brand h1 {
-            font-size: 1.1rem;
-            font-weight: 700;
-            background: linear-gradient(135deg, var(--primary), #a855f7);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-        .sidebar-brand small { color: var(--text-muted); font-size: 0.75rem; }
-
-        .nav-link {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            padding: 0.65rem 1.5rem;
-            color: var(--text-muted);
-            text-decoration: none;
-            font-size: 0.875rem;
-            font-weight: 500;
-            transition: all 0.15s;
-            border-left: 3px solid transparent;
-        }
-        .nav-link:hover { color: var(--text); background: var(--surface-hover); }
-        .nav-link.active {
-            color: var(--primary-hover);
-            background: rgba(99, 102, 241, 0.08);
-            border-left-color: var(--primary);
-        }
-        .nav-section {
-            padding: 1.5rem 1.5rem 0.5rem;
-            font-size: 0.7rem;
-            font-weight: 700;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
-
-        /* Mobile hamburger */
-        .hamburger { display: none; position: fixed; top: 0.75rem; left: 0.75rem; z-index: 910;
-            background: var(--surface); border: 1px solid var(--border); color: var(--text);
-            padding: 0.5rem 0.6rem; border-radius: 6px; cursor: pointer; font-size: 1.2rem; }
-        .sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5);
-            z-index: 899; }
-
-        .card {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 10px;
-            padding: 1.5rem;
-            margin-bottom: 1.5rem;
-        }
-        .card-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1rem;
-        }
-        .card-header h2 { font-size: 1rem; font-weight: 600; }
-
-        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
-        .stat-card {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 10px;
-            padding: 1.25rem;
-            text-align: center;
-            transition: transform 0.15s, border-color 0.15s;
-        }
-        .stat-card:hover { transform: translateY(-2px); border-color: var(--primary); }
-        .stat-value { font-size: 2rem; font-weight: 700; margin-bottom: 0.25rem; }
-        .stat-label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
-
-        table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
-        .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
-        thead th {
-            text-align: left;
-            padding: 0.75rem 1rem;
-            color: var(--text-muted);
-            font-weight: 500;
-            font-size: 0.75rem;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            border-bottom: 1px solid var(--border);
-        }
-        tbody td {
-            padding: 0.75rem 1rem;
-            border-bottom: 1px solid var(--border);
-            vertical-align: middle;
-        }
-        tbody tr:hover { background: var(--surface-hover); }
-        /* focus-visible outlines for all interactive elements */
-        :focus-visible {
-            outline: 2px solid var(--primary);
-            outline-offset: 2px;
-        }
-        button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, .btn:focus-visible, .nav-link:focus-visible {
-            outline: 2px solid var(--primary);
-            outline-offset: 2px;
-        }
-
-        .badge {
-            display: inline-block;
-            padding: 0.2rem 0.6rem;
-            border-radius: 100px;
-            font-size: 0.7rem;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.03em;
-        }
-        .badge-success { background: rgba(34, 197, 94, 0.15); color: var(--success); }
-        .badge-danger { background: rgba(239, 68, 68, 0.15); color: var(--danger); }
-        .badge-warning { background: rgba(245, 158, 11, 0.15); color: var(--warning); }
-        .badge-info { background: rgba(59, 130, 246, 0.15); color: var(--info); }
-
-        .dot {
-            display: inline-block;
-            width: 8px; height: 8px;
-            border-radius: 50%;
-            margin-right: 6px;
-        }
-        .dot-green { background: var(--success); box-shadow: 0 0 6px var(--success); }
-        .dot-red { background: var(--danger); }
-
-        .btn {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.4rem;
-            padding: 0.5rem 1rem;
-            border-radius: 6px;
-            font-size: 0.8rem;
-            font-weight: 500;
-            border: none;
-            cursor: pointer;
-            transition: all 0.15s;
-            text-decoration: none;
-            white-space: nowrap;
-        }
-        .btn:disabled { opacity: 0.5; cursor: not-allowed; pointer-events: none; }
-        .btn-primary { background: var(--primary); color: white; }
-        .btn-primary:hover { background: var(--primary-hover); }
-        .btn-secondary { background: var(--surface-hover); color: var(--text); border: 1px solid var(--border); }
-        .btn-secondary:hover { background: var(--border); }
-        .btn-danger { background: rgba(239, 68, 68, 0.12); color: var(--danger); }
-        .btn-danger:hover { background: rgba(239, 68, 68, 0.2); }
-        .btn-warning { background: rgba(245, 158, 11, 0.12); color: var(--warning); }
-        .btn-warning:hover { background: rgba(245, 158, 11, 0.2); }
-        .btn-sm { padding: 0.3rem 0.6rem; font-size: 0.75rem; }
-
-        .form-group { margin-bottom: 1rem; }
-        .form-group label {
-            display: block;
-            font-size: 0.8rem;
-            font-weight: 500;
-            color: var(--text-muted);
-            margin-bottom: 0.3rem;
-        }
-        input[type="text"], input[type="number"], input[type="email"], input[type="password"], input[type="url"], select, textarea {
-            width: 100%;
-            padding: 0.55rem 0.75rem;
-            background: var(--bg);
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            color: var(--text);
-            font-size: 0.85rem;
-            font-family: inherit;
-            transition: border-color 0.15s;
-        }
-        input:invalid, select:invalid, textarea:invalid { border-color: var(--danger); }
-        input:focus, select:focus, textarea:focus {
-            outline: none;
-            border-color: var(--primary);
-        }
-        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
-        .form-inline { display: flex; gap: 0.5rem; align-items: end; }
-
-        .alert {
-            padding: 0.75rem 1rem;
-            border-radius: 6px;
-            margin-bottom: 1rem;
-            font-size: 0.85rem;
-            font-weight: 500;
-        }
-        .alert-success { background: rgba(34, 197, 94, 0.1); color: var(--success); border: 1px solid rgba(34, 197, 94, 0.2); }
-        .alert-error { background: rgba(239, 68, 68, 0.1); color: var(--danger); border: 1px solid rgba(239, 68, 68, 0.2); }
-
-        .mono { font-family: 'Fira Code', 'Cascadia Code', monospace; font-size: 0.8rem; background: var(--bg); padding: 0.2rem 0.5rem; border-radius: 4px; }
-
-        .page-header { margin-bottom: 1.5rem; }
-        .page-header h1 { font-size: 1.5rem; font-weight: 700; }
-        .page-header p { color: var(--text-muted); font-size: 0.875rem; margin-top: 0.25rem; }
-
-        .filter-bar { display: flex; gap: 0.75rem; margin-bottom: 1rem; align-items: center; }
-        .filter-bar select { width: auto; min-width: 150px; }
-
-        .pagination { display: flex; gap: 0.25rem; margin-top: 1rem; justify-content: center; flex-wrap: wrap; }
-        .pagination a, .pagination span {
-            padding: 0.4rem 0.75rem;
-            border-radius: 4px;
-            font-size: 0.8rem;
-            color: var(--text-muted);
-            text-decoration: none;
-            border: 1px solid var(--border);
-        }
-        .pagination a:hover { background: var(--surface-hover); color: var(--text); }
-        .pagination .active { background: var(--primary); color: white; border-color: var(--primary); }
-
-        /* Toast notifications */
-        .toast-container {
-            position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 9999;
-            display: flex; flex-direction: column; gap: 0.5rem; max-width: 380px;
-        }
-        .toast {
-            padding: 0.85rem 1rem;
-            border-radius: 8px;
-            background: var(--toast-bg);
-            border: 1px solid var(--toast-border);
-            box-shadow: 0 8px 30px rgba(0,0,0,0.3);
-            display: flex; align-items: center; gap: 0.5rem;
-            font-size: 0.85rem;
-            animation: toastIn 0.3s ease;
-            transition: opacity 0.3s, transform 0.3s;
-        }
-        [data-theme="light"] .toast {
-            box-shadow: 0 4px 16px rgba(0,0,0,0.1);
-        }
-        .toast-removing { opacity: 0; transform: translateX(100%); }
-        .toast-success { border-left: 3px solid var(--success); }
-        .toast-error { border-left: 3px solid var(--danger); }
-        .toast-warning { border-left: 3px solid var(--warning); }
-        .toast-info { border-left: 3px solid var(--info); }
-        @keyframes toastIn { from { opacity: 0; transform: translateX(100%); } to { opacity: 1; transform: translateX(0); } }
-
-        /* Spinner */
-        @keyframes spin { to { transform: rotate(360deg); } }
-        .spinner {
-            width: 16px; height: 16px; border: 2px solid currentColor;
-            border-right-color: transparent; border-radius: 50%;
-            animation: spin 0.6s linear infinite;
-            display: inline-block;
-        }
-
-        /* Theme toggle */
-        .theme-toggle {
-            background: none; border: 1px solid var(--border); color: var(--text-muted);
-            padding: 0.35rem 0.55rem; border-radius: 6px; cursor: pointer;
-            display: flex; align-items: center; gap: 0.3rem; font-size: 0.85rem;
-        }
-        .theme-toggle:hover { color: var(--text); }
-
-        /* Expandable section */
-        .expandable { cursor: pointer; user-select: none; }
-        .expandable-content { display: none; }
-        .expandable-content.open { display: block; }
-
-        /* Form field error */
-        .field-error { color: var(--danger); font-size: 0.75rem; margin-top: 0.25rem; display: none; }
-        .field-error.visible { display: block; }
-
-        /* Responsive */
-        @media (max-width: 768px) {
-            .desktop-only-toggle { display: none !important; }
-            .sidebar { transform: translateX(-100%); }
-            .sidebar.open { transform: translateX(0); }
-            .sidebar-overlay.open { display: block; }
-            .hamburger { display: block; }
-            .main { margin-left: 0; padding: 1rem; }
-            .form-row { grid-template-columns: 1fr; }
-            .stats-grid { grid-template-columns: repeat(2, 1fr); }
-            table { display: block; overflow-x: auto; }
-            .filter-bar { flex-wrap: wrap; }
-        }
-        @media (max-width: 480px) {
-            .stats-grid { grid-template-columns: 1fr; }
-        }
-
-        /* Help tooltip */
-        .help-tip {
-            display: inline-flex; align-items: center; justify-content: center;
-            width: 18px; height: 18px; border-radius: 50%;
-            background: var(--border); color: var(--text-muted);
-            font-size: 11px; font-weight: 700; cursor: help;
-            vertical-align: middle; margin-left: 4px;
-            position: relative;
-        }
-        .help-tip-popover {
-            display: none; position: absolute; bottom: calc(100% + 8px); left: 50%;
-            transform: translateX(-50%); width: 220px; padding: 0.6rem 0.75rem;
-            background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
-            font-size: 0.8rem; color: var(--text); box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-            z-index: 100; white-space: normal; font-weight: 400; line-height: 1.4;
-        }
-        [data-theme="light"] .help-tip-popover {
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-        }
-        .help-tip:hover .help-tip-popover { display: block; }
-    </style>
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
-    @yield('head')
-</head>
-<body>
+    <!-- Theme Initialization -->
     <script>
         (function() {
-            const collapsed = localStorage.getItem('ph-sidebar-collapsed');
-            if (collapsed === '1' && window.innerWidth > 768) {
-                document.body.classList.add('sidebar-collapsed');
+            const savedTheme = localStorage.getItem('theme') || localStorage.getItem('ph-theme');
+            if (savedTheme === 'light') {
+                document.documentElement.classList.remove('dark');
+            } else {
+                document.documentElement.classList.add('dark');
             }
         })();
     </script>
-    <button class="hamburger" onclick="toggleSidebar()" aria-label="Toggle menu" title="Menu">☰</button>
-    <div class="sidebar-overlay" onclick="toggleSidebar()" aria-hidden="true"></div>
 
-    <div class="layout">
-        <aside class="sidebar" id="sidebar" role="navigation" aria-label="Main navigation">
-            <div class="sidebar-brand" style="display: flex; justify-content: space-between; align-items: center;">
-                <div>
-                    <h1>Print Hub</h1>
-                    <small>Central Management</small>
-                </div>
-                <button type="button" onclick="toggleSidebar()" style="background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 0.9rem; padding: 4px; display: flex; align-items: center; justify-content: center; border-radius: 4px; transition: all 0.2s;" class="desktop-only-toggle" title="Collapse Menu" aria-controls="sidebar" aria-expanded="true">◀</button>
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @yield('head')
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans selection:bg-blue-500 selection:text-white">
+
+    <!-- Mobile Drawer Overlay -->
+    <div id="sidebar-overlay" onclick="toggleSidebar()" class="fixed inset-0 bg-slate-950/80 backdrop-blur-xs z-40 md:hidden hidden transition-opacity"></div>
+
+    <div class="flex-1 flex min-h-screen">
+        <!-- Sidebar Navigation -->
+        <aside id="sidebar" class="w-64 bg-slate-900 border-r border-slate-800 flex flex-col shrink-0 fixed inset-y-0 left-0 z-50 transform -translate-x-full md:translate-x-0 md:static transition-transform duration-300 ease-in-out">
+            <!-- Brand Header -->
+            <div class="h-16 px-5 border-b border-slate-800 flex items-center justify-between shrink-0">
+                <a href="{{ route('admin.dashboard') }}" class="flex items-center gap-3 group">
+                    <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-blue-500/20 group-hover:scale-105 transition">
+                        <x-icon name="dashboard" size="18" />
+                    </div>
+                    <div>
+                        <span class="block text-sm font-bold tracking-tight text-white group-hover:text-blue-400 transition">Print Hub</span>
+                        <span class="block text-[10px] text-slate-400 font-mono">Central Management</span>
+                    </div>
+                </a>
+                <button type="button" onclick="toggleSidebar()" class="md:hidden p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition" aria-label="Close menu">
+                    <x-icon name="x" size="18" />
+                </button>
             </div>
-            <nav aria-label="Main navigation">
-                <a href="{{ route('admin.dashboard') }}" class="nav-link {{ request()->routeIs('admin.dashboard') ? 'active' : '' }}" {{ request()->routeIs('admin.dashboard') ? 'aria-current="page"' : '' }}>
-                    <x-icon name="dashboard" size="18"/> Dashboard
-                </a>
-                <a href="{{ route('admin.monitoring') }}" class="nav-link {{ request()->routeIs('admin.monitoring') ? 'active' : '' }}" {{ request()->routeIs('admin.monitoring') ? 'aria-current="page"' : '' }}>
-                    <x-icon name="monitor" size="18"/> Monitoring
-                </a>
-                <a href="{{ route('admin.costs') }}" class="nav-link {{ request()->routeIs('admin.costs*') ? 'active' : '' }}" {{ request()->routeIs('admin.costs*') ? 'aria-current="page"' : '' }}>
-                    <x-icon name="dollar" size="18"/> Cost Tracking
-                </a>
-                <a href="{{ route('admin.agents') }}" class="nav-link {{ request()->routeIs('admin.agents') ? 'active' : '' }}" {{ request()->routeIs('admin.agents') ? 'aria-current="page"' : '' }}>
-                    <x-icon name="agent" size="18"/> Agents
-                </a>
-                <a href="{{ route('admin.releases') }}" class="nav-link {{ request()->routeIs('admin.releases*') ? 'active' : '' }}" {{ request()->routeIs('admin.releases*') ? 'aria-current="page"' : '' }}>
-                    <x-icon name="package" size="18"/> Agent Releases
-                </a>
-                <a href="{{ route('admin.profiles') }}" class="nav-link {{ request()->routeIs('admin.profiles') ? 'active' : '' }}" {{ request()->routeIs('admin.profiles') ? 'aria-current="page"' : '' }}>
-                    <x-icon name="queue" size="18"/> Print Queues
-                </a>
-                <a href="{{ route('admin.jobs') }}" class="nav-link {{ request()->routeIs('admin.jobs') ? 'active' : '' }}" {{ request()->routeIs('admin.jobs') ? 'aria-current="page"' : '' }}>
-                    <x-icon name="job" size="18"/> Job History
-                </a>
-                <a href="{{ route('admin.templates') }}" class="nav-link {{ request()->routeIs('admin.templates*') ? 'active' : '' }}" {{ request()->routeIs('admin.templates*') ? 'aria-current="page"' : '' }}>
-                    <x-icon name="template" size="18"/> Print Templates
-                </a>
-                <a href="{{ route('admin.fonts') }}" class="nav-link {{ request()->routeIs('admin.fonts*') ? 'active' : '' }}" {{ request()->routeIs('admin.fonts*') ? 'aria-current="page"' : '' }}>
-                    <x-icon name="font" size="18"/> Fonts
-                </a>
 
-                <div class="nav-section">Printers</div>
-                <a href="{{ route('admin.pools') }}" class="nav-link {{ request()->routeIs('admin.pools*') ? 'active' : '' }}" {{ request()->routeIs('admin.pools*') ? 'aria-current="page"' : '' }}>
-                    <x-icon name="pool" size="18"/> Printer Pools
-                </a>
-                <a href="{{ route('admin.printer-configs') }}" class="nav-link {{ request()->routeIs('admin.printer-configs') ? 'active' : '' }}" {{ request()->routeIs('admin.printer-configs') ? 'aria-current="page"' : '' }}>
-                    <x-icon name="sliders" size="18"/> Printer Configs
-                </a>
-
-                <div class="nav-section">Documents</div>
-                <a href="{{ route('admin.documents') }}" class="nav-link {{ request()->routeIs('admin.documents') ? 'active' : '' }}" {{ request()->routeIs('admin.documents') ? 'aria-current="page"' : '' }}>
-                    <x-icon name="document" size="18"/> Documents
-                </a>
-                @if(auth()->user()?->hasAnyRole(['super-admin', 'company-admin', 'branch-admin']))
-                <a href="{{ route('admin.approvals') }}" class="nav-link {{ request()->routeIs('admin.approvals') ? 'active' : '' }}" {{ request()->routeIs('admin.approvals') ? 'aria-current="page"' : '' }}>
-                    <x-icon name="approval" size="18"/> Approvals
-                </a>
-                @endif
-
-                @if(auth()->user()?->isSuperAdmin())
-                <a href="{{ route('admin.clients') }}" class="nav-link {{ request()->routeIs('admin.clients') ? 'active' : '' }}" {{ request()->routeIs('admin.clients') ? 'aria-current="page"' : '' }}>
-                    <x-icon name="clients" size="18"/> Client Apps
-                </a>
-                @endif
-
-                <div class="nav-section">Organization</div>
-                @if(auth()->user()?->isSuperAdmin())
-                <a href="{{ route('admin.companies') }}" class="nav-link {{ request()->routeIs('admin.companies') ? 'active' : '' }}" {{ request()->routeIs('admin.companies') ? 'aria-current="page"' : '' }}>
-                    <x-icon name="company" size="18"/> Companies
-                </a>
-                @endif
-                @if(auth()->user()?->hasAnyRole(['super-admin', 'company-admin', 'branch-admin']))
-                <a href="{{ route('admin.branches') }}" class="nav-link {{ request()->routeIs('admin.branches*') ? 'active' : '' }}" {{ request()->routeIs('admin.branches*') ? 'aria-current="page"' : '' }}>
-                    <x-icon name="branch" size="18"/> Branches
-                </a>
-                @endif
-
-                <div class="nav-section">Access Control</div>
-                @if(auth()->user()?->hasAnyRole(['super-admin', 'company-admin']))
-                <a href="{{ route('admin.users') }}" class="nav-link {{ request()->routeIs('admin.users') ? 'active' : '' }}" {{ request()->routeIs('admin.users') ? 'aria-current="page"' : '' }}>
-                    <x-icon name="users" size="18"/> Users
-                </a>
-                @endif
-                <a href="{{ route('admin.sessions') }}" class="nav-link {{ request()->routeIs('admin.sessions') ? 'active' : '' }}" {{ request()->routeIs('admin.sessions') ? 'aria-current="page"' : '' }}>
-                    <x-icon name="sessions" size="18"/> Active Sessions
-                </a>
-                @if(auth()->user()?->hasAnyRole(['super-admin', 'company-admin', 'branch-admin']))
-                <a href="{{ route('admin.activity-logs') }}" class="nav-link {{ request()->routeIs('admin.activity-logs') ? 'active' : '' }}" {{ request()->routeIs('admin.activity-logs') ? 'aria-current="page"' : '' }}>
-                    <x-icon name="activity" size="18"/> Activity Log
-                </a>
-                @endif
-
-                @if(auth()->user()?->isSuperAdmin())
-                <div class="nav-section">System</div>
-                <a href="{{ route('admin.settings') }}" class="nav-link {{ request()->routeIs('admin.settings') ? 'active' : '' }}" {{ request()->routeIs('admin.settings') ? 'aria-current="page"' : '' }}>
-                    <x-icon name="settings" size="18"/> System Settings
-                </a>
-                <a href="{{ route('admin.webhooks.index') }}" class="nav-link {{ request()->routeIs('admin.webhooks*') ? 'active' : '' }}" {{ request()->routeIs('admin.webhooks*') ? 'aria-current="page"' : '' }}>
-                    <x-icon name="webhook" size="18"/> Webhooks
-                </a>
-                <a href="{{ route('admin.sso-settings') }}" class="nav-link {{ request()->routeIs('admin.sso-settings') ? 'active' : '' }}" {{ request()->routeIs('admin.sso-settings') ? 'aria-current="page"' : '' }}>
-                    <x-icon name="sso" size="18"/> SSO Settings
-                </a>
-                <a href="{{ route('admin.ip-whitelist') }}" class="nav-link {{ request()->routeIs('admin.ip-whitelist') ? 'active' : '' }}" {{ request()->routeIs('admin.ip-whitelist') ? 'aria-current="page"' : '' }}>
-                    <x-icon name="shield" size="18"/> IP Whitelist
-                </a>
-                @endif
-
-                @if(auth()->user()?->isSuperAdmin())
-                <div class="nav-section">System</div>
-                <a href="{{ route('admin.backup.index') }}" class="nav-link {{ request()->routeIs('admin.backup*') ? 'active' : '' }}" {{ request()->routeIs('admin.backup*') ? 'aria-current="page"' : '' }}>
-                    <x-icon name="database" size="18"/> Backup & Restore
-                </a>
-                <a href="{{ route('admin.mfa.setup') }}" class="nav-link {{ request()->routeIs('admin.mfa*') ? 'active' : '' }}" {{ request()->routeIs('admin.mfa*') ? 'aria-current="page"' : '' }}>
-                    <x-icon name="shield" size="18"/> Two-Factor Auth
-                </a>
-                @endif
-
-                <div class="nav-section">Scheduling & Docs</div>
-                <a href="{{ route('admin.scheduled-jobs.index') }}" class="nav-link {{ request()->routeIs('admin.scheduled-jobs*') ? 'active' : '' }}" {{ request()->routeIs('admin.scheduled-jobs*') ? 'aria-current="page"' : '' }}>
-                    <x-icon name="job" size="18"/> Scheduled Jobs
-                </a>
-
-                <div class="nav-section">Help</div>
-                <a href="{{ route('admin.sdk-docs') }}#openapi" class="nav-link {{ request()->routeIs('admin.sdk-docs') ? 'active' : '' }}" {{ request()->routeIs('admin.sdk-docs') ? 'aria-current="page"' : '' }}>
-                    <x-icon name="docs" size="18"/> API & SDK Docs
-                </a>
-            </nav>
-
-            <div style="margin-top: auto; padding: 1.5rem; border-top: 1px solid var(--border);">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
-                    <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme" aria-label="Toggle theme">
-                        <span id="theme-icon">☀️</span>
-                    </button>
-                </div>
-                @auth
-                <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem;">
-                    {{-- Notification Bell --}}
-                    <a href="{{ route('admin.notifications') }}" style="position: relative; text-decoration: none; color: var(--text-muted);" title="Notifications">
-                        <span style="font-size: 1.3rem;">🔔</span>
-                        <span id="notification-badge" style="display: none; position: absolute; top: -4px; right: -6px; background: var(--danger); color: white; font-size: 0.6rem; font-weight: 700; padding: 1px 5px; border-radius: 10px; min-width: 16px; text-align: center;"></span>
+            <!-- Navigation Links -->
+            <nav class="flex-1 px-3 py-4 space-y-6 overflow-y-auto sidebar-scroll" aria-label="Main Navigation">
+                
+                {{-- Group 1: Core Operations --}}
+                <div class="space-y-1">
+                    <div class="px-3 pb-1 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Core Operations</div>
+                    <a href="{{ route('admin.dashboard') }}" class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition {{ request()->routeIs('admin.dashboard') ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/20' : 'text-slate-300 hover:bg-slate-800/60 hover:text-white' }}">
+                        <x-icon name="dashboard" size="16" class="{{ request()->routeIs('admin.dashboard') ? 'text-white' : 'text-slate-400' }}" />
+                        <span>Dashboard</span>
                     </a>
-                    <div style="width: 32px; height: 32px; border-radius: 50%; background: var(--primary); display: flex; align-items: center; justify-content: center; font-weight: 600; color: white;">
-                        {{ substr(auth()->user()->name, 0, 1) }}
-                    </div>
-                    <div style="flex: 1; overflow: hidden;">
-                        <div style="font-size: 0.85rem; font-weight: 600; white-space: nowrap; text-overflow: ellipsis; overflow: hidden;">{{ auth()->user()->name }}</div>
-                        <div style="font-size: 0.7rem; color: var(--text-muted);">{{ ucfirst(str_replace('-', ' ', auth()->user()->role)) }}</div>
-                    </div>
+                    <a href="{{ route('admin.monitoring') }}" class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition {{ request()->routeIs('admin.monitoring') ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/20' : 'text-slate-300 hover:bg-slate-800/60 hover:text-white' }}">
+                        <x-icon name="monitor" size="16" class="{{ request()->routeIs('admin.monitoring') ? 'text-white' : 'text-slate-400' }}" />
+                        <span>Monitoring</span>
+                    </a>
+                    <a href="{{ route('admin.costs') }}" class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition {{ request()->routeIs('admin.costs*') ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/20' : 'text-slate-300 hover:bg-slate-800/60 hover:text-white' }}">
+                        <x-icon name="dollar" size="16" class="{{ request()->routeIs('admin.costs*') ? 'text-white' : 'text-slate-400' }}" />
+                        <span>Cost Tracking</span>
+                    </a>
+                    <a href="{{ route('admin.profiles') }}" class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition {{ request()->routeIs('admin.profiles') ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/20' : 'text-slate-300 hover:bg-slate-800/60 hover:text-white' }}">
+                        <x-icon name="queue" size="16" class="{{ request()->routeIs('admin.profiles') ? 'text-white' : 'text-slate-400' }}" />
+                        <span>Print Queues</span>
+                    </a>
+                    <a href="{{ route('admin.jobs') }}" class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition {{ request()->routeIs('admin.jobs') ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/20' : 'text-slate-300 hover:bg-slate-800/60 hover:text-white' }}">
+                        <x-icon name="job" size="16" class="{{ request()->routeIs('admin.jobs') ? 'text-white' : 'text-slate-400' }}" />
+                        <span>Job History</span>
+                    </a>
                 </div>
-                @if(auth()->user()->branch)
-                <div style="font-size: 0.7rem; color: var(--text-muted); margin-bottom: 0.75rem; padding: 0.4rem 0.6rem; background: rgba(99, 102, 241, 0.08); border-radius: 4px;">
-                    <x-icon name="branch" size="12"/> {{ auth()->user()->branch->name }}
-                    @if(auth()->user()->company)
-                        <br><x-icon name="company" size="12"/> {{ auth()->user()->company->code }}
+
+                {{-- Group 2: Print Assets & Design --}}
+                <div class="space-y-1">
+                    <div class="px-3 pb-1 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Print Assets</div>
+                    <a href="{{ route('admin.templates') }}" class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition {{ request()->routeIs('admin.templates*') ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/20' : 'text-slate-300 hover:bg-slate-800/60 hover:text-white' }}">
+                        <x-icon name="template" size="16" class="{{ request()->routeIs('admin.templates*') ? 'text-white' : 'text-slate-400' }}" />
+                        <span>Templates</span>
+                    </a>
+                    <a href="{{ route('admin.fonts') }}" class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition {{ request()->routeIs('admin.fonts*') ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/20' : 'text-slate-300 hover:bg-slate-800/60 hover:text-white' }}">
+                        <x-icon name="font" size="16" class="{{ request()->routeIs('admin.fonts*') ? 'text-white' : 'text-slate-400' }}" />
+                        <span>Fonts</span>
+                    </a>
+                    <a href="{{ route('admin.documents') }}" class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition {{ request()->routeIs('admin.documents*') ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/20' : 'text-slate-300 hover:bg-slate-800/60 hover:text-white' }}">
+                        <x-icon name="document" size="16" class="{{ request()->routeIs('admin.documents*') ? 'text-white' : 'text-slate-400' }}" />
+                        <span>Documents</span>
+                    </a>
+                    @if(auth()->user()?->hasAnyRole(['super-admin', 'company-admin', 'branch-admin']))
+                    <a href="{{ route('admin.approvals') }}" class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition {{ request()->routeIs('admin.approvals*') ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/20' : 'text-slate-300 hover:bg-slate-800/60 hover:text-white' }}">
+                        <x-icon name="approval" size="16" class="{{ request()->routeIs('admin.approvals*') ? 'text-white' : 'text-slate-400' }}" />
+                        <span>Approvals</span>
+                    </a>
                     @endif
                 </div>
-                @endif
+
+                {{-- Group 3: Printers & Agents --}}
+                <div class="space-y-1">
+                    <div class="px-3 pb-1 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Printers & Agents</div>
+                    <a href="{{ route('admin.agents') }}" class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition {{ request()->routeIs('admin.agents*') ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/20' : 'text-slate-300 hover:bg-slate-800/60 hover:text-white' }}">
+                        <x-icon name="agent" size="16" class="{{ request()->routeIs('admin.agents*') ? 'text-white' : 'text-slate-400' }}" />
+                        <span>Print Agents</span>
+                    </a>
+                    <a href="{{ route('admin.releases') }}" class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition {{ request()->routeIs('admin.releases*') ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/20' : 'text-slate-300 hover:bg-slate-800/60 hover:text-white' }}">
+                        <x-icon name="package" size="16" class="{{ request()->routeIs('admin.releases*') ? 'text-white' : 'text-slate-400' }}" />
+                        <span>Agent Releases</span>
+                    </a>
+                    <a href="{{ route('admin.pools') }}" class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition {{ request()->routeIs('admin.pools*') ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/20' : 'text-slate-300 hover:bg-slate-800/60 hover:text-white' }}">
+                        <x-icon name="pool" size="16" class="{{ request()->routeIs('admin.pools*') ? 'text-white' : 'text-slate-400' }}" />
+                        <span>Printer Pools</span>
+                    </a>
+                    <a href="{{ route('admin.printer-configs') }}" class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition {{ request()->routeIs('admin.printer-configs*') ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/20' : 'text-slate-300 hover:bg-slate-800/60 hover:text-white' }}">
+                        <x-icon name="sliders" size="16" class="{{ request()->routeIs('admin.printer-configs*') ? 'text-white' : 'text-slate-400' }}" />
+                        <span>Printer Configs</span>
+                    </a>
+                </div>
+
+                {{-- Group 4: Organization & Access --}}
+                <div class="space-y-1">
+                    <div class="px-3 pb-1 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Organization & Access</div>
+                    @if(auth()->user()?->isSuperAdmin())
+                    <a href="{{ route('admin.companies') }}" class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition {{ request()->routeIs('admin.companies*') ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/20' : 'text-slate-300 hover:bg-slate-800/60 hover:text-white' }}">
+                        <x-icon name="company" size="16" class="{{ request()->routeIs('admin.companies*') ? 'text-white' : 'text-slate-400' }}" />
+                        <span>Companies</span>
+                    </a>
+                    @endif
+                    @if(auth()->user()?->hasAnyRole(['super-admin', 'company-admin', 'branch-admin']))
+                    <a href="{{ route('admin.branches') }}" class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition {{ request()->routeIs('admin.branches*') ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/20' : 'text-slate-300 hover:bg-slate-800/60 hover:text-white' }}">
+                        <x-icon name="branch" size="16" class="{{ request()->routeIs('admin.branches*') ? 'text-white' : 'text-slate-400' }}" />
+                        <span>Branches</span>
+                    </a>
+                    @endif
+                    @if(auth()->user()?->hasAnyRole(['super-admin', 'company-admin']))
+                    <a href="{{ route('admin.users') }}" class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition {{ request()->routeIs('admin.users*') ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/20' : 'text-slate-300 hover:bg-slate-800/60 hover:text-white' }}">
+                        <x-icon name="users" size="16" class="{{ request()->routeIs('admin.users*') ? 'text-white' : 'text-slate-400' }}" />
+                        <span>Users</span>
+                    </a>
+                    @endif
+                    <a href="{{ route('admin.sessions') }}" class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition {{ request()->routeIs('admin.sessions*') ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/20' : 'text-slate-300 hover:bg-slate-800/60 hover:text-white' }}">
+                        <x-icon name="sessions" size="16" class="{{ request()->routeIs('admin.sessions*') ? 'text-white' : 'text-slate-400' }}" />
+                        <span>Active Sessions</span>
+                    </a>
+                    @if(auth()->user()?->hasAnyRole(['super-admin', 'company-admin', 'branch-admin']))
+                    <a href="{{ route('admin.activity-logs') }}" class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition {{ request()->routeIs('admin.activity-logs*') ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/20' : 'text-slate-300 hover:bg-slate-800/60 hover:text-white' }}">
+                        <x-icon name="activity" size="16" class="{{ request()->routeIs('admin.activity-logs*') ? 'text-white' : 'text-slate-400' }}" />
+                        <span>Activity Logs</span>
+                    </a>
+                    @endif
+                </div>
+
+                {{-- Group 5: System & Integrations --}}
+                <div class="space-y-1">
+                    <div class="px-3 pb-1 text-[10px] font-bold text-slate-500 uppercase tracking-wider">System & Integrations</div>
+                    @if(auth()->user()?->isSuperAdmin())
+                    <a href="{{ route('admin.clients') }}" class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition {{ request()->routeIs('admin.clients*') ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/20' : 'text-slate-300 hover:bg-slate-800/60 hover:text-white' }}">
+                        <x-icon name="clients" size="16" class="{{ request()->routeIs('admin.clients*') ? 'text-white' : 'text-slate-400' }}" />
+                        <span>Client Apps (API)</span>
+                    </a>
+                    <a href="{{ route('admin.settings') }}" class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition {{ request()->routeIs('admin.settings*') ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/20' : 'text-slate-300 hover:bg-slate-800/60 hover:text-white' }}">
+                        <x-icon name="settings" size="16" class="{{ request()->routeIs('admin.settings*') ? 'text-white' : 'text-slate-400' }}" />
+                        <span>System Settings</span>
+                    </a>
+                    <a href="{{ route('admin.webhooks.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition {{ request()->routeIs('admin.webhooks*') ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/20' : 'text-slate-300 hover:bg-slate-800/60 hover:text-white' }}">
+                        <x-icon name="webhook" size="16" class="{{ request()->routeIs('admin.webhooks*') ? 'text-white' : 'text-slate-400' }}" />
+                        <span>Webhooks</span>
+                    </a>
+                    <a href="{{ route('admin.sso-settings') }}" class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition {{ request()->routeIs('admin.sso-settings*') ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/20' : 'text-slate-300 hover:bg-slate-800/60 hover:text-white' }}">
+                        <x-icon name="key" size="16" class="{{ request()->routeIs('admin.sso-settings*') ? 'text-white' : 'text-slate-400' }}" />
+                        <span>SSO Settings</span>
+                    </a>
+                    <a href="{{ route('admin.ip-whitelist') }}" class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition {{ request()->routeIs('admin.ip-whitelist*') ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/20' : 'text-slate-300 hover:bg-slate-800/60 hover:text-white' }}">
+                        <x-icon name="shield" size="16" class="{{ request()->routeIs('admin.ip-whitelist*') ? 'text-white' : 'text-slate-400' }}" />
+                        <span>IP Whitelist</span>
+                    </a>
+                    <a href="{{ route('admin.backup.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition {{ request()->routeIs('admin.backup*') ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/20' : 'text-slate-300 hover:bg-slate-800/60 hover:text-white' }}">
+                        <x-icon name="database" size="16" class="{{ request()->routeIs('admin.backup*') ? 'text-white' : 'text-slate-400' }}" />
+                        <span>Backup & Restore</span>
+                    </a>
+                    <a href="{{ route('admin.mfa.setup') }}" class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition {{ request()->routeIs('admin.mfa*') ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/20' : 'text-slate-300 hover:bg-slate-800/60 hover:text-white' }}">
+                        <x-icon name="shield" size="16" class="{{ request()->routeIs('admin.mfa*') ? 'text-white' : 'text-slate-400' }}" />
+                        <span>Two-Factor Auth</span>
+                    </a>
+                    @endif
+                    <a href="{{ route('admin.scheduled-jobs.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition {{ request()->routeIs('admin.scheduled-jobs*') ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/20' : 'text-slate-300 hover:bg-slate-800/60 hover:text-white' }}">
+                        <x-icon name="clock" size="16" class="{{ request()->routeIs('admin.scheduled-jobs*') ? 'text-white' : 'text-slate-400' }}" />
+                        <span>Scheduled Jobs</span>
+                    </a>
+                    <a href="{{ route('admin.sdk-docs') }}#openapi" class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition {{ request()->routeIs('admin.sdk-docs*') ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/20' : 'text-slate-300 hover:bg-slate-800/60 hover:text-white' }}">
+                        <x-icon name="docs" size="16" class="{{ request()->routeIs('admin.sdk-docs*') ? 'text-white' : 'text-slate-400' }}" />
+                        <span>API & SDK Docs</span>
+                    </a>
+                </div>
+            </nav>
+
+            <!-- Bottom Actions -->
+            <div class="p-3 border-t border-slate-800 bg-slate-900/80 shrink-0 space-y-2">
+                @auth
                 <form action="{{ route('logout') }}" method="POST">
                     @csrf
-                    <button type="submit" class="btn btn-danger" style="width: 100%; justify-content: center;">Logout</button>
+                    <button type="submit" class="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-rose-500 hover:text-rose-400 hover:bg-rose-500/10 border border-transparent hover:border-rose-500/20 transition">
+                        <x-icon name="log-out" size="14" />
+                        <span>Sign Out</span>
+                    </button>
                 </form>
                 @endauth
             </div>
         </aside>
-        <main class="main">
-            @if($errors->any())
-                <div class="alert alert-error" role="alert" aria-live="assertive">
-                    <ul style="margin: 0; padding-left: 1.2rem;">
-                        @foreach($errors->all() as $error)
-                            <li>{{ $error }}</li>
-                        @endforeach
-                    </ul>
+
+        <!-- Main Content Wrapper -->
+        <div class="flex-1 flex flex-col min-w-0">
+            <!-- Top Header -->
+            <header class="h-16 border-b border-slate-800 bg-slate-900/80 backdrop-blur-md px-6 flex items-center justify-between sticky top-0 z-40">
+                <div class="flex items-center gap-4">
+                    <button onclick="toggleSidebar()" class="md:hidden p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition" aria-label="Toggle Navigation">
+                        <x-icon name="menu" size="20" />
+                    </button>
+                    <h1 class="text-base font-bold tracking-tight text-white">@yield('title', 'Admin Portal')</h1>
                 </div>
-            @endif
-            @if(session('success'))
-                <div class="alert alert-success">✓ {!! session('success') !!}</div>
-            @endif
-            @if(session('key_info'))
-                <div class="alert alert-success" style="border-color: var(--primary); background: rgba(99,102,241,0.1); color: var(--primary);">
-                    🔑 {!! session('key_info') !!}
+
+                <div class="flex items-center gap-3">
+                    <!-- Dark / Light Mode Toggle -->
+                    <button onclick="toggleTheme()" class="p-2 rounded-xl border border-slate-700/80 bg-slate-800/80 hover:bg-slate-700 text-slate-200 transition flex items-center gap-1.5 text-xs font-semibold shadow-xs" title="Toggle Theme">
+                        <span id="theme-icon-sun" class="hidden dark:inline"><x-icon name="sun" size="14" class="text-amber-400" /></span>
+                        <span id="theme-icon-moon" class="inline dark:hidden"><x-icon name="moon" size="14" class="text-slate-700" /></span>
+                        <span class="hidden sm:inline text-[11px] font-semibold" id="theme-text">Theme</span>
+                    </button>
+
+                    <!-- Status indicator -->
+                    <div class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-semibold">
+                        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                        <span class="hidden sm:inline">Hub Active</span>
+                    </div>
+
+                    <!-- Notification Bell -->
+                    <a href="{{ route('admin.notifications') }}" class="p-2 rounded-xl border border-slate-700/80 bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white transition relative shadow-xs" title="Notifications">
+                        <x-icon name="bell" size="15" />
+                        <span id="notification-badge" class="hidden absolute -top-1 -right-1 bg-rose-500 text-white text-[10px] font-bold px-1.5 py-0.2 rounded-full min-w-4 text-center"></span>
+                    </a>
+
+                    <!-- User Profile Avatar Pill -->
+                    @auth
+                    <div class="flex items-center gap-2.5 pl-3 border-l border-slate-800">
+                        <a href="{{ route('admin.users') }}" class="flex items-center gap-2 hover:opacity-85 transition group" title="Account Management">
+                            <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white font-bold text-xs shadow-sm">
+                                {{ strtoupper(substr(auth()->user()->name, 0, 1)) }}
+                            </div>
+                            <div class="hidden md:block text-left">
+                                <span class="block text-xs font-semibold leading-tight text-slate-200 group-hover:text-blue-400 transition">
+                                    {{ auth()->user()->name }}
+                                </span>
+                                <span class="block text-[10px] text-slate-500 font-mono capitalize leading-tight">
+                                    {{ str_replace('-', ' ', auth()->user()->role ?? 'Admin') }}
+                                    @if(auth()->user()->branch)
+                                        · {{ auth()->user()->branch->name }}
+                                    @endif
+                                </span>
+                            </div>
+                        </a>
+                    </div>
+                    @endauth
                 </div>
-            @endif
-            @yield('content')
-        </main>
+            </header>
+
+            <!-- Page Body -->
+            <main class="flex-1 p-6 overflow-y-auto">
+                <!-- Flash Messages -->
+                @if($errors->any())
+                    <div class="mb-5 p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-500 dark:text-rose-400 text-xs font-semibold shadow-xs">
+                        <div class="font-bold mb-1">Please correct the following errors:</div>
+                        <ul class="list-disc pl-5 space-y-0.5">
+                            @foreach($errors->all() as $error)
+                                <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
+
+                @if(session('success'))
+                    <div class="mb-5 p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-xs font-semibold flex items-center justify-between shadow-xs">
+                        <span>✓ {!! session('success') !!}</span>
+                    </div>
+                @endif
+
+                @if(session('warning'))
+                    <div class="mb-5 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-400 text-xs font-semibold flex items-center justify-between shadow-xs">
+                        <span>⚠️ {!! session('warning') !!}</span>
+                    </div>
+                @endif
+
+                @if(session('error'))
+                    <div class="mb-5 p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-xs font-semibold flex items-center justify-between shadow-xs">
+                        <span>✕ {!! session('error') !!}</span>
+                    </div>
+                @endif
+
+                @if(session('key_info'))
+                    <div class="mb-5 p-4 rounded-2xl bg-blue-500/10 border border-blue-500/30 text-blue-400 text-xs font-mono flex items-center justify-between shadow-xs">
+                        <span>🔑 {!! session('key_info') !!}</span>
+                    </div>
+                @endif
+
+                @yield('content')
+            </main>
+        </div>
     </div>
 
-    {{-- Toast container --}}
-    <div class="toast-container" id="toast-container" role="alert" aria-live="polite" aria-atomic="true"></div>
+    <!-- Floating Toast Container -->
+    <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 max-w-sm pointer-events-none" role="alert" aria-live="polite"></div>
 
     <script>
-        // Sidebar toggle for mobile
+        // Sidebar drawer toggle for mobile
         function toggleSidebar() {
-            if (window.innerWidth <= 768) {
-                document.getElementById('sidebar').classList.toggle('open');
-                document.querySelector('.sidebar-overlay').classList.toggle('open');
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebar-overlay');
+            if (!sidebar || !overlay) return;
+
+            const isOpen = !sidebar.classList.contains('-translate-x-full');
+            if (isOpen) {
+                sidebar.classList.add('-translate-x-full');
+                overlay.classList.add('hidden');
             } else {
-                const isCollapsed = document.body.classList.toggle('sidebar-collapsed');
-                localStorage.setItem('ph-sidebar-collapsed', isCollapsed ? '1' : '0');
+                sidebar.classList.remove('-translate-x-full');
+                overlay.classList.remove('hidden');
             }
         }
-        document.querySelectorAll('.sidebar .nav-link').forEach(link => {
-            link.addEventListener('click', () => {
-                if (window.innerWidth <= 768) toggleSidebar();
-            });
-        });
 
-        // Theme toggle
-        (function() {
-            const saved = localStorage.getItem('ph-theme');
-            if (saved) document.documentElement.setAttribute('data-theme', saved);
-            else if (window.matchMedia('(prefers-color-scheme: light)').matches) {
-                document.documentElement.setAttribute('data-theme', 'light');
-            }
-            updateThemeIcon();
-        })();
+        // Theme Toggle (Dark / Light)
         function toggleTheme() {
-            const current = document.documentElement.getAttribute('data-theme');
-            const next = current === 'dark' ? 'light' : 'dark';
-            document.documentElement.setAttribute('data-theme', next);
-            localStorage.setItem('ph-theme', next);
-            updateThemeIcon();
-        }
-        function updateThemeIcon() {
-            const isDark = document.documentElement.getAttribute('data-theme') !== 'light';
-            document.getElementById('theme-icon').textContent = isDark ? '☀️' : '🌙';
+            const isDark = document.documentElement.classList.contains('dark');
+            if (isDark) {
+                document.documentElement.classList.remove('dark');
+                localStorage.setItem('theme', 'light');
+                localStorage.setItem('ph-theme', 'light');
+            } else {
+                document.documentElement.classList.add('dark');
+                localStorage.setItem('theme', 'dark');
+                localStorage.setItem('ph-theme', 'dark');
+            }
+            updateThemeUI();
         }
 
-        // Toast system
+        function updateThemeUI() {
+            const isDark = document.documentElement.classList.contains('dark');
+            const themeText = document.getElementById('theme-text');
+            if (themeText) {
+                themeText.textContent = isDark ? 'Dark' : 'Light';
+            }
+        }
+        document.addEventListener('DOMContentLoaded', updateThemeUI);
+
+        // Toast notifications
         function showToast(message, type = 'info', duration = 5000) {
             const container = document.getElementById('toast-container');
+            if (!container) return;
+
             const toast = document.createElement('div');
-            toast.className = 'toast toast-' + type;
-            toast.innerHTML = '<span style="flex:1;">' + message + '</span>' +
-                '<button onclick="this.parentElement.remove()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:1.1rem;">&times;</button>';
+            const bgClass = type === 'success' ? 'bg-emerald-950/90 border-emerald-700 text-emerald-200' :
+                            type === 'error' ? 'bg-rose-950/90 border-rose-700 text-rose-200' :
+                            type === 'warning' ? 'bg-amber-950/90 border-amber-700 text-amber-200' :
+                            'bg-slate-900/90 border-slate-700 text-slate-200';
+
+            toast.className = `pointer-events-auto p-3.5 rounded-2xl border backdrop-blur-md shadow-xl text-xs font-semibold flex items-center justify-between gap-3 transition-all duration-300 opacity-0 translate-y-2 ${bgClass}`;
+            toast.innerHTML = `<span class="flex-1">${message}</span><button onclick="this.parentElement.remove()" class="text-slate-400 hover:text-white">&times;</button>`;
+            
             container.appendChild(toast);
+            setTimeout(() => {
+                toast.classList.remove('opacity-0', 'translate-y-2');
+            }, 10);
+
             if (duration > 0) {
                 setTimeout(() => {
-                    toast.classList.add('toast-removing');
+                    toast.classList.add('opacity-0', 'translate-y-2');
                     setTimeout(() => toast.remove(), 300);
                 }, duration);
             }
         }
 
-        // Show flash messages as toasts
         @if(session('toast_success'))
             showToast('{!! addslashes(session('toast_success')) !!}', 'success');
         @endif
@@ -661,42 +389,16 @@
             showToast('{!! addslashes(session('toast_error')) !!}', 'error');
         @endif
 
-        // Form loading state
-        document.addEventListener('DOMContentLoaded', function() {
-            document.querySelectorAll('form[data-loading]').forEach(form => {
-                form.addEventListener('submit', function() {
-                    const btn = this.querySelector('button[type="submit"]');
-                    if (btn) {
-                        btn.disabled = true;
-                        const orig = btn.innerHTML;
-                        btn.setAttribute('data-orig', orig);
-                        btn.innerHTML = '<span class="spinner"></span> ' + (btn.getAttribute('data-loading-text') || 'Saving...');
-                        setTimeout(() => { if (btn.disabled) { btn.innerHTML = orig; btn.disabled = false; } }, 15000);
-                    }
-                });
-            });
-        });
-
-        // Expandable sections
-        document.querySelectorAll('.expandable').forEach(el => {
-            el.addEventListener('click', function() {
-                const content = this.nextElementSibling;
-                if (content && content.classList.contains('expandable-content')) {
-                    content.classList.toggle('open');
-                    const arrow = this.querySelector('.expandable-arrow');
-                    if (arrow) arrow.textContent = content.classList.contains('open') ? '▾' : '▸';
+        // Global Delete confirmation handlers
+        document.querySelectorAll('form[data-confirm]').forEach(form => {
+            form.addEventListener('submit', function(e) {
+                if (!confirm(this.getAttribute('data-confirm') || 'Are you sure?')) {
+                    e.preventDefault();
                 }
             });
         });
 
-        // Confirm dialog on all delete buttons
-        document.querySelectorAll('form[data-confirm]').forEach(form => {
-            form.addEventListener('submit', function(e) {
-                if (!confirm(this.getAttribute('data-confirm'))) e.preventDefault();
-            });
-        });
-
-        // Notification badge polling
+        // Notifications Badge Polling
         (function() {
             const badge = document.getElementById('notification-badge');
             if (!badge) return;
@@ -706,17 +408,16 @@
                     .then(r => r.json())
                     .then(data => {
                         if (data.count > 0) {
-                            badge.style.display = 'inline';
+                            badge.classList.remove('hidden');
                             badge.textContent = data.count > 99 ? '99+' : data.count;
                         } else {
-                            badge.style.display = 'none';
+                            badge.classList.add('hidden');
                         }
                     })
                     .catch(() => {});
             }
 
             updateBadge();
-            // Poll every 30 seconds
             setInterval(updateBadge, 30000);
         })();
     </script>

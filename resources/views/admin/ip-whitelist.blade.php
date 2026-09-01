@@ -1,258 +1,109 @@
 @extends('admin.layout')
-
 @section('title', 'IP Whitelist Settings')
 
 @section('content')
-<div class="page-header">
-    <h1>IP Whitelist Settings</h1>
-    <p>Restrict API access to specific IP addresses or CIDR ranges at global, client app, and agent levels.</p>
+<x-breadcrumb :items="[['label' => 'Network Security & Whitelisting']]" />
+
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+    <div>
+        <h2 class="text-base sm:text-lg font-bold text-white">Network IP Whitelists & CIDR Guard</h2>
+        <p class="text-xs text-slate-400">Restrict ingress traffic and API dispatch to trusted corporate IP addresses and subnet masks</p>
+    </div>
 </div>
 
-@if(session('success'))
-    <div class="alert alert-success">{{ session('success') }}</div>
-@endif
+@php
+    $whitelistEntries = $globalWhitelist ?? [];
+@endphp
 
-{{-- Global IP Whitelist --}}
-<div class="card">
-    <div class="card-header">
-        <h2>🌐 Global IP Whitelist</h2>
-        <span class="badge badge-info">Applies to all API routes</span>
+{{-- Global IP Whitelist Card --}}
+<div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 mb-6 shadow-xs">
+    <div class="flex items-center justify-between pb-3 mb-4 border-b border-slate-800">
+        <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider">🌐 Global Gateway Whitelist</h3>
+        @if(!empty($whitelistEntries))
+            <span class="badge badge-success">Active Enforced ({{ count($whitelistEntries) }} rules)</span>
+        @else
+            <span class="badge badge-warning">Permissive (All Traffic Allowed)</span>
+        @endif
     </div>
-
-    @php
-        $whitelistEntries = $globalWhitelist ?? [];
-    @endphp
-
-    <table>
-        <thead>
-            <tr>
-                <th>Setting</th>
-                <th>Value</th>
-            </tr>
-        </thead>
-        <tbody>
-            <tr>
-                <td>Status</td>
-                <td>
-                    @if(!empty($whitelistEntries))
-                        <span class="badge badge-success">Restricted</span>
-                        <span style="font-size: 0.8rem; color: var(--text-muted); margin-left: 0.5rem;">
-                            ({{ count($whitelistEntries) }} entr{{ count($whitelistEntries) === 1 ? 'y' : 'ies' }})
-                        </span>
-                    @else
-                        <span class="badge badge-warning">Open (All IPs Allowed)</span>
-                    @endif
-                </td>
-            </tr>
-        </tbody>
-    </table>
 
     @if(!empty($whitelistEntries))
-        <h3 style="margin: 1.5rem 0 0.75rem; font-size: 0.9rem; font-weight: 600;">Allowed IPs / CIDR Ranges</h3>
-        <table>
-            <thead>
-                <tr>
-                    <th>#</th>
-                    <th>Entry</th>
-                    <th>Type</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach($whitelistEntries as $index => $entry)
-                    @php
-                        $entry = trim($entry);
-                        $type = str_contains($entry, '/') ? 'CIDR Range' : (filter_var($entry, FILTER_VALIDATE_IP) ? 'IP Address' : 'Invalid');
-                    @endphp
-                    <tr>
-                        <td>{{ $index + 1 }}</td>
-                        <td><span class="mono">{{ $entry }}</span></td>
-                        <td><span class="badge badge-info">{{ $type }}</span></td>
-                    </tr>
-                @endforeach
-            </tbody>
-        </table>
-    @endif
-
-    <div style="margin-top: 1rem; font-size: 0.8rem; color: var(--text-muted);">
-        <p>The global whitelist is managed via the <code class="mono">API_IP_WHITELIST</code> environment variable in your <code class="mono">.env</code> file.</p>
-        <pre style="background: var(--bg); padding: 0.75rem; border-radius: 6px; overflow-x: auto; font-size: 0.75rem; margin: 0.5rem 0;">API_IP_WHITELIST=192.168.1.100,10.0.0.0/24,203.0.113.5</pre>
-    </div>
-</div>
-
-{{-- Per-Client-App IP Whitelists --}}
-<div class="card">
-    <div class="card-header">
-        <h2>🔑 Per-Client-App IP Whitelists</h2>
-        <span class="badge badge-info">Restrict which IPs can use each API key</span>
-    </div>
-
-    @if($clientApps->isEmpty())
-        <x-empty-state icon="🔌" title="No client apps registered" description="Register client apps first to manage their IP whitelists." />
-    @else
-        <div style="display: flex; flex-direction: column; gap: 1.5rem;">
-            @foreach($clientApps as $clientApp)
-                @php
-                    $appIps = is_array($clientApp->allowed_ips) ? $clientApp->allowed_ips : [];
-                @endphp
-                <div style="border: 1px solid var(--border); border-radius: 8px; padding: 1rem; background: var(--bg);">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
-                        <div>
-                            <strong style="font-size: 0.9rem;">{{ $clientApp->name }}</strong>
-                            @if(!empty($appIps))
-                                <span class="badge badge-success" style="margin-left: 0.5rem;">{{ count($appIps) }} IP{{ count($appIps) !== 1 ? 's' : '' }}</span>
-                            @else
-                                <span class="badge badge-warning" style="margin-left: 0.5rem;">All IPs Allowed</span>
-                            @endif
-                        </div>
-                    </div>
-
-                    @if(!empty($appIps))
-                        <div style="display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 0.75rem;">
-                            @foreach($appIps as $ip)
-                                <code class="mono" style="font-size: 0.7rem;">{{ $ip }}</code>
-                            @endforeach
-                        </div>
-                    @endif
-
-                    <form method="POST" action="{{ route('admin.ip-whitelist.client-app', $clientApp) }}">
-                        @csrf
-                        <div class="form-group">
-                            <label for="client_ips_{{ $clientApp->id }}" style="font-size: 0.75rem; color: var(--text-muted);">
-                                Allowed IPs (one per line — supports CIDR notation)
-                            </label>
-                            <textarea name="allowed_ips" id="client_ips_{{ $clientApp->id }}" rows="3"
-                                      style="width: 100%; font-family: monospace; font-size: 0.8rem; padding: 0.5rem; background: var(--surface); border: 1px solid var(--border); color: var(--text); border-radius: 6px;"
-                                      placeholder="192.168.1.100&#10;10.0.0.0/24&#10;203.0.113.5">{{ implode("\n", $appIps) }}</textarea>
-                        </div>
-                        <div style="display: flex; gap: 0.5rem; align-items: center;">
-                            <button type="submit" class="btn btn-primary btn-sm">💾 Save</button>
-                            @if(!empty($appIps))
-                                <button type="button" class="btn btn-danger btn-sm"
-                                        onclick="clearIps('client', {{ $clientApp->id }})">🗑️ Clear All</button>
-                            @endif
-                        </div>
-                    </form>
-                </div>
+        <div class="flex flex-wrap gap-2 mb-4">
+            @foreach($whitelistEntries as $entry)
+                <span class="px-2.5 py-1 rounded-lg bg-slate-950 border border-slate-800 font-mono text-xs text-blue-400">
+                    {{ trim($entry) }}
+                </span>
             @endforeach
         </div>
     @endif
+
+    <p class="text-xs text-slate-400">
+        Global rules are managed via the <code class="text-blue-400 font-mono">API_IP_WHITELIST</code> environment variable in your <code class="text-slate-300 font-mono">.env</code> configuration.
+    </p>
 </div>
 
-{{-- Per-Agent IP Whitelists --}}
-<div class="card">
-    <div class="card-header">
-        <h2>🖥️ Per-Agent IP Whitelists</h2>
-        <span class="badge badge-info">Restrict which IPs each agent can connect from</span>
-    </div>
-
-    @if($agents->isEmpty())
-        <x-empty-state icon="🖥️" title="No agents registered" description="Register agents first to manage their IP whitelists." />
-    @else
-        <div style="display: flex; flex-direction: column; gap: 1.5rem;">
-            @foreach($agents as $agent)
-                @php
-                    $agentIps = $agent->allowed_ips ? explode("\n", $agent->allowed_ips) : [];
-                    $agentIps = array_filter($agentIps, fn($ip) => !empty(trim($ip)));
-                @endphp
-                <div style="border: 1px solid var(--border); border-radius: 8px; padding: 1rem; background: var(--bg);">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
-                        <div>
-                            <strong style="font-size: 0.9rem;">{{ $agent->name }}</strong>
-                            @if($agent->ip_address)
-                                <code class="mono" style="font-size: 0.7rem; margin-left: 0.5rem;">Current: {{ $agent->ip_address }}</code>
-                            @endif
-                            @if(!empty($agentIps))
-                                <span class="badge badge-success" style="margin-left: 0.5rem;">{{ count($agentIps) }} IP{{ count($agentIps) !== 1 ? 's' : '' }}</span>
-                            @else
-                                <span class="badge badge-warning" style="margin-left: 0.5rem;">All IPs Allowed</span>
-                            @endif
-                        </div>
-                    </div>
-
-                    @if(!empty($agentIps))
-                        <div style="display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 0.75rem;">
-                            @foreach($agentIps as $ip)
-                                <code class="mono" style="font-size: 0.7rem;">{{ trim($ip) }}</code>
-                            @endforeach
-                        </div>
-                    @endif
-
-                    <form method="POST" action="{{ route('admin.ip-whitelist.agent', $agent) }}">
-                        @csrf
-                        <div class="form-group">
-                            <label for="agent_ips_{{ $agent->id }}" style="font-size: 0.75rem; color: var(--text-muted);">
-                                Allowed IPs (one per line — supports CIDR notation)
-                            </label>
-                            <textarea name="allowed_ips" id="agent_ips_{{ $agent->id }}" rows="3"
-                                      style="width: 100%; font-family: monospace; font-size: 0.8rem; padding: 0.5rem; background: var(--surface); border: 1px solid var(--border); color: var(--text); border-radius: 6px;"
-                                      placeholder="192.168.1.100&#10;10.0.0.0/24">{{ implode("\n", $agentIps) }}</textarea>
-                        </div>
-                        <div style="display: flex; gap: 0.5rem; align-items: center;">
-                            <button type="submit" class="btn btn-primary btn-sm">💾 Save</button>
-                            @if(!empty($agentIps))
-                                <button type="button" class="btn btn-danger btn-sm"
-                                        onclick="clearIps('agent', {{ $agent->id }})">🗑️ Clear All</button>
-                            @endif
-                        </div>
-                    </form>
+{{-- Per-Client-App & Per-Agent IP Whitelists --}}
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+    {{-- Client Apps --}}
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xs space-y-4">
+        <h3 class="text-xs font-bold text-blue-400 uppercase tracking-wider pb-2 border-b border-slate-800">
+            🔑 Per-Client-App Ingress Rules
+        </h3>
+        
+        @forelse($clientApps as $clientApp)
+            @php $appIps = is_array($clientApp->allowed_ips) ? $clientApp->allowed_ips : []; @endphp
+            <div class="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-3">
+                <div class="flex items-center justify-between">
+                    <span class="font-bold text-white text-xs">{{ $clientApp->name }}</span>
+                    <span class="badge {{ !empty($appIps) ? 'badge-info' : 'badge-warning' }} text-[10px]">
+                        {{ !empty($appIps) ? count($appIps) . ' IPs' : 'Any IP' }}
+                    </span>
                 </div>
-            @endforeach
-        </div>
-    @endif
-</div>
 
-{{-- How to Configure --}}
-<div class="card">
-    <div class="card-header">
-        <h2>📖 How to Configure</h2>
+                <form method="POST" action="{{ route('admin.ip-whitelist.client-app', $clientApp) }}" class="space-y-2">
+                    @csrf
+                    <textarea name="allowed_ips" rows="2" placeholder="192.168.1.100&#10;10.0.0.0/24"
+                        class="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-xs font-mono text-slate-200 focus:outline-none focus:border-blue-500">{{ implode("\n", $appIps) }}</textarea>
+                    <div class="flex justify-end gap-2">
+                        <button type="submit" class="btn-primary btn-sm">Save Rules</button>
+                    </div>
+                </form>
+            </div>
+        @empty
+            <span class="text-xs text-slate-500 italic">No client applications registered.</span>
+        @endforelse
     </div>
-    <div style="font-size: 0.875rem; line-height: 1.7; color: var(--text-muted);">
-        <h3 style="margin: 1rem 0 0.5rem; color: var(--text); font-size: 1rem;">Whitelist Hierarchy</h3>
-        <p>IP restrictions are evaluated in this order:</p>
-        <ol style="margin-left: 1.5rem; margin-bottom: 1rem;">
-            <li><strong>Global whitelist</strong> — Applies to all API routes via <code class="mono">API_IP_WHITELIST</code> env var</li>
-            <li><strong>Per-client-app whitelist</strong> — Restricts which IPs can use a specific API key</li>
-            <li><strong>Per-agent whitelist</strong> — Restricts which IPs a print agent can connect from</li>
-        </ol>
-        <p>If a whitelist is empty, all IPs are allowed at that level. All levels must pass for access to be granted.</p>
 
-        <h3 style="margin: 1rem 0 0.5rem; color: var(--text); font-size: 1rem;">CIDR Notation Examples</h3>
-        <table>
-            <thead>
-                <tr>
-                    <th>Entry</th>
-                    <th>Matches</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td><span class="mono">192.168.1.100</span></td>
-                    <td>Single IP address</td>
-                </tr>
-                <tr>
-                    <td><span class="mono">10.0.0.0/24</span></td>
-                    <td>Range 10.0.0.0 – 10.0.0.255</td>
-                </tr>
-                <tr>
-                    <td><span class="mono">172.16.0.0/12</span></td>
-                    <td>Range 172.16.0.0 – 172.31.255.255</td>
-                </tr>
-            </tbody>
-        </table>
+    {{-- Agents --}}
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xs space-y-4">
+        <h3 class="text-xs font-bold text-emerald-400 uppercase tracking-wider pb-2 border-b border-slate-800">
+            🖥️ Per-Agent Ingress Rules
+        </h3>
 
-        <div class="alert alert-info" style="margin-top: 1rem; background: rgba(59, 130, 246, 0.1); color: var(--info); border: 1px solid rgba(59, 130, 246, 0.2); padding: 0.75rem 1rem; border-radius: 6px;">
-            <strong>Note:</strong> When the global whitelist is empty, all IPs are allowed. Restricting access is recommended for production environments where the API should only be accessible from your internal network.
-        </div>
+        @forelse($agents as $agent)
+            @php
+                $agentIps = $agent->allowed_ips ? explode("\n", $agent->allowed_ips) : [];
+                $agentIps = array_filter($agentIps, fn($ip) => !empty(trim($ip)));
+            @endphp
+            <div class="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-3">
+                <div class="flex items-center justify-between">
+                    <span class="font-bold text-white text-xs">{{ $agent->name }}</span>
+                    <span class="badge {{ !empty($agentIps) ? 'badge-info' : 'badge-warning' }} text-[10px]">
+                        {{ !empty($agentIps) ? count($agentIps) . ' IPs' : 'Any IP' }}
+                    </span>
+                </div>
+
+                <form method="POST" action="{{ route('admin.ip-whitelist.agent', $agent) }}" class="space-y-2">
+                    @csrf
+                    <textarea name="allowed_ips" rows="2" placeholder="192.168.1.100&#10;10.0.0.0/24"
+                        class="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-xs font-mono text-slate-200 focus:outline-none focus:border-blue-500">{{ implode("\n", $agentIps) }}</textarea>
+                    <div class="flex justify-end gap-2">
+                        <button type="submit" class="btn-primary btn-sm">Save Rules</button>
+                    </div>
+                </form>
+            </div>
+        @empty
+            <span class="text-xs text-slate-500 italic">No agents registered.</span>
+        @endforelse
     </div>
 </div>
-
-<script>
-function clearIps(type, id) {
-    if (!confirm('Clear all IP entries for this ' + type + '?')) return;
-    const textareaId = type === 'client' ? 'client_ips_' : 'agent_ips_';
-    document.getElementById(textareaId + id).value = '';
-    // Submit the parent form
-    document.getElementById(textareaId + id).closest('form').submit();
-}
-</script>
 @endsection

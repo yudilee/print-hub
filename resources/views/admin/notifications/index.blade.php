@@ -2,32 +2,34 @@
 @section('title', 'Notifications')
 
 @section('content')
-<x-breadcrumb :items="[['label' => 'Dashboard', 'url' => route('admin.dashboard')], ['label' => 'Notifications']]" />
+<x-breadcrumb :items="[['label' => 'Notification Center']]" />
 
-<div class="page-header" style="display: flex; justify-content: space-between; align-items: center;">
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
     <div>
-        <h1>Notification Center</h1>
-        <p>System notifications and alerts</p>
+        <h2 class="text-base sm:text-lg font-bold text-white">System Alerts & Notifications</h2>
+        <p class="text-xs text-slate-400">Agent connectivity alerts, approval requests, and print SLA breaches</p>
     </div>
-    <div style="display: flex; gap: 0.5rem;">
+    <div class="flex items-center gap-2">
         <form action="{{ route('admin.notifications.mark-all-read') }}" method="POST">
             @csrf
-            <button type="submit" class="btn btn-primary btn-sm">Mark All as Read</button>
+            <button type="submit" class="btn-primary btn-sm">Mark All Read</button>
         </form>
-        <a href="{{ route('admin.notifications') }}" class="btn btn-secondary btn-sm">All</a>
-        <a href="{{ route('admin.notifications', ['unread' => 1]) }}" class="btn btn-secondary btn-sm">Unread Only</a>
+        <a href="{{ route('admin.notifications') }}" class="btn-secondary btn-sm {{ !request('unread') ? 'bg-slate-800 text-white' : '' }}">All</a>
+        <a href="{{ route('admin.notifications', ['unread' => 1]) }}" class="btn-secondary btn-sm {{ request('unread') ? 'bg-slate-800 text-white' : '' }}">Unread Only</a>
     </div>
 </div>
 
-<div class="card">
-    <div class="card-header">
-        <h2>Notifications ({{ $notifications->total() }})</h2>
+<div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xs">
+    <div class="flex items-center justify-between pb-3 mb-4 border-b border-slate-800">
+        <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider">
+            Total Notifications: <span class="text-white font-mono font-bold">{{ $notifications->total() }}</span>
+        </h3>
     </div>
 
     @if($notifications->count() === 0)
-        <x-empty-state icon="🔔" title="No notifications" description="You're all caught up! No notifications to display." />
+        <x-empty-state icon="🔔" title="No notifications pending" description="You are fully caught up with no active alerts." />
     @else
-        <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+        <div class="space-y-3">
             @foreach($notifications as $notification)
                 @php
                     $icon = match($notification->type) {
@@ -41,55 +43,36 @@
                     };
                     $data = $notification->data ?? [];
                 @endphp
-                <div style="display: flex; align-items: flex-start; gap: 0.75rem; padding: 1rem; border-radius: 8px; background: {{ $notification->isRead() ? 'transparent' : 'rgba(99, 102, 241, 0.06)' }}; border: 1px solid var(--border); {{ $notification->isRead() ? '' : 'border-left: 3px solid var(--primary);' }}">
-                    <div style="font-size: 1.3rem; line-height: 1;">{{ $icon }}</div>
-                    <div style="flex: 1; min-width: 0;">
-                        <div style="font-weight: 600; font-size: 0.9rem;">
-                            {{ $data['title'] ?? ucfirst(str_replace('_', ' ', $notification->type)) }}
-                        </div>
-                        <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.2rem;">
-                            {{ $data['message'] ?? '' }}
-                        </div>
-                        <div style="font-size: 0.7rem; color: var(--text-muted); margin-top: 0.4rem;">
-                            {{ $notification->created_at->diffForHumans() }}
-                            @if($notification->user_id === null)
-                                <span class="badge badge-info" style="margin-left: 0.5rem;">Broadcast</span>
-                            @endif
+                <div class="p-4 rounded-xl border transition flex items-start justify-between gap-4 {{ $notification->isRead() ? 'bg-slate-950/60 border-slate-800/80 text-slate-400' : 'bg-slate-950 border-blue-500/30 text-slate-200' }}">
+                    <div class="flex items-start gap-3">
+                        <span class="text-xl leading-none mt-0.5">{{ $icon }}</span>
+                        <div>
+                            <span class="text-xs font-bold block {{ $notification->isRead() ? 'text-slate-300' : 'text-white' }}">
+                                {{ $data['title'] ?? ucfirst(str_replace('_', ' ', $notification->type)) }}
+                            </span>
+                            <p class="text-xs text-slate-400 mt-0.5">{{ $data['message'] ?? '' }}</p>
+                            <div class="flex items-center gap-2 mt-2 text-[10px] text-slate-500 font-mono">
+                                <span>{{ $notification->created_at->diffForHumans() }}</span>
+                                @if($notification->user_id === null)
+                                    <span class="badge badge-info text-[9px] py-0 px-1.5">Broadcast</span>
+                                @endif
+                            </div>
                         </div>
                     </div>
-                    <div style="flex-shrink: 0;">
-                        @if(!$notification->isRead())
-                            <form action="{{ route('admin.notifications.mark-read', $notification) }}" method="POST">
-                                @csrf
-                                <button type="submit" class="btn btn-sm btn-secondary" title="Mark as read" aria-label="Mark notification as read">✓</button>
-                            </form>
-                        @endif
-                    </div>
+
+                    @if(!$notification->isRead())
+                        <form action="{{ route('admin.notifications.mark-read', $notification) }}" method="POST">
+                            @csrf
+                            <button type="submit" class="btn-secondary btn-sm" title="Mark Read">✓</button>
+                        </form>
+                    @endif
                 </div>
             @endforeach
         </div>
 
         @if($notifications->hasPages())
-        <div class="pagination" style="margin-top: 1rem;">
-            @if($notifications->onFirstPage())
-                <span>← Prev</span>
-            @else
-                <a href="{{ $notifications->previousPageUrl() }}">← Prev</a>
-            @endif
-
-            @foreach($notifications->getUrlRange(1, $notifications->lastPage()) as $page => $url)
-                @if($page == $notifications->currentPage())
-                    <span class="active">{{ $page }}</span>
-                @else
-                    <a href="{{ $url }}">{{ $page }}</a>
-                @endif
-            @endforeach
-
-            @if($notifications->hasMorePages())
-                <a href="{{ $notifications->nextPageUrl() }}">Next →</a>
-            @else
-                <span>Next →</span>
-            @endif
+        <div class="p-4 border-t border-slate-800 mt-4">
+            {{ $notifications->links() }}
         </div>
         @endif
     @endif

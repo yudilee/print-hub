@@ -6,6 +6,324 @@
 @source '../**/*.js';
 
 @theme {
-    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
-        'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+}
+
+/* Light mode seamless theme support */
+html:not(.dark) {
+    color-scheme: light;
+}
+
+html:not(.dark) .bg-slate-950,
+html:not(.dark) .bg-slate-950\/95,
+html:not(.dark) .bg-slate-950\/90,
+html:not(.dark) .bg-slate-950\/80,
+html:not(.dark) .bg-slate-950\/70,
+html:not(.dark) .bg-slate-950\/60,
+html:not(.dark) .bg-slate-950\/50,
+html:not(.dark) .bg-slate-950\/40 {
+    background-color: #f8fafc !important;
+}
+
+html:not(.dark) .bg-slate-900,
+html:not(.dark) .bg-slate-900\/95,
+html:not(.dark) .bg-slate-900\/90,
+html:not(.dark) .bg-slate-900\/80,
+html:not(.dark) .bg-slate-900\/75,
+html:not(.dark) .bg-slate-900\/70,
+html:not(.dark) .bg-slate-900\/60,
+html:not(.dark) .bg-slate-900\/50,
+html:not(.dark) .bg-slate-900\/40 {
+    background-color: #ffffff !important;
+}
+
+html:not(.dark) .bg-slate-800,
+html:not(.dark) .bg-slate-800\/90,
+html:not(.dark) .bg-slate-800\/80,
+html:not(.dark) .bg-slate-800\/70,
+html:not(.dark) .bg-slate-800\/60,
+html:not(.dark) .bg-slate-800\/50,
+html:not(.dark) .bg-slate-800\/40,
+html:not(.dark) .bg-slate-800\/30,
+html:not(.dark) .bg-slate-800\/20 {
+    background-color: #f1f5f9 !important;
+}
+
+html:not(.dark) .border-slate-800,
+html:not(.dark) .border-slate-800\/90,
+html:not(.dark) .border-slate-800\/80,
+html:not(.dark) .border-slate-800\/60,
+html:not(.dark) .border-slate-800\/40,
+html:not(.dark) .border-slate-700,
+html:not(.dark) .border-slate-700\/80,
+html:not(.dark) .border-slate-700\/60 {
+    border-color: #e2e8f0 !important;
+}
+
+html:not(.dark) .divide-slate-800\/60 > * + *,
+html:not(.dark) .divide-slate-800 > * + * {
+    border-color: #f1f5f9 !important;
+}
+
+html:not(.dark) .text-white {
+    color: #0f172a !important;
+}
+
+html:not(.dark) .text-slate-100,
+html:not(.dark) .text-slate-200 {
+    color: #1e293b !important;
+}
+
+html:not(.dark) .text-slate-300 {
+    color: #334155 !important;
+}
+
+html:not(.dark) .text-slate-400 {
+    color: #64748b !important;
+}
+
+html:not(.dark) .text-slate-500 {
+    color: #64748b !important;
+}
+
+/* Light mode high-contrast badge & status colors */
+html:not(.dark) .text-emerald-400 {
+    color: #059669 !important;
+}
+
+html:not(.dark) .text-blue-400 {
+    color: #2563eb !important;
+}
+
+html:not(.dark) .text-amber-400 {
+    color: #d97706 !important;
+}
+
+html:not(.dark) .text-indigo-400 {
+    color: #4f46e5 !important;
+}
+
+html:not(.dark) .text-rose-400 {
+    color: #e11d48 !important;
+}
+
+html:not(.dark) .text-teal-400,
+html:not(.dark) .text-teal-500 {
+    color: #0d9488 !important;
+}
+
+html:not(.dark) .hover\:bg-slate-800\/40:hover,
+html:not(.dark) .hover\:bg-slate-800\/60:hover,
+html:not(.dark) .hover\:bg-slate-800:hover,
+html:not(.dark) .hover\:bg-slate-700:hover {
+    background-color: #f8fafc !important;
+}
+
+html:not(.dark) input:not([type="checkbox"]):not([type="radio"]),
+html:not(.dark) select,
+html:not(.dark) textarea {
+    background-color: #ffffff !important;
+    border-color: #cbd5e1 !important;
+    color: #0f172a !important;
+}
+
+/* Custom thin scrollbar */
+.sidebar-scroll::-webkit-scrollbar,
+*::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+}
+.sidebar-scroll::-webkit-scrollbar-track,
+*::-webkit-scrollbar-track {
+    background: transparent;
+}
+.sidebar-scroll::-webkit-scrollbar-thumb,
+*::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.2);
+    border-radius: 9999px;
+}
+.sidebar-scroll::-webkit-scrollbar-thumb:hover,
+*::-webkit-scrollbar-thumb:hover {
+    background: rgba(148, 163, 184, 0.4);
+}
+
+/* Global Typography & Smoothing */
+body {
+    font-family: var(--font-sans);
+    font-size: 14.5px;
+    letter-spacing: -0.01em;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* Micro badges & labels */
+.text-\[10px\] {
+    font-size: 0.75rem !important; /* 12px */
+    line-height: 1rem !important;
+}
+
+.text-\[11px\] {
+    font-size: 0.8125rem !important; /* 13px */
+    line-height: 1.125rem !important;
+}
+
+/* Table styling helpers */
+table th {
+    font-size: 0.8125rem !important;
+    letter-spacing: 0.05em;
+}
+
+table td {
+    font-size: 0.875rem !important;
+}
+
+/* Reusable Utility Classes matching attendance system style */
+.badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.25rem 0.65rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1;
+}
+.badge-success { background-color: rgba(16, 185, 129, 0.12); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.25); }
+.badge-danger  { background-color: rgba(244, 63, 94, 0.12);  color: #f43f5e; border: 1px solid rgba(244, 63, 94, 0.25); }
+.badge-warning { background-color: rgba(245, 158, 11, 0.12); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.25); }
+.badge-info    { background-color: rgba(59, 130, 246, 0.12);  color: #3b82f6; border: 1px solid rgba(59, 130, 246, 0.25); }
+
+.dot {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 9999px;
+}
+.dot-green { background-color: #10b981; box-shadow: 0 0 6px rgba(16, 185, 129, 0.6); }
+.dot-red   { background-color: #f43f5e; box-shadow: 0 0 6px rgba(244, 63, 94, 0.6); }
+.dot-amber { background-color: #f59e0b; box-shadow: 0 0 6px rgba(245, 158, 11, 0.6); }
+
+/* Common Buttons */
+.btn-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    border-radius: 0.75rem; /* rounded-xl */
+    font-size: 0.8125rem;
+    font-weight: 600;
+    background-color: #2563eb;
+    color: #ffffff;
+    border: 1px solid transparent;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    text-decoration: none;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+.btn-primary:hover {
+    background-color: #1d4ed8;
+}
+
+.btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    border-radius: 0.75rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    background-color: #1e293b;
+    color: #e2e8f0;
+    border: 1px solid #334155;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    text-decoration: none;
+}
+.btn-secondary:hover {
+    background-color: #334155;
+}
+html:not(.dark) .btn-secondary {
+    background-color: #ffffff;
+    color: #334155;
+    border-color: #cbd5e1;
+}
+html:not(.dark) .btn-secondary:hover {
+    background-color: #f1f5f9;
+}
+
+.btn-danger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    border-radius: 0.75rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    background-color: rgba(244, 63, 94, 0.1);
+    color: #f43f5e;
+    border: 1px solid rgba(244, 63, 94, 0.25);
+    transition: all 0.2s ease;
+    cursor: pointer;
+    text-decoration: none;
+}
+.btn-danger:hover {
+    background-color: rgba(244, 63, 94, 0.2);
+}
+
+.btn-warning {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    border-radius: 0.75rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    background-color: rgba(245, 158, 11, 0.1);
+    color: #f59e0b;
+    border: 1px solid rgba(245, 158, 11, 0.25);
+    transition: all 0.2s ease;
+    cursor: pointer;
+    text-decoration: none;
+}
+.btn-warning:hover {
+    background-color: rgba(245, 158, 11, 0.2);
+}
+
+.btn-sm {
+    padding: 0.35rem 0.75rem !important;
+    font-size: 0.75rem !important;
+    border-radius: 0.5rem !important;
+}
+
+/* Card helper */
+.card {
+    background-color: #0f172a;
+    border: 1px solid #1e293b;
+    border-radius: 1rem; /* rounded-2xl */
+    padding: 1.25rem;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+}
+html:not(.dark) .card {
+    background-color: #ffffff;
+    border-color: #e2e8f0;
+}
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+.card-header h2 {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #ffffff;
+}
+html:not(.dark) .card-header h2 {
+    color: #0f172a;
 }

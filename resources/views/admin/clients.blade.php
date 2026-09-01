@@ -1,239 +1,156 @@
 @extends('admin.layout')
-
 @section('title', 'Client Apps')
 
 @section('content')
-<div style="max-width: 900px;">
+<x-breadcrumb :items="[['label' => 'Client Apps']]" />
 
-<x-breadcrumb :items="[['label' => 'Dashboard', 'url' => route('admin.dashboard')], ['label' => 'Client Apps']]" />
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+    <div>
+        <h2 class="text-base sm:text-lg font-bold text-white">Client Applications & API Keys</h2>
+        <p class="text-xs text-slate-400">External services and ERP integrations authorized to dispatch print jobs</p>
+    </div>
+    <button onclick="document.getElementById('register-modal').classList.remove('hidden')" class="btn-primary btn-sm">
+        <x-icon name="plus" size="13" />
+        <span>Register Client App</span>
+    </button>
+</div>
 
-    {{-- Header --}}
-    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:2rem;">
-        <div>
-            <h1 style="font-size:1.5rem; font-weight:700;">🔑 Client Apps</h1>
-            <p style="color:var(--text-muted); font-size:0.875rem; margin-top:0.25rem;">
-                Register external apps that can submit print jobs via the API.
-            </p>
-        </div>
-        <button onclick="document.getElementById('register-modal').style.display='flex'"
-                class="btn btn-primary">+ Register App</button>
+{{-- API Quick Reference --}}
+<div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 mb-6 shadow-xs">
+    <div class="flex items-center justify-between pb-3 mb-4 border-b border-slate-800">
+        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">API Quick Reference</span>
+        <a href="{{ route('admin.clients.sdk') }}" target="_blank" class="text-xs text-blue-400 hover:underline">
+            Download PHP SDK →
+        </a>
     </div>
 
-    {{-- API Quick Reference --}}
-    <div style="background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:1.5rem; margin-bottom:2rem;">
-        <div style="font-weight:600; font-size:0.875rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:1rem;">
-            📡 API Quick Reference
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 font-mono text-xs mb-3">
+        <div class="p-3 rounded-xl bg-slate-950 border border-slate-800">
+            <span class="text-emerald-400 font-bold">GET</span> <span class="text-slate-300">/api/v1/templates</span>
+            <span class="block text-[10px] text-slate-500 font-sans mt-1">List schema & templates</span>
         </div>
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem; font-size:0.8rem; font-family:monospace;">
-            <div style="background:var(--bg); padding:0.75rem; border-radius:8px; border:1px solid var(--border);">
-                <span style="color:var(--success)">GET</span>
-                <span style="color:var(--text-muted)"> /api/v1/</span><span style="color:var(--primary)">templates</span>
-                <div style="color:var(--text-muted); font-size:0.75rem; margin-top:0.25rem;">List all templates + field schema</div>
-            </div>
-            <div style="background:var(--bg); padding:0.75rem; border-radius:8px; border:1px solid var(--border);">
-                <span style="color:var(--success)">GET</span>
-                <span style="color:var(--text-muted)"> /api/v1/</span><span style="color:var(--primary)">templates/{name}</span>
-                <div style="color:var(--text-muted); font-size:0.75rem; margin-top:0.25rem;">Single template field detail</div>
-            </div>
-            <div style="background:var(--bg); padding:0.75rem; border-radius:8px; border:1px solid var(--border);">
-                <span style="color:var(--warning)">POST</span>
-                <span style="color:var(--text-muted)"> /api/v1/</span><span style="color:var(--primary)">print</span>
-                <div style="color:var(--text-muted); font-size:0.75rem; margin-top:0.25rem;">Unified print (template or raw PDF)</div>
-            </div>
-            <div style="background:var(--bg); padding:0.75rem; border-radius:8px; border:1px solid var(--border);">
-                <span style="color:var(--success)">GET</span>
-                <span style="color:var(--text-muted)"> /api/v1/</span><span style="color:var(--primary)">jobs/{id}</span>
-                <div style="color:var(--text-muted); font-size:0.75rem; margin-top:0.25rem;">Check job status</div>
-            </div>
+        <div class="p-3 rounded-xl bg-slate-950 border border-slate-800">
+            <span class="text-amber-400 font-bold">POST</span> <span class="text-slate-300">/api/v1/print</span>
+            <span class="block text-[10px] text-slate-500 font-sans mt-1">Unified print dispatch</span>
         </div>
-        <div style="margin-top:1rem; padding:0.75rem; background:var(--bg); border-radius:8px; border:1px solid var(--border); font-size:0.8rem; font-family:monospace;">
-            <span style="color:var(--text-muted)">Header required:</span>
-            <span style="color:var(--warning)"> X-API-Key</span><span style="color:var(--text-muted)">: </span><span style="color:var(--success)">your-api-key-here</span>
+        <div class="p-3 rounded-xl bg-slate-950 border border-slate-800">
+            <span class="text-emerald-400 font-bold">GET</span> <span class="text-slate-300">/api/v1/jobs/{id}</span>
+            <span class="block text-[10px] text-slate-500 font-sans mt-1">Polling job status</span>
         </div>
-        <div style="margin-top:0.75rem;">
-            <a href="{{ route('admin.clients.sdk') }}" target="_blank"
-               style="color:var(--primary); font-size:0.8rem; text-decoration:none;">
-                📦 Download PHP SDK (PrintHubClient.php) →
-            </a>
-        </div>
-    </div>
-
-    {{-- Registered Apps Table --}}
-    @if($clients->isEmpty())
-        <x-empty-state icon="🔌" title="No client apps registered yet" description="Register your first API client app above to get started with the Print Hub API." actionText="+ Register App" :actionUrl="'#'" />
-    @else
-        <div style="background:var(--surface); border:1px solid var(--border); border-radius:12px; overflow:hidden;">
-            <table style="width:100%; border-collapse:collapse;">
-                <thead>
-                    <tr style="background:rgba(0,0,0,0.2); border-bottom:1px solid var(--border);">
-                        <th style="padding:0.875rem 1rem; text-align:left; font-size:0.75rem; font-weight:600; color:var(--text-muted); text-transform:uppercase;">App Name</th>
-                        <th style="padding:0.875rem 1rem; text-align:left; font-size:0.75rem; font-weight:600; color:var(--text-muted); text-transform:uppercase;">API Key</th>
-                        <th style="padding:0.875rem 1rem; text-align:left; font-size:0.75rem; font-weight:600; color:var(--text-muted); text-transform:uppercase;">Status</th>
-                        <th style="padding:0.875rem 1rem; text-align:left; font-size:0.75rem; font-weight:600; color:var(--text-muted); text-transform:uppercase;">Last Used</th>
-                        <th style="padding:0.875rem 1rem; text-align:left; font-size:0.75rem; font-weight:600; color:var(--text-muted); text-transform:uppercase;">Key Age</th>
-                        <th style="padding:0.875rem 1rem; text-align:left; font-size:0.75rem; font-weight:600; color:var(--text-muted); text-transform:uppercase;">Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach($clients as $client)
-                    <tr style="border-bottom:1px solid var(--border);">
-                        <td style="padding:1rem; font-weight:500;">{{ $client->name }}</td>
-                        <td style="padding:1rem;">
-                            <code style="background:var(--bg); padding:4px 8px; border-radius:6px; font-size:0.75rem; color:var(--text-muted); border:1px solid var(--border);">
-                                sha256:••••••••
-                            </code>
-                        </td>
-                        <td style="padding:1rem;">
-                            @if($client->is_active)
-                                <span style="background:rgba(34,197,94,0.15); color:var(--success); padding:3px 10px; border-radius:20px; font-size:0.75rem; font-weight:500;">Active</span>
-                            @else
-                                <span style="background:rgba(239,68,68,0.15); color:var(--danger); padding:3px 10px; border-radius:20px; font-size:0.75rem; font-weight:500;">Revoked</span>
-                            @endif
-                        </td>
-                        <td style="padding:1rem; color:var(--text-muted); font-size:0.85rem;">
-                            {{ $client->last_used_at ? $client->last_used_at->diffForHumans() : 'Never' }}
-                        </td>
-                        <td style="padding:1rem; font-size:0.85rem; white-space: nowrap;">
-                            @php $keyAge = $client->last_key_rotated_at ? $client->last_key_rotated_at->diffInDays(now()) : null; @endphp
-                            @if(is_null($keyAge))
-                                <span style="color: var(--text-muted); font-style: italic;">N/A</span>
-                            @elseif($keyAge > ($keyRotationDays ?? 90))
-                                <span style="background:rgba(245,158,11,0.15); color:var(--warning); padding:2px 8px; border-radius:10px; font-size:0.75rem; font-weight:500;" title="Key hasn't been rotated in {{ $keyAge }} days (policy: {{ $keyRotationDays ?? 90 }} days)">
-                                    ⚠️ {{ $keyAge }} days
-                                </span>
-                            @else
-                                {{ $keyAge }} days
-                            @endif
-                        </td>
-                        <td style="padding:1rem;">
-                            <div style="display: flex; gap: 6px;">
-                                <form method="POST" action="{{ route('admin.clients.regenerate-key', $client) }}"
-                                      onsubmit="return confirm('Regenerate API key for {{ $client->name }}? The old key will stop working immediately.')">
-                                    @csrf
-                                    <button type="submit" class="btn btn-secondary btn-sm">Regen Key</button>
-                                </form>
-                                <form method="POST" action="{{ route('admin.clients.destroy', $client) }}"
-                                      onsubmit="return confirm('Revoke API key for {{ $client->name }}?')">
-                                    @csrf @method('DELETE')
-                                    <button type="submit" class="btn btn-danger btn-sm">Revoke</button>
-                                </form>
-                            </div>
-                        </td>
-                    </tr>
-                    @endforeach
-                </tbody>
-            </table>
-        </div>
-    @endif
-
-    {{-- Example Usage --}}
-    <div style="background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:1.5rem; margin-top:2rem;">
-        <div style="font-weight:600; font-size:0.875rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:1rem;">
-            🔧 Example Usage
-        </div>
-        <div style="display:grid; gap:1rem;">
-            <div>
-                <div style="font-size:0.75rem; color:var(--text-muted); margin-bottom:0.5rem;">Print with template (curl)</div>
-                <pre style="background:var(--bg); padding:1rem; border-radius:8px; font-size:0.75rem; overflow-x:auto; color:var(--text); border:1px solid var(--border);">curl -X POST {{ url('/api/v1/print') }} \
-  -H "X-API-Key: YOUR_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "template": "invoice-rental",
-    "data": { "customer": "PT Contoh", "total": 5000000 },
-    "reference_id": "INV-2026-001"
-  }'</pre>
-            </div>
-            <div>
-                <div style="font-size:0.75rem; color:var(--text-muted); margin-bottom:0.5rem;">Print raw PDF (curl)</div>
-                <pre style="background:var(--bg); padding:1rem; border-radius:8px; font-size:0.75rem; overflow-x:auto; color:var(--text); border:1px solid var(--border);">curl -X POST {{ url('/api/v1/print') }} \
-  -H "X-API-Key: YOUR_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "document_base64": "JVBERi0xLjQK...",
-    "reference_id": "DOC-001"
-  }'</pre>
-            </div>
-            <div>
-                <div style="font-size:0.75rem; color:var(--text-muted); margin-bottom:0.5rem;">PHP SDK usage</div>
-                <pre style="background:var(--bg); padding:1rem; border-radius:8px; font-size:0.75rem; overflow-x:auto; color:var(--text); border:1px solid var(--border);">$hub = new PrintHubClient('{{ url('/') }}', 'YOUR_KEY');
-
-// Print with template
-$result = $hub->printWithTemplate('invoice-rental', $data, 'INV-001');
-
-// List available templates
-$templates = $hub->getTemplates();
-
-// Check job status
-$status = $hub->jobStatus($result['job_id']);</pre>
-            </div>
+        <div class="p-3 rounded-xl bg-slate-950 border border-slate-800">
+            <span class="text-blue-400 font-bold">AUTH</span> <span class="text-slate-300">X-API-Key</span>
+            <span class="block text-[10px] text-slate-500 font-sans mt-1">Pass in HTTP header</span>
         </div>
     </div>
 </div>
 
-{{-- Register / Edit Modal --}}
-<div id="register-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:9999; align-items:center; justify-content:center;">
-    <div style="background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:2rem; width:500px; max-width:90vw;">
-        <h2 style="font-size:1.1rem; font-weight:600; margin-bottom:0.5rem;">Register Client App</h2>
-        <p style="color:var(--text-muted); font-size:0.85rem; margin-bottom:1.5rem;">An API key will be auto-generated.</p>
-        <form method="POST" action="{{ route('admin.clients.store') }}">
+{{-- Registered Apps Table --}}
+<div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xs">
+    <div class="p-4 border-b border-slate-800 flex items-center justify-between">
+        <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider">
+            Registered Applications: <span class="text-white font-mono font-bold">{{ $clients->count() }}</span>
+        </h3>
+    </div>
+
+    <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm text-slate-300">
+            <thead class="bg-slate-950/60 text-xs uppercase text-slate-400 border-b border-slate-800 font-semibold tracking-wider">
+                <tr>
+                    <th class="px-5 py-3.5">Application Name</th>
+                    <th class="px-5 py-3.5">API Key Signature</th>
+                    <th class="px-5 py-3.5">Status</th>
+                    <th class="px-5 py-3.5">Last Used</th>
+                    <th class="px-5 py-3.5">Key Age</th>
+                    <th class="px-5 py-3.5 text-right">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-800/60">
+                @forelse($clients as $client)
+                <tr class="hover:bg-slate-800/40 transition">
+                    <td class="px-5 py-3.5 font-bold text-white">
+                        {{ $client->name }}
+                    </td>
+                    <td class="px-5 py-3.5">
+                        <code class="px-2 py-0.5 rounded bg-slate-950 border border-slate-800 text-slate-400 text-xs font-mono">
+                            sha256:••••••••
+                        </code>
+                    </td>
+                    <td class="px-5 py-3.5">
+                        @if($client->is_active)
+                            <span class="badge badge-success">Active</span>
+                        @else
+                            <span class="badge badge-danger">Revoked</span>
+                        @endif
+                    </td>
+                    <td class="px-5 py-3.5 text-xs text-slate-400 font-mono">
+                        {{ $client->last_used_at ? $client->last_used_at->diffForHumans() : 'Never' }}
+                    </td>
+                    <td class="px-5 py-3.5 text-xs font-mono">
+                        @php $keyAge = $client->last_key_rotated_at ? $client->last_key_rotated_at->diffInDays(now()) : null; @endphp
+                        @if(is_null($keyAge))
+                            <span class="text-slate-500 italic">N/A</span>
+                        @elseif($keyAge > ($keyRotationDays ?? 90))
+                            <span class="badge badge-warning">⚠️ {{ $keyAge }} days</span>
+                        @else
+                            <span class="text-slate-300">{{ $keyAge }} days</span>
+                        @endif
+                    </td>
+                    <td class="px-5 py-3.5 text-right">
+                        <div class="inline-flex items-center gap-1.5">
+                            <form method="POST" action="{{ route('admin.clients.regenerate-key', $client) }}"
+                                  onsubmit="return confirm('Regenerate API key for {{ $client->name }}? The old key will stop working immediately.')" class="inline">
+                                @csrf
+                                <button type="submit" class="btn-secondary btn-sm">Regen Key</button>
+                            </form>
+                            <form method="POST" action="{{ route('admin.clients.destroy', $client) }}"
+                                  onsubmit="return confirm('Revoke API key for {{ $client->name }}?')" class="inline">
+                                @csrf @method('DELETE')
+                                <button type="submit" class="btn-danger btn-sm">Revoke</button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                @empty
+                <tr>
+                    <td colspan="6">
+                        <x-empty-state icon="🔌" title="No client apps registered" description="Create an API client to generate secret keys for third-party systems." />
+                    </td>
+                </tr>
+                @endforelse
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{{-- Register Modal --}}
+<div id="register-modal" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl">
+        <div class="flex items-center justify-between pb-4 mb-4 border-b border-slate-800">
+            <h3 class="text-base font-bold text-white">Register Client Application</h3>
+            <button onclick="document.getElementById('register-modal').classList.add('hidden')" class="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition">
+                <x-icon name="x" size="18" />
+            </button>
+        </div>
+
+        <form method="POST" action="{{ route('admin.clients.store') }}" class="space-y-4">
             @csrf
-            <div style="margin-bottom:1rem;">
-                <label style="display:block; font-size:0.85rem; font-weight:500; margin-bottom:0.5rem;">App Name</label>
-                <input type="text" name="name" placeholder="e.g. Invoice Printer App" required
-                       style="width:100%; padding:0.75rem; background:var(--bg); border:1px solid var(--border); color:var(--text); border-radius:8px; font-size:0.875rem;">
-            </div>
-            <div style="margin-bottom:1rem;">
-                <label style="display:block; font-size:0.85rem; font-weight:500; margin-bottom:0.5rem;">Allowed Origins (CORS) <span style="font-weight:normal; color:var(--text-muted); font-size:0.75rem;">Optional</span></label>
-                <input type="text" name="allowed_origins" placeholder="e.g. https://app.example.com, http://localhost:8080"
-                       style="width:100%; padding:0.75rem; background:var(--bg); border:1px solid var(--border); color:var(--text); border-radius:8px; font-size:0.875rem;">
-                <div style="color:var(--text-muted); font-size:0.75rem; margin-top:0.3rem;">Comma separated list of URLs that can print directly to Trayprint via this app.</div>
+            <div>
+                <label class="block text-xs font-semibold text-slate-400 mb-1">App Name</label>
+                <input type="text" name="name" placeholder="e.g. Invoice Billing System" required
+                    class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-blue-500">
             </div>
 
-            <div style="border-top:1px solid var(--border); margin:1rem 0; padding-top:1rem;">
-                <div style="font-weight:600; font-size:0.8rem; color:var(--text-muted); margin-bottom:0.75rem;">🔔 Webhook Configuration</div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Webhook URL</label>
-                        <input type="url" name="webhook_url" placeholder="https://app.example.com/webhook">
-                    </div>
-                    <div class="form-group">
-                        <label>Webhook Secret <span style="font-weight:normal; color:var(--text-muted);">(for HMAC signing)</span></label>
-                        <input type="text" name="webhook_secret" placeholder="Optional secret key">
-                    </div>
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Retry Count</label>
-                        <input type="number" name="webhook_retry_count" value="3" min="0" max="10">
-                    </div>
-                    <div class="form-group">
-                        <label>Timeout (seconds)</label>
-                        <input type="number" name="webhook_timeout" value="10" min="1" max="60">
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label>Subscribed Events <span style="font-weight:normal; color:var(--text-muted);">(comma separated, leave empty for all)</span></label>
-                    <input type="text" name="webhook_events" placeholder="e.g. job.created, job.completed, job.failed">
-                    <div style="color:var(--text-muted); font-size:0.75rem; margin-top:0.3rem;">
-                        Supported: job.created, job.completed, job.failed, job.approved, job.rejected, agent.online, agent.offline, printer.added, printer.removed
-                    </div>
-                </div>
+            <div>
+                <label class="block text-xs font-semibold text-slate-400 mb-1">Allowed CORS Origins (Optional)</label>
+                <input type="text" name="allowed_origins" placeholder="e.g. https://erp.local, http://localhost:3000"
+                    class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-blue-500">
             </div>
 
-            <div style="display:flex; gap:0.75rem; justify-content:flex-end; margin-top:1.5rem;">
-                <button type="button" onclick="document.getElementById('register-modal').style.display='none'"
-                        style="padding:0.6rem 1.25rem; background:transparent; border:1px solid var(--border); color:var(--text); border-radius:8px; cursor:pointer;">Cancel</button>
-                <button type="submit" class="btn btn-primary">Register</button>
+            <div class="pt-4 border-t border-slate-800 flex justify-end gap-2">
+                <button type="button" onclick="document.getElementById('register-modal').classList.add('hidden')" class="btn-secondary btn-sm">Cancel</button>
+                <button type="submit" class="btn-primary btn-sm">Generate Key & Save</button>
             </div>
         </form>
     </div>
 </div>
-
-{{-- Include webhook fields in the table too --}}
-<script>
-    // Pass client app webhook data to table rows if needed
-    document.addEventListener('DOMContentLoaded', function() {
-        // Hide/show webhook events as badges can be added dynamically
-    });
-</script>
 @endsection

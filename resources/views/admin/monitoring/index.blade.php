@@ -2,380 +2,187 @@
 @section('title', 'Monitoring Dashboard')
 
 @section('content')
-<div class="page-header">
-    <div style="display: flex; justify-content: space-between; align-items: center;">
+<x-breadcrumb :items="[['label' => 'System Health & Monitoring']]" />
+
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+    <div>
+        <h2 class="text-base sm:text-lg font-bold text-white">Live Monitoring & Telemetry</h2>
+        <p class="text-xs text-slate-400">Real-time throughput metrics, cluster health, latency and environmental impact</p>
+    </div>
+    <div class="flex items-center gap-2">
+        <span id="last-updated" class="text-xs text-slate-500 font-mono"></span>
+        <span class="badge badge-success" id="refresh-indicator">
+            <span class="dot dot-green"></span> Live Stream
+        </span>
+    </div>
+</div>
+
+{{-- 4 Core Stat Cards --}}
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4.5 shadow-xs">
+        <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Jobs Today</span>
+        <div class="text-xl sm:text-2xl font-mono font-bold text-blue-400">{{ number_format($jobsToday) }}</div>
+        <span class="text-[10px] text-slate-500 mt-1 block">Processed in last 24h</span>
+    </div>
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4.5 shadow-xs">
+        <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Success Reliability</span>
+        <div class="text-xl sm:text-2xl font-mono font-bold text-emerald-400">{{ $successRate }}%</div>
+        <span class="text-[10px] text-slate-500 mt-1 block">{{ number_format($successToday) }} ok / {{ number_format($failedToday) }} fail</span>
+    </div>
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4.5 shadow-xs">
+        <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Online Agents</span>
+        <div class="text-xl sm:text-2xl font-mono font-bold text-indigo-400">{{ $activeAgents }}</div>
+        <span class="text-[10px] text-slate-500 mt-1 block">{{ $offlineCount }} nodes offline</span>
+    </div>
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4.5 shadow-xs">
+        <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Active Queue Depth</span>
+        <div class="text-xl sm:text-2xl font-mono font-bold text-amber-400">{{ number_format($queueDepth) }}</div>
+        <span class="text-[10px] text-slate-500 mt-1 block">Avg latency: {{ $avgProcessingTime ? round($avgProcessingTime) . 's' : 'N/A' }}</span>
+    </div>
+</div>
+
+{{-- Carbon & Sustainability Row --}}
+<div class="bg-gradient-to-r from-emerald-950/40 via-slate-900 to-slate-900 border border-emerald-500/20 rounded-2xl p-5 mb-6 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4">
+    <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-lg">
+            🌱
+        </div>
         <div>
-            <h1>📊 Monitoring Dashboard</h1>
-            <p>System health, print volumes, and error rates — auto-refreshing every 30s.</p>
-        </div>
-        <div style="display: flex; align-items: center; gap: 0.5rem;">
-            <span id="last-updated" style="font-size: 0.75rem; color: var(--text-muted);"></span>
-            <span class="badge badge-info" id="refresh-indicator">Live</span>
+            <h3 class="text-sm font-bold text-white">Sustainability & Eco Reduction</h3>
+            <p class="text-xs text-slate-400">Total estimated carbon footprint eliminated via electronic routing</p>
         </div>
     </div>
-</div>
-
-{{-- Row 1: Stat Cards --}}
-<div class="stats-grid">
-    <div class="stat-card">
-        <div class="stat-value" style="color: var(--info);">{{ number_format($jobsToday) }}</div>
-        <div class="stat-label">Jobs Today</div>
-    </div>
-    <div class="stat-card">
-        <div class="stat-value" style="color: var(--success);">{{ $successRate }}%</div>
-        <div class="stat-label">Success Rate (Today)</div>
-        <div style="font-size: 0.7rem; color: var(--text-muted); margin-top: 0.25rem;">
-            {{ number_format($successToday) }} success / {{ number_format($failedToday) }} failed
+    <div class="flex items-center gap-4">
+        <div class="text-right">
+            <span class="text-xs text-slate-400 block">Carbon Saved</span>
+            <span class="text-base sm:text-lg font-mono font-bold text-emerald-400">{{ number_format($totalCarbonSaved, 2) }} g CO₂</span>
         </div>
-    </div>
-    <div class="stat-card">
-        <div class="stat-value" style="color: var(--primary);">{{ $activeAgents }}</div>
-        <div class="stat-label">Active Agents</div>
-        <div style="font-size: 0.7rem; color: var(--text-muted); margin-top: 0.25rem;">
-            {{ $offlineCount }} offline
-        </div>
-    </div>
-    <div class="stat-card">
-        <div class="stat-value" style="color: var(--warning);">{{ number_format($queueDepth) }}</div>
-        <div class="stat-label">Queue Depth</div>
-        <div style="font-size: 0.7rem; color: var(--text-muted); margin-top: 0.25rem;">
-            Avg processing: {{ $avgProcessingTime ? round($avgProcessingTime) . 's' : 'N/A' }}
+        <div class="text-right border-l border-slate-800 pl-4">
+            <span class="text-xs text-slate-400 block">Eco Profiles</span>
+            <span class="text-base sm:text-lg font-mono font-bold text-white">{{ $ecoProfiles }}</span>
         </div>
     </div>
 </div>
 
-{{-- More stats row --}}
-<div class="stats-grid" style="grid-template-columns: repeat(4, 1fr);">
-    <div class="stat-card" style="padding: 1rem;">
-        <div class="stat-value" style="font-size: 1.4rem; color: var(--text);">{{ number_format($jobsWeek) }}</div>
-        <div class="stat-label">This Week</div>
+{{-- Job Creation Timeline Chart Container --}}
+<div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 mb-6 shadow-xs">
+    <div class="flex items-center justify-between pb-3 mb-4 border-b border-slate-800">
+        <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider">Hourly Print Dispatch Volume</h3>
+        <select id="timeline-period" onchange="refreshTimeline()" class="bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1 text-xs text-slate-200">
+            <option value="24h">Last 24 Hours</option>
+            <option value="7d">Last 7 Days</option>
+            <option value="30d">Last 30 Days</option>
+        </select>
     </div>
-    <div class="stat-card" style="padding: 1rem;">
-        <div class="stat-value" style="font-size: 1.4rem; color: var(--text);">{{ number_format($jobsMonth) }}</div>
-        <div class="stat-label">This Month</div>
-    </div>
-    <div class="stat-card" style="padding: 1rem;">
-        <div class="stat-value" style="font-size: 1.4rem; color: var(--text);">{{ $failureRate }}%</div>
-        <div class="stat-label">Failure Rate</div>
-    </div>
-    <div class="stat-card" style="padding: 1rem;">
-        <div class="stat-value" style="font-size: 1.4rem; color: var(--text);">{{ number_format($onlineCount + $offlineCount) }}</div>
-        <div class="stat-label">Total Agents</div>
+    <div id="timeline-chart" class="min-h-[180px] flex items-end gap-1.5 pt-4">
+        <div class="w-full text-center text-xs text-slate-500">Loading metrics...</div>
     </div>
 </div>
 
-{{-- Row: Sustainability Widget --}}
-<div class="stats-grid" style="grid-template-columns: repeat(4, 1fr);">
-    <div class="stat-card" style="padding: 1rem; border-color: #22c55e;">
-        <div class="stat-value" style="font-size: 1.4rem; color: #22c55e;">
-            🌿 {{ $ecoProfiles }}
+{{-- Agent Health & Top Hardware Grid --}}
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+    {{-- Agent Health --}}
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xs">
+        <div class="p-4 border-b border-slate-800">
+            <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider">Agent Heartbeat Roster</h3>
         </div>
-        <div class="stat-label">Eco Profiles</div>
-        <div style="font-size: 0.7rem; color: var(--text-muted); margin-top: 0.25rem;">
-            Profiles with eco mode enabled
-        </div>
-    </div>
-    <div class="stat-card" style="padding: 1rem; border-color: #22c55e; grid-column: span 3;">
-        <div class="stat-value" style="font-size: 1.4rem; color: #22c55e;">
-            💚 {{ number_format($totalCarbonSaved, 2) }} g CO₂
-        </div>
-        <div class="stat-label">Total Carbon Saved</div>
-        <div style="font-size: 0.7rem; color: var(--text-muted); margin-top: 0.25rem;">
-            {{ $totalCarbonSaved >= 1000 ? 'That\'s ~' . number_format($totalCarbonSaved / 1000, 2) . ' kg of CO₂! 🌍' : 'Every gram counts! Keep printing green.' }}
-        </div>
-    </div>
-</div>
-
-{{-- Row 2: Job Timeline Chart (CSS bar chart) --}}
-<div class="card">
-    <div class="card-header">
-        <h2>📈 Job Creation Timeline (Last 24 Hours)</h2>
-        <div style="display: flex; gap: 0.5rem; align-items: center;">
-            <select id="timeline-period" onchange="refreshTimeline()" style="width: auto; padding: 0.3rem 0.5rem; font-size: 0.8rem;">
-                <option value="24h">Last 24 Hours</option>
-                <option value="7d">Last 7 Days</option>
-                <option value="30d">Last 30 Days</option>
-            </select>
-        </div>
-    </div>
-    <div id="timeline-chart" style="min-height: 200px; display: flex; align-items: flex-end; gap: 2px; padding: 1rem 0;">
-        <div style="width: 100%; text-align: center; color: var(--text-muted); font-size: 0.85rem;">
-            <span class="spinner"></span> Loading chart data...
-        </div>
-    </div>
-</div>
-
-{{-- Row 3: Agent Health + Top Printers --}}
-<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
-    {{-- Agent Health Table --}}
-    <div class="card">
-        <div class="card-header">
-            <h2>🖥️ Agent Health</h2>
-        </div>
-        @if($agents->count() > 0)
-        <div style="overflow-x: auto;">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Agent</th>
-                        <th>Status</th>
-                        <th>Version</th>
-                        <th>Last Seen</th>
-                        <th>Printers</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach($agents as $agent)
-                    <tr>
-                        <td><strong>{{ $agent->name }}</strong></td>
-                        <td>
-                            @if($agent->isOnline())
-                                <span class="badge badge-success"><span class="dot dot-green"></span>Online</span>
-                            @else
-                                <span class="badge badge-danger"><span class="dot dot-red"></span>Offline</span>
-                            @endif
-                        </td>
-                        <td style="font-size: 0.75rem;">
-                            @if($agent->capabilities)
-                                <div>
-                                    <code>v{{ $agent->capabilities['version'] ?? '?' }}</code>
-                                    @if(!empty($agent->capabilities['printers']))
-                                        <br><span style="color: var(--text-muted); font-size: 0.7rem;">
-                                        {{ count($agent->capabilities['printers']) }} printer(s) with caps
-                                        </span>
-                                    @endif
-                                </div>
-                            @else
-                                <span style="color: var(--text-muted); font-style: italic; font-size: 0.7rem;">No data</span>
-                            @endif
-                        </td>
-                        <td style="font-size: 0.8rem;">
-                            {{ $agent->last_seen_at ? $agent->last_seen_at->diffForHumans() : 'Never' }}
-                        </td>
-                        <td style="font-size: 0.75rem;">
-                            {{ is_array($agent->printers) ? count($agent->printers) : 0 }}
-                        </td>
-                    </tr>
-                    @endforeach
-                </tbody>
-            </table>
-        </div>
-        @else
-            <x-empty-state icon="agent" title="No agents registered" message="Register a print agent to see health metrics." />
-        @endif
-    </div>
-
-    {{-- Top Printers by Usage --}}
-    <div class="card">
-        <div class="card-header">
-            <h2>🖨️ Top Printers (30 Days)</h2>
-        </div>
-        @if($topPrinters->count() > 0)
-        <table>
-            <thead>
+        <table class="w-full text-left text-sm text-slate-300">
+            <thead class="bg-slate-950/60 text-xs uppercase text-slate-400 border-b border-slate-800">
                 <tr>
-                    <th>#</th>
-                    <th>Printer</th>
-                    <th>Jobs</th>
-                    <th>Share</th>
+                    <th class="px-5 py-3">Agent</th>
+                    <th class="px-5 py-3">Status</th>
+                    <th class="px-5 py-3">Version</th>
+                    <th class="px-5 py-3 text-right">Last Seen</th>
                 </tr>
             </thead>
-            <tbody>
-                @php $grandTotal = $topPrinters->sum('total'); @endphp
-                @foreach($topPrinters as $idx => $printer)
-                <tr>
-                    <td style="color: var(--text-muted);">{{ $idx + 1 }}</td>
-                    <td><strong>{{ $printer->printer_name }}</strong></td>
-                    <td>{{ number_format($printer->total) }}</td>
-                    <td>
-                        <div style="display: flex; align-items: center; gap: 0.5rem;">
-                            <div style="flex: 1; height: 6px; background: var(--border); border-radius: 3px; overflow: hidden;">
-                                <div style="height: 100%; width: {{ $grandTotal > 0 ? ($printer->total / $grandTotal) * 100 : 0 }}%; background: var(--primary); border-radius: 3px;"></div>
-                            </div>
-                            <span style="font-size: 0.75rem; color: var(--text-muted);">
-                                {{ $grandTotal > 0 ? round(($printer->total / $grandTotal) * 100) : 0 }}%
-                            </span>
-                        </div>
+            <tbody class="divide-y divide-slate-800/60">
+                @forelse($agents as $agent)
+                <tr class="hover:bg-slate-800/40">
+                    <td class="px-5 py-3 font-semibold text-white">{{ $agent->name }}</td>
+                    <td class="px-5 py-3">
+                        <span class="badge {{ $agent->isOnline() ? 'badge-success' : 'badge-danger' }} text-[10px]">
+                            <span class="dot {{ $agent->isOnline() ? 'dot-green' : 'dot-red' }}"></span>
+                            {{ $agent->isOnline() ? 'Online' : 'Offline' }}
+                        </span>
+                    </td>
+                    <td class="px-5 py-3 font-mono text-xs text-slate-400">
+                        v{{ $agent->capabilities['version'] ?? '1.0' }}
+                    </td>
+                    <td class="px-5 py-3 text-xs text-slate-400 font-mono text-right">
+                        {{ $agent->last_seen_at ? $agent->last_seen_at->diffForHumans() : 'Never' }}
                     </td>
                 </tr>
-                @endforeach
+                @empty
+                <tr><td colspan="4" class="px-5 py-4 text-center text-slate-500 text-xs">No agents registered.</td></tr>
+                @endforelse
             </tbody>
         </table>
-        @else
-            <x-empty-state icon="printer" title="No print data" message="Print jobs will appear here as they are processed." />
-        @endif
+    </div>
+
+    {{-- Top Printers --}}
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xs">
+        <div class="p-4 border-b border-slate-800">
+            <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider">Top Utilizing Printers (30 Days)</h3>
+        </div>
+        <table class="w-full text-left text-sm text-slate-300">
+            <thead class="bg-slate-950/60 text-xs uppercase text-slate-400 border-b border-slate-800">
+                <tr>
+                    <th class="px-5 py-3">Device Name</th>
+                    <th class="px-5 py-3">Jobs</th>
+                    <th class="px-5 py-3 text-right">Load Share</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-800/60">
+                @php $grandTotal = $topPrinters->sum('total'); @endphp
+                @forelse($topPrinters as $printer)
+                <tr class="hover:bg-slate-800/40">
+                    <td class="px-5 py-3 font-mono font-semibold text-blue-400 text-xs">{{ $printer->printer_name }}</td>
+                    <td class="px-5 py-3 text-xs font-mono text-slate-300">{{ number_format($printer->total) }}</td>
+                    <td class="px-5 py-3 text-xs font-mono text-slate-400 text-right">
+                        {{ $grandTotal > 0 ? round(($printer->total / $grandTotal) * 100) : 0 }}%
+                    </td>
+                </tr>
+                @empty
+                <tr><td colspan="3" class="px-5 py-4 text-center text-slate-500 text-xs">No print metrics available.</td></tr>
+                @endforelse
+            </tbody>
+        </table>
     </div>
 </div>
 
-{{-- Top Users Section --}}
-@if($topUsers->count() > 0)
-<div class="card" style="margin-top: 1.5rem;">
-    <div class="card-header">
-        <h2>👤 Top Users by Print Volume (30 Days)</h2>
-    </div>
-    <table>
-        <thead>
-            <tr>
-                <th>#</th>
-                <th>Reference ID</th>
-                <th>Jobs Printed</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach($topUsers as $idx => $user)
-            <tr>
-                <td style="color: var(--text-muted);">{{ $idx + 1 }}</td>
-                <td><strong>{{ $user->reference_id }}</strong></td>
-                <td>{{ number_format($user->total) }}</td>
-            </tr>
-            @endforeach
-        </tbody>
-    </table>
-</div>
-@endif
-
-{{-- Version Distribution --}}
-@if($versionDist->count() > 0)
-<div class="card" style="margin-top: 1.5rem;">
-    <div class="card-header">
-        <h2>📦 Agent Version Distribution</h2>
-    </div>
-    <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
-        @foreach($versionDist as $version => $count)
-        <div style="background: var(--bg); padding: 0.75rem 1rem; border-radius: 8px; border: 1px solid var(--border); min-width: 120px; text-align: center;">
-            <div style="font-size: 1.2rem; font-weight: 700;">{{ $count }}</div>
-            <div style="font-size: 0.75rem; color: var(--text-muted);">{{ $version }}</div>
-        </div>
-        @endforeach
-    </div>
-</div>
-@endif
-
-{{-- Capabilities Summary --}}
-@php
-    $allCapPrinterCount = 0;
-    $duplexCount = 0;
-    $colorCount = 0;
-    $allPaperSizes = [];
-    foreach($agents as $agent) {
-        if (!$agent->capabilities || empty($agent->capabilities['printers'])) continue;
-        foreach($agent->capabilities['printers'] as $printerName => $printerCaps) {
-            $allCapPrinterCount++;
-            if (!empty($printerCaps['duplex'])) $duplexCount++;
-            if (!empty($printerCaps['color_modes']) && in_array('color', $printerCaps['color_modes'])) $colorCount++;
-            if (!empty($printerCaps['paper_sizes'])) {
-                foreach($printerCaps['paper_sizes'] as $ps) {
-                    $allPaperSizes[$ps] = ($allPaperSizes[$ps] ?? 0) + 1;
-                }
-            }
-        }
-    }
-    arsort($allPaperSizes);
-@endphp
-@if($allCapPrinterCount > 0)
-<div class="card" style="margin-top: 1.5rem;">
-    <div class="card-header">
-        <h2>🔧 Capabilities Overview</h2>
-    </div>
-    <div style="display: flex; gap: 1rem; flex-wrap: wrap; padding: 0.5rem 0;">
-        <div style="background: var(--bg); padding: 0.75rem 1rem; border-radius: 8px; border: 1px solid var(--border); min-width: 120px; text-align: center;">
-            <div style="font-size: 1.2rem; font-weight: 700; color: var(--primary);">{{ $allCapPrinterCount }}</div>
-            <div style="font-size: 0.75rem; color: var(--text-muted);">Printers w/ Capabilities</div>
-        </div>
-        <div style="background: var(--bg); padding: 0.75rem 1rem; border-radius: 8px; border: 1px solid var(--border); min-width: 120px; text-align: center;">
-            <div style="font-size: 1.2rem; font-weight: 700; color: var(--success);">{{ $duplexCount }}</div>
-            <div style="font-size: 0.75rem; color: var(--text-muted);">Support Duplex</div>
-        </div>
-        <div style="background: var(--bg); padding: 0.75rem 1rem; border-radius: 8px; border: 1px solid var(--border); min-width: 120px; text-align: center;">
-            <div style="font-size: 1.2rem; font-weight: 700; color: var(--warning);">{{ $colorCount }}</div>
-            <div style="font-size: 0.75rem; color: var(--text-muted);">Support Color</div>
-        </div>
-        @if(count($allPaperSizes) > 0)
-        <div style="background: var(--bg); padding: 0.75rem 1rem; border-radius: 8px; border: 1px solid var(--border); min-width: 200px; flex: 1;">
-            <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.3rem;">Paper Size Distribution</div>
-            <div style="display: flex; flex-wrap: wrap; gap: 0.3rem;">
-                @foreach($allPaperSizes as $size => $count)
-                    <code style="font-size: 0.7rem; padding: 1px 6px; background: var(--surface); border-radius: 3px;">{{ $size }} ({{ $count }})</code>
-                @endforeach
-            </div>
-        </div>
-        @endif
-    </div>
-</div>
-@endif
-
-@endsection
-
-@section('scripts')
 <script>
-// Auto-refresh every 30 seconds
-let refreshInterval;
-
-function startAutoRefresh() {
-    refreshInterval = setInterval(function() {
-        fetch(window.location.href)
-            .then(response => response.text())
-            .then(html => {
-                // Update last-updated timestamp
-                document.getElementById('last-updated').textContent = 'Updated: ' + new Date().toLocaleTimeString();
-                
-                // Flash the indicator
-                const indicator = document.getElementById('refresh-indicator');
-                indicator.textContent = 'Refreshing...';
-                indicator.className = 'badge badge-warning';
-                setTimeout(() => {
-                    indicator.textContent = 'Live';
-                    indicator.className = 'badge badge-info';
-                }, 1000);
-            })
-            .catch(() => {
-                const indicator = document.getElementById('refresh-indicator');
-                indicator.textContent = 'Offline';
-                indicator.className = 'badge badge-danger';
-            });
-    }, 30000);
-}
-
-// Timeline chart
 function refreshTimeline() {
     const period = document.getElementById('timeline-period').value;
     const chartEl = document.getElementById('timeline-chart');
-    chartEl.innerHTML = '<div style="width:100%;text-align:center;color:var(--text-muted);font-size:0.85rem;"><span class="spinner"></span> Loading...</div>';
+    chartEl.innerHTML = '<div class="w-full text-center text-xs text-slate-500">Loading timeline data...</div>';
 
     fetch(`/admin/monitoring/job-timeline?period=${period}`)
         .then(r => r.json())
         .then(data => {
             const timeline = data.timeline || [];
             if (timeline.length === 0) {
-                chartEl.innerHTML = '<div style="width:100%;text-align:center;color:var(--text-muted);font-size:0.85rem;padding:2rem 0;">No data for this period.</div>';
+                chartEl.innerHTML = '<div class="w-full text-center text-xs text-slate-500 py-6">No data for selected period.</div>';
                 return;
             }
 
             const maxCount = Math.max(...timeline.map(t => t.count), 1);
-            const barHeight = 180;
-
-            let html = '<div style="display:flex;align-items:flex-end;gap:2px;height:' + barHeight + 'px;padding:0 0.5rem;width:100%;overflow-x:auto;">';
+            let html = '<div class="flex items-end gap-1.5 h-40 w-full overflow-x-auto px-2">';
             timeline.forEach(point => {
-                const h = Math.max((point.count / maxCount) * barHeight, 2);
-                html += '<div style="flex:1;display:flex;flex-direction:column;align-items:center;min-width:30px;">';
-                html += '<div style="font-size:0.65rem;color:var(--text-muted);margin-bottom:2px;">' + point.count + '</div>';
-                html += '<div style="width:100%;height:' + h + 'px;background:var(--primary);border-radius:3px 3px 0 0;opacity:0.8;transition:height 0.3s;" title="' + point.label + ': ' + point.count + ' jobs"></div>';
-                html += '<div style="font-size:0.6rem;color:var(--text-muted);margin-top:2px;transform:rotate(-45deg);white-space:nowrap;">' + point.label + '</div>';
-                html += '</div>';
+                const h = Math.max((point.count / maxCount) * 140, 4);
+                html += `<div class="flex-1 flex flex-col items-center min-w-[28px] group relative">
+                    <span class="text-[9px] font-mono text-slate-400 mb-1 opacity-0 group-hover:opacity-100 transition">${point.count}</span>
+                    <div class="w-full rounded-t-md bg-blue-500/80 group-hover:bg-blue-400 transition" style="height: ${h}px" title="${point.label}: ${point.count} jobs"></div>
+                    <span class="text-[9px] font-mono text-slate-500 mt-1.5 truncate max-w-[28px]">${point.label}</span>
+                </div>`;
             });
             html += '</div>';
             chartEl.innerHTML = html;
-        })
-        .catch(() => {
-            chartEl.innerHTML = '<div style="width:100%;text-align:center;color:var(--danger);font-size:0.85rem;">Failed to load timeline.</div>';
         });
 }
 
-// Initialize
-document.addEventListener('DOMContentLoaded', function() {
-    document.getElementById('last-updated').textContent = 'Updated: ' + new Date().toLocaleTimeString();
+document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('last-updated').textContent = new Date().toLocaleTimeString();
     refreshTimeline();
-    startAutoRefresh();
 });
 </script>
 @endsection

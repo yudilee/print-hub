@@ -2,12 +2,17 @@
 @section('title', '500 — Server Error')
 
 @section('content')
-<div style="text-align: center; padding: 6rem 2rem;">
-    <div style="font-size: 5rem; font-weight: 800; color: var(--danger); opacity: 0.2; line-height: 1;">500</div>
-    <h1 style="font-size: 1.5rem; font-weight: 600; margin: 1rem 0 0.5rem; color: var(--danger);">Internal Server Error</h1>
-    <p style="color: var(--text-muted); max-width: 400px; margin: 0 auto 2rem;">
-        Something went wrong on our end. Please try again later or contact support if the issue persists.
+<div class="flex flex-col items-center justify-center min-h-[60vh] text-center p-6">
+    <div class="w-16 h-16 rounded-2xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-2xl mb-4">
+        💥
+    </div>
+    <span class="text-xs font-mono font-bold text-rose-400 uppercase tracking-widest block mb-1">Server Exception</span>
+    <h1 class="text-2xl font-bold text-white mb-2">500 Internal Error</h1>
+    <p class="text-xs text-slate-400 max-w-sm mb-6">
+        An unexpected error occurred while processing your request. Please check the system logs.
     </p>
-    <a href="/" class="btn btn-primary" style="text-decoration: none;">Back to Dashboard</a>
+    <a href="{{ route('admin.dashboard') }}" class="btn-primary btn-sm">
+        Return to Dashboard
+    </a>
 </div>
 @endsection

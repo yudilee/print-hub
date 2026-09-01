@@ -2,100 +2,98 @@
 @section('title', 'Backup & Restore')
 
 @section('content')
-<x-breadcrumb :items="[['label' => 'Dashboard', 'url' => route('admin.dashboard')], ['label' => 'Backup & Restore']]" />
+<x-breadcrumb :items="[['label' => 'Backup & Restore']]" />
 
-<div class="page-header">
-    <h1>Backup & Restore</h1>
-    <p>Export and import Print Hub configuration (agents, profiles, templates, fonts, pools, settings, releases).</p>
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+    <div>
+        <h2 class="text-base sm:text-lg font-bold text-white">Disaster Recovery & Snapshots</h2>
+        <p class="text-xs text-slate-400">Export and import complete cluster configurations (agents, profiles, templates, settings)</p>
+    </div>
 </div>
 
-{{-- Export Section --}}
-<div class="card">
-    <div class="card-header">
-        <h2>📤 Export Configuration</h2>
-    </div>
-    <p style="margin-bottom: 1rem; color: var(--text-muted); font-size: 0.85rem;">
-        Export all configuration data as a JSON file. This includes agents, print profiles,
-        templates (metadata only), fonts (metadata only), printer pools, printer configs,
-        system settings, and agent releases.
-    </p>
-    <div style="background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.2); border-radius: 8px; padding: 0.75rem 1rem; margin-bottom: 1rem; font-size: 0.8rem; color: var(--warning);">
-        ⚠️ Note: Template background images and font file data are excluded from the export.
-        You will need to re-upload these after import.
-    </div>
-    <form action="{{ route('admin.backup.export') }}" method="POST">
-        @csrf
-        <button type="submit" class="btn btn-primary">⬇ Export Configuration</button>
-    </form>
-</div>
-
-{{-- Import Section --}}
-<div class="card">
-    <div class="card-header">
-        <h2>📥 Import Configuration</h2>
-    </div>
-    <p style="margin-bottom: 1rem; color: var(--text-muted); font-size: 0.85rem;">
-        Import configuration from a previously exported JSON file. Existing records will be
-        updated, and new records will be created. This operation is transactional — if any
-        part fails, all changes are rolled back.
-    </p>
-    <div style="background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.2); border-radius: 8px; padding: 0.75rem 1rem; margin-bottom: 1rem; font-size: 0.8rem; color: var(--danger);">
-        ⚠️ Warning: Importing will overwrite existing records with the same IDs.
-        Make sure to export your current configuration before importing.
-    </div>
-
-    <form action="{{ route('admin.backup.import') }}" method="POST" enctype="multipart/form-data" data-loading>
-        @csrf
-        <div class="form-group">
-            <label for="backup_file">Select Backup JSON File</label>
-            <input type="file" name="backup_file" id="backup_file" accept=".json" required>
-            @error('backup_file')
-                <div class="field-error visible">{{ $message }}</div>
-            @enderror
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+    {{-- Export Section --}}
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xs flex flex-col justify-between">
+        <div>
+            <h3 class="text-xs font-bold text-blue-400 uppercase tracking-wider mb-2">📤 Export Hub Configuration</h3>
+            <p class="text-xs text-slate-400 mb-4">
+                Generates a portable JSON archive of all active print queues, workstation agents, printer pools, policies, and template definitions.
+            </p>
         </div>
-        <button type="submit" class="btn btn-warning" data-loading-text="Importing...">📥 Import Configuration</button>
-    </form>
+        <form action="{{ route('admin.backup.export') }}" method="POST">
+            @csrf
+            <button type="submit" class="btn-primary btn-sm">
+                <x-icon name="download" size="13" />
+                <span>Export Snapshot JSON</span>
+            </button>
+        </form>
+    </div>
+
+    {{-- Import Section --}}
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xs">
+        <h3 class="text-xs font-bold text-amber-400 uppercase tracking-wider mb-2">📥 Restore from Snapshot</h3>
+        <p class="text-xs text-slate-400 mb-4">
+            Import an existing configuration JSON. Changes are processed transactionally with automatic rollback on error.
+        </p>
+
+        <form action="{{ route('admin.backup.import') }}" method="POST" enctype="multipart/form-data" class="space-y-3">
+            @csrf
+            <div class="p-3 rounded-xl bg-slate-950 border border-dashed border-slate-800">
+                <input type="file" name="backup_file" accept=".json" required
+                    class="text-xs text-slate-300 file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-500 cursor-pointer">
+            </div>
+            <div class="flex justify-end">
+                <button type="submit" class="btn-warning btn-sm" onclick="return confirm('Importing will overwrite conflicting entities. Proceed?')">
+                    Import Configuration
+                </button>
+            </div>
+        </form>
+    </div>
 </div>
 
-{{-- Existing Backups --}}
-<div class="card">
-    <div class="card-header">
-        <h2>💾 Existing Backup Files</h2>
+{{-- Existing Backups Table --}}
+<div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xs">
+    <div class="p-4 border-b border-slate-800">
+        <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider">💾 Available Backup Archives</h3>
     </div>
-    @if(count($backupFiles) > 0)
-        <table role="table">
-            <thead>
+
+    <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm text-slate-300">
+            <thead class="bg-slate-950/60 text-xs uppercase text-slate-400 border-b border-slate-800 font-semibold tracking-wider">
                 <tr>
-                    <th scope="col">Filename</th>
-                    <th scope="col">Size</th>
-                    <th scope="col">Modified</th>
-                    <th scope="col">Actions</th>
+                    <th class="px-5 py-3.5">Filename</th>
+                    <th class="px-5 py-3.5">Archive Size</th>
+                    <th class="px-5 py-3.5">Generated</th>
+                    <th class="px-5 py-3.5 text-right">Actions</th>
                 </tr>
             </thead>
-            <tbody>
-                @foreach($backupFiles as $file)
-                <tr>
-                    <td><code class="mono">{{ $file['name'] }}</code></td>
-                    <td style="font-size: 0.8rem; color: var(--text-muted);">{{ $file['size'] }}</td>
-                    <td style="font-size: 0.8rem; color: var(--text-muted);">{{ $file['modified'] }}</td>
-                    <td>
-                        <div style="display: flex; gap: 4px;">
-                            <a href="{{ route('admin.backup.download', basename($file['name'])) }}" class="btn btn-primary btn-sm">⬇ Download</a>
-                            <form action="{{ route('admin.backup.delete', basename($file['name'])) }}" method="POST"
-                                  onsubmit="return confirm('Delete this backup file?')">
+            <tbody class="divide-y divide-slate-800/60">
+                @forelse($backupFiles as $file)
+                <tr class="hover:bg-slate-800/40 transition">
+                    <td class="px-5 py-3.5 font-mono font-bold text-blue-400 text-xs">
+                        {{ $file['name'] }}
+                    </td>
+                    <td class="px-5 py-3.5 text-xs text-slate-400 font-mono">{{ $file['size'] }}</td>
+                    <td class="px-5 py-3.5 text-xs text-slate-400 font-mono">{{ $file['modified'] }}</td>
+                    <td class="px-5 py-3.5 text-right">
+                        <div class="inline-flex items-center gap-1.5">
+                            <a href="{{ route('admin.backup.download', basename($file['name'])) }}" class="btn-secondary btn-sm">⬇ Download</a>
+                            <form action="{{ route('admin.backup.delete', basename($file['name'])) }}" method="POST" onsubmit="return confirm('Delete backup file?')" class="inline">
                                 @csrf @method('DELETE')
-                                <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+                                <button type="submit" class="btn-danger btn-sm">Delete</button>
                             </form>
                         </div>
                     </td>
                 </tr>
-                @endforeach
+                @empty
+                <tr>
+                    <td colspan="4">
+                        <x-empty-state icon="💾" title="No backup archives stored" description="Export a snapshot above to generate recovery points." />
+                    </td>
+                </tr>
+                @endforelse
             </tbody>
         </table>
-    @else
-        <div style="text-align: center; padding: 2rem; color: var(--text-muted); font-size: 0.85rem;">
-            No backup files found. Export your configuration to create one.
-        </div>
-    @endif
+    </div>
 </div>
 @endsection

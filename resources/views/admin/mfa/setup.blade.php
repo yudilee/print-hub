@@ -2,154 +2,114 @@
 @section('title', 'Two-Factor Authentication Setup')
 
 @section('content')
-<x-breadcrumb :items="[['label' => 'Dashboard', 'url' => route('admin.dashboard')], ['label' => 'Two-Factor Auth']]" />
+<x-breadcrumb :items="[['label' => 'Two-Factor Authentication']]" />
 
-<div class="page-header">
-    <h1>Two-Factor Authentication</h1>
-    <p>Enhance your account security with time-based one-time passwords (TOTP).</p>
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+    <div>
+        <h2 class="text-base sm:text-lg font-bold text-white">Two-Factor Authentication (2FA / TOTP)</h2>
+        <p class="text-xs text-slate-400">Protect administrative access using hardware tokens or authenticator apps</p>
+    </div>
 </div>
 
-@if(session('mfa_success'))
-    <div class="alert alert-success">✓ {!! session('mfa_success') !!}</div>
-@endif
-
 @if($mfaToken && $mfaToken->is_enabled)
-    {{-- MFA is already enabled --}}
-    <div class="card" style="border-color: var(--success);">
-        <div class="card-header">
-            <h2>✅ Two-Factor Authentication is Active</h2>
+    <div class="bg-slate-900 border border-emerald-500/30 rounded-2xl p-6 shadow-xs mb-6">
+        <div class="flex items-center gap-3 mb-3">
+            <span class="w-8 h-8 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 font-bold">✓</span>
+            <div>
+                <h3 class="text-sm font-bold text-white">2FA Protection Active</h3>
+                <span class="text-xs text-slate-400">Your account requires a numeric authenticator code on each sign-in attempt.</span>
+            </div>
         </div>
-        <p style="margin-bottom: 1rem; color: var(--text-muted);">
-            Your account is protected with two-factor authentication. You will be prompted
-            for a verification code each time you log in.
-        </p>
-        <p style="margin-bottom: 1rem; color: var(--text-muted); font-size: 0.85rem;">
-            <strong>Last verified:</strong>
-            {{ $mfaToken->last_verified_at ? $mfaToken->last_verified_at->diffForHumans() : 'Never' }}
-        </p>
-        <div style="display: flex; gap: 0.75rem;">
-            <form action="{{ route('admin.mfa.regenerate') }}" method="POST"
-                  onsubmit="return confirm('Regenerating recovery codes will invalidate your existing ones. Continue?')">
+
+        <div class="flex flex-wrap gap-2 pt-4 border-t border-slate-800">
+            <form action="{{ route('admin.mfa.regenerate') }}" method="POST" onsubmit="return confirm('Regenerating codes invalidates old ones. Proceed?')">
                 @csrf
-                <button type="submit" class="btn btn-warning">Regenerate Recovery Codes</button>
+                <button type="submit" class="btn-warning btn-sm">Regenerate Recovery Codes</button>
             </form>
-            <form action="{{ route('admin.mfa.disable') }}" method="POST"
-                  onsubmit="return confirm('Disable two-factor authentication? Your account will no longer require a verification code at login.')">
+            <form action="{{ route('admin.mfa.disable') }}" method="POST" onsubmit="return confirm('Disable 2FA protection?')">
                 @csrf
-                <button type="submit" class="btn btn-danger">Disable 2FA</button>
+                <button type="submit" class="btn-danger btn-sm">Disable 2FA</button>
             </form>
         </div>
     </div>
 
-    {{-- Recovery Codes --}}
     @if($mfaToken->recovery_codes && count($mfaToken->recovery_codes) > 0)
-    <div class="card">
-        <div class="card-header">
-            <h2>🔑 Recovery Codes</h2>
-        </div>
-        <p style="margin-bottom: 1rem; color: var(--text-muted); font-size: 0.85rem;">
-            Save these one-time use recovery codes in a secure location. If you lose access
-            to your authenticator app, you can use a recovery code to log in.
-        </p>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; font-family: monospace; font-size: 0.9rem;">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xs">
+        <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Emergency Recovery Codes</h3>
+        <p class="text-xs text-slate-400 mb-4">Store these one-time codes in a secure password vault.</p>
+
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 font-mono text-xs text-blue-400 mb-4">
             @foreach($mfaToken->recovery_codes as $code)
-                <div style="padding: 0.5rem 0.75rem; background: var(--bg); border-radius: 4px; border: 1px solid var(--border); text-align: center;">
+                <div class="p-2.5 rounded-xl bg-slate-950 border border-slate-800 text-center">
                     {{ $code }}
                 </div>
             @endforeach
         </div>
-        <div style="margin-top: 1rem;">
-            <button class="btn btn-secondary" onclick="copyRecoveryCodes()">📋 Copy All Codes</button>
-        </div>
+
+        <button class="btn-secondary btn-sm" onclick="copyRecoveryCodes()">📋 Copy All Codes</button>
     </div>
     @endif
 
 @elseif($mfaToken && !$mfaToken->is_enabled)
-    {{-- MFA token exists but not yet enabled -- show verification step --}}
-    <div class="card">
-        <div class="card-header"><h2>📱 Step 2: Verify Setup</h2></div>
-        <p style="margin-bottom: 1rem; color: var(--text-muted);">
-            Scan the QR code below with your authenticator app (e.g., Google Authenticator, Authy, 1Password),
-            then enter the 6-digit code to verify the setup.
-        </p>
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xs max-w-lg mx-auto">
+        <h3 class="text-sm font-bold text-white mb-2 text-center">Step 2: Scan QR & Verify</h3>
+        <p class="text-xs text-slate-400 text-center mb-6">Scan the code with Google Authenticator, Authy, or 1Password</p>
 
-        <div style="text-align: center; margin: 2rem 0;">
-            <div id="qrcode" style="display: inline-block; padding: 1rem; background: white; border-radius: 8px;"></div>
+        <div class="flex justify-center mb-6">
+            <div id="qrcode" class="p-3 bg-white rounded-2xl shadow-xl"></div>
         </div>
 
-        <div style="text-align: center; margin-bottom: 1rem;">
-            <p style="font-size: 0.8rem; color: var(--text-muted);">
-                Or manually enter this key in your authenticator app:
-            </p>
-            <code class="mono" style="font-size: 1rem; padding: 0.5rem 1rem; display: inline-block; word-break: break-all;">
+        <div class="text-center mb-6">
+            <span class="text-xs text-slate-500 block mb-1">Manual Secret Key</span>
+            <code class="px-3 py-1 rounded-xl bg-slate-950 border border-slate-800 text-blue-400 text-xs font-mono">
                 {{ $mfaToken->secret }}
             </code>
         </div>
 
-        <form action="{{ route('admin.mfa.verify') }}" method="POST" data-loading style="max-width: 320px; margin: 0 auto;">
+        <form action="{{ route('admin.mfa.verify') }}" method="POST" class="space-y-4">
             @csrf
-            <div class="form-group">
-                <label for="code">Verification Code</label>
-                <input type="text" name="code" id="code" pattern="[0-9]{6}" maxlength="6" inputmode="numeric"
-                       autocomplete="one-time-code" required placeholder="000000"
-                       style="text-align: center; font-size: 1.5rem; letter-spacing: 0.5em; font-family: monospace;">
-                @error('code')
-                    <div class="field-error visible">{{ $message }}</div>
-                @enderror
+            <div>
+                <label class="block text-xs font-semibold text-slate-400 mb-1 text-center">Enter 6-Digit Authenticator Code</label>
+                <input type="text" name="code" pattern="[0-9]{6}" maxlength="6" inputmode="numeric" required placeholder="000000"
+                    class="w-full text-center py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-lg font-mono text-white tracking-widest focus:outline-none focus:border-blue-500">
             </div>
-            <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center; font-size: 1rem; padding: 0.75rem;">
-                ✅ Verify & Enable 2FA
-            </button>
+
+            <button type="submit" class="btn-primary w-full justify-center">✅ Verify & Activate 2FA</button>
         </form>
 
-        <div style="margin-top: 1.5rem; text-align: center;">
-            <form action="{{ route('admin.mfa.cancel-setup') }}" method="POST"
-                  onsubmit="return confirm('Cancel 2FA setup? The generated secret will be discarded.')">
+        <div class="text-center mt-4">
+            <form action="{{ route('admin.mfa.cancel-setup') }}" method="POST">
                 @csrf
-                <button type="submit" class="btn btn-secondary">Cancel Setup</button>
+                <button type="submit" class="text-xs text-slate-500 hover:text-slate-400">Cancel Setup</button>
             </form>
         </div>
     </div>
-
 @else
-    {{-- No MFA token exists -- show setup initiation --}}
-    <div class="card">
-        <div class="card-header"><h2>📱 Step 1: Set Up Two-Factor Authentication</h2></div>
-        <p style="margin-bottom: 1rem; color: var(--text-muted);">
-            Two-factor authentication adds an extra layer of security to your account.
-            After enabling, you'll need to enter a verification code from your authenticator
-            app in addition to your password when logging in.
-        </p>
-
-        <div style="background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.2); border-radius: 8px; padding: 1rem; margin-bottom: 1.5rem;">
-            <h3 style="font-size: 0.9rem; margin-bottom: 0.5rem;">You'll need:</h3>
-            <ol style="margin: 0; padding-left: 1.2rem; color: var(--text-muted); font-size: 0.85rem; line-height: 1.8;">
-                <li>An authenticator app (Google Authenticator, Authy, 1Password, etc.)</li>
-                <li>Your camera to scan a QR code</li>
-                <li>Your phone or device handy during login</li>
-            </ol>
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xs max-w-lg mx-auto text-center">
+        <div class="w-12 h-12 rounded-2xl bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-xl mx-auto mb-4">
+            🛡️
         </div>
+        <h3 class="text-base font-bold text-white mb-2">Enhance Administrator Security</h3>
+        <p class="text-xs text-slate-400 mb-6">
+            Add two-factor verification to your Print Hub account to guard against credential theft and unauthorized job dispatches.
+        </p>
 
         <form action="{{ route('admin.mfa.initiate') }}" method="POST">
             @csrf
-            <button type="submit" class="btn btn-primary" style="font-size: 1rem; padding: 0.75rem 2rem;">
-                Begin Setup →
-            </button>
+            <button type="submit" class="btn-primary">Begin Setup →</button>
         </form>
     </div>
 @endif
-@endsection
 
-@section('footer-scripts')
 @if($mfaToken && !$mfaToken->is_enabled)
 <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 <script>
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', () => {
     const uri = '{{ $mfaToken->getTotpUri("Print Hub", auth()->user()->email) }}';
     new QRCode(document.getElementById('qrcode'), {
         text: uri,
-        width: 220,
-        height: 220,
+        width: 180,
+        height: 180,
         correctLevel: QRCode.CorrectLevel.M
     });
 });
@@ -158,20 +118,8 @@ document.addEventListener('DOMContentLoaded', function() {
 <script>
 function copyRecoveryCodes() {
     const codes = {{ Js::from($mfaToken->recovery_codes ?? []) }};
-    if (codes.length === 0) return;
-    const text = codes.join('\n');
-    navigator.clipboard.writeText(text).then(() => {
-        showToast('Recovery codes copied to clipboard!', 'success');
-    }).catch(() => {
-        // Fallback
-        const textarea = document.createElement('textarea');
-        textarea.value = text;
-        document.body.appendChild(textarea);
-        textarea.select();
-        document.execCommand('copy');
-        document.body.removeChild(textarea);
-        showToast('Recovery codes copied!', 'success');
-    });
+    navigator.clipboard.writeText(codes.join('\n'));
+    alert('Recovery codes copied to clipboard!');
 }
 </script>
 @endsection

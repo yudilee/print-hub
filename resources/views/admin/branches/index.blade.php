@@ -2,32 +2,38 @@
 @section('title', 'Branches')
 
 @section('content')
-<x-breadcrumb :items="[['label' => 'Dashboard', 'url' => route('admin.dashboard')], ['label' => 'Branches']]" />
+<x-breadcrumb :items="[['label' => 'Branches']]" />
 
-<div class="page-header">
-    <h1>Branches</h1>
-    <p>Manage branch locations and their printing configurations.</p>
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+    <div>
+        <h2 class="text-base sm:text-lg font-bold text-white">Branch Locations & Facilities</h2>
+        <p class="text-xs text-slate-400">Manage physical branch networks, local agents, and location-specific print quotas</p>
+    </div>
 </div>
 
-{{-- Create Branch --}}
+{{-- Create Form Card --}}
 @if(auth()->user()->hasAnyRole(['super-admin', 'company-admin']))
-<div class="card">
-    <div class="card-header"><h2>Create New Branch</h2></div>
+<div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 mb-6 shadow-xs">
+    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4 pb-2 border-b border-slate-800">
+        Register New Branch
+    </h3>
+
     <form action="{{ route('admin.branches.store') }}" method="POST">
         @csrf
         @if($errors->any())
-            <div style="background: rgba(255, 50, 50, 0.1); border: 1px solid var(--danger); color: var(--danger); padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem;">
-                <ul style="margin: 0; padding-left: 1.2rem;">
+            <div class="mb-4 p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs">
+                <ul class="list-disc pl-5 space-y-0.5">
                     @foreach($errors->all() as $error)
                         <li>{{ $error }}</li>
                     @endforeach
                 </ul>
             </div>
         @endif
-        <div class="form-row">
-            <div class="form-group">
-                <label for="company_id">Company</label>
-                <select name="company_id" id="company_id" required>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+            <div>
+                <label class="block text-xs font-semibold text-slate-400 mb-1">Company</label>
+                <select name="company_id" required class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-blue-500">
                     <option value="">-- Select Company --</option>
                     @foreach($companies as $company)
                         <option value="{{ $company->id }}" {{ old('company_id') == $company->id ? 'selected' : '' }}>
@@ -36,147 +42,151 @@
                     @endforeach
                 </select>
             </div>
-            <div class="form-group">
-                <label for="name">Branch Name</label>
-                <input type="text" name="name" id="name" required placeholder="e.g. SDP - Surabaya Office" value="{{ old('name') }}">
+            <div>
+                <label class="block text-xs font-semibold text-slate-400 mb-1">Branch Name</label>
+                <input type="text" name="name" required placeholder="e.g. Surabaya Office" value="{{ old('name') }}"
+                    class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-blue-500">
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-slate-400 mb-1">Branch Code</label>
+                <input type="text" name="code" required placeholder="e.g. SDP-SBY" style="text-transform: uppercase;" value="{{ old('code') }}"
+                    class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-blue-500 font-mono">
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-slate-400 mb-1">Address (Optional)</label>
+                <input type="text" name="address" placeholder="e.g. Jl. Rungkut..." value="{{ old('address') }}"
+                    class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-blue-500">
             </div>
         </div>
-        <div class="form-row">
-            <div class="form-group">
-                <label for="code">Branch Code (unique)</label>
-                <input type="text" name="code" id="code" required placeholder="e.g. SDP-SBY" style="text-transform: uppercase;" value="{{ old('code') }}">
-            </div>
-            <div class="form-group">
-                <label for="address">Address (optional)</label>
-                <input type="text" name="address" id="address" placeholder="e.g. Jl. Rungkut Industri..." value="{{ old('address') }}">
-            </div>
+
+        <div class="flex justify-end">
+            <button type="submit" class="btn-primary btn-sm">
+                <x-icon name="plus" size="13" />
+                <span>Register Branch</span>
+            </button>
         </div>
-        <button type="submit" class="btn btn-primary">+ Create Branch</button>
     </form>
 </div>
 @endif
 
-{{-- Filter --}}
-@if(auth()->user()->isSuperAdmin() && $companies->count() > 1)
-<div class="filter-bar">
-    <form method="GET" style="display: flex; gap: 0.75rem; align-items: center;">
-        <select name="company_id" onchange="this.form.submit()">
-            <option value="">All Companies</option>
-            @foreach($companies as $company)
-                <option value="{{ $company->id }}" {{ request('company_id') == $company->id ? 'selected' : '' }}>
-                    {{ $company->code }} — {{ $company->name }}
-                </option>
-            @endforeach
-        </select>
-    </form>
-</div>
-@endif
+{{-- Branches Table Card --}}
+<div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xs">
+    <div class="p-4 border-b border-slate-800 flex items-center justify-between">
+        <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider">
+            Total Branches: <span class="text-white font-mono font-bold">{{ $branches->count() }}</span>
+        </h3>
+    </div>
 
-{{-- Branch List --}}
-<div class="card">
-    <div class="card-header"><h2>Branches ({{ $branches->count() }})</h2></div>
-    <table role="table">
-        <caption class="sr-only">Branch list</caption>
-        <thead>
-            <tr>
-                <th scope="col">Branch</th>
-                <th scope="col">Code</th>
-                <th scope="col">Company</th>
-                <th scope="col">Agents</th>
-                <th scope="col">Queues</th>
-                <th scope="col">Users</th>
-                <th scope="col">Jobs</th>
-                <th scope="col">Status</th>
-                <th scope="col">Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            @forelse($branches as $branch)
-            <tr>
-                <td>
-                    <strong>{{ $branch->name }}</strong>
-                    @if($branch->address)
-                        <div style="font-size: 0.7rem; color: var(--text-muted); margin-top: 2px;">{{ Str::limit($branch->address, 50) }}</div>
-                    @endif
-                </td>
-                <td><span class="mono">{{ $branch->code }}</span></td>
-                <td>
-                    <span class="badge badge-info">{{ $branch->company->code }}</span>
-                </td>
-                <td>
-                    <span style="color: var(--success);">{{ $branch->agents->filter(fn($a) => $a->isOnline())->count() }}</span>
-                    / {{ $branch->agents_count }}
-                </td>
-                <td>{{ $branch->profiles_count }}</td>
-                <td>{{ $branch->users_count }}</td>
-                <td>{{ number_format($branch->jobs_count) }}</td>
-                <td>
-                    @if($branch->is_active)
-                        <span class="badge badge-success">Active</span>
-                    @else
-                        <span class="badge badge-danger">Inactive</span>
-                    @endif
-                </td>
-                <td>
-                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                        <a href="{{ route('admin.branches.template-defaults', $branch) }}" class="btn btn-warning btn-sm" style="text-decoration: none;">
-                            Defaults
-                        </a>
-                        @if(auth()->user()->hasAnyRole(['super-admin', 'company-admin']))
-                        <button class="btn btn-secondary btn-sm" onclick="openEditModal({{ json_encode($branch) }})">Edit</button>
-                        @if($branch->agents_count === 0 && $branch->users_count === 0)
-                        <form action="{{ route('admin.branches.destroy', $branch) }}" method="POST" onsubmit="return confirm('Delete this branch?')">
-                            @csrf @method('DELETE')
-                            <button class="btn btn-danger btn-sm">Delete</button>
-                        </form>
+    <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm text-slate-300">
+            <thead class="bg-slate-950/60 text-xs uppercase text-slate-400 border-b border-slate-800 font-semibold tracking-wider">
+                <tr>
+                    <th class="px-5 py-3.5">Branch</th>
+                    <th class="px-5 py-3.5">Code</th>
+                    <th class="px-5 py-3.5">Company</th>
+                    <th class="px-5 py-3.5">Agents Online</th>
+                    <th class="px-5 py-3.5">Queues</th>
+                    <th class="px-5 py-3.5">Total Jobs</th>
+                    <th class="px-5 py-3.5">Status</th>
+                    <th class="px-5 py-3.5 text-right">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-800/60">
+                @forelse($branches as $branch)
+                <tr class="hover:bg-slate-800/40 transition">
+                    <td class="px-5 py-3.5 font-bold text-white">
+                        {{ $branch->name }}
+                        @if($branch->address)
+                            <span class="block text-[11px] text-slate-500 font-normal">{{ Str::limit($branch->address, 40) }}</span>
                         @endif
+                    </td>
+                    <td class="px-5 py-3.5 font-mono font-bold text-blue-400 text-xs">
+                        {{ $branch->code }}
+                    </td>
+                    <td class="px-5 py-3.5">
+                        <span class="badge badge-info">{{ $branch->company->code }}</span>
+                    </td>
+                    <td class="px-5 py-3.5 text-xs">
+                        <span class="text-emerald-400 font-bold">{{ $branch->agents->filter(fn($a) => $a->isOnline())->count() }}</span>
+                        <span class="text-slate-500">/ {{ $branch->agents_count }} agents</span>
+                    </td>
+                    <td class="px-5 py-3.5 text-xs text-slate-300">{{ $branch->profiles_count }}</td>
+                    <td class="px-5 py-3.5 text-xs text-slate-300 font-mono">{{ number_format($branch->jobs_count) }}</td>
+                    <td class="px-5 py-3.5">
+                        @if($branch->is_active)
+                            <span class="badge badge-success">Active</span>
+                        @else
+                            <span class="badge badge-danger">Inactive</span>
                         @endif
-                    </div>
-                </td>
-            </tr>
-            @empty
-            <tr><td colspan="9">
-                <x-empty-state icon="🏢" title="No branches found" description="Create a branch to organize your agents and queues by location." />
-            </td></tr>
-            @endforelse
-        </tbody>
-    </table>
+                    </td>
+                    <td class="px-5 py-3.5 text-right">
+                        <div class="inline-flex items-center gap-1.5">
+                            <a href="{{ route('admin.branches.template-defaults', $branch) }}" class="btn-secondary btn-sm">Defaults</a>
+                            @if(auth()->user()->hasAnyRole(['super-admin', 'company-admin']))
+                                <button class="btn-secondary btn-sm" onclick="openEditModal({{ json_encode($branch) }})">Edit</button>
+                                @if($branch->agents_count === 0 && $branch->users_count === 0)
+                                <form action="{{ route('admin.branches.destroy', $branch) }}" method="POST" class="inline" onsubmit="return confirm('Delete this branch?')">
+                                    @csrf @method('DELETE')
+                                    <button class="btn-danger btn-sm">Delete</button>
+                                </form>
+                                @endif
+                            @endif
+                        </div>
+                    </td>
+                </tr>
+                @empty
+                <tr>
+                    <td colspan="8">
+                        <x-empty-state icon="🏢" title="No branches found" description="Register branch offices to scope print queues and assign hardware." />
+                    </td>
+                </tr>
+                @endforelse
+            </tbody>
+        </table>
+    </div>
 </div>
 
 {{-- Edit Modal --}}
-<div id="edit-modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 1000; align-items: center; justify-content: center;">
-    <div class="card" style="width: 480px; padding: 2rem;">
-        <div class="card-header"><h2>Edit Branch</h2></div>
-        <form id="edit-form" method="POST">
+<div id="edit-modal" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl">
+        <div class="flex items-center justify-between pb-4 mb-4 border-b border-slate-800">
+            <h3 class="text-base font-bold text-white">Edit Branch</h3>
+            <button onclick="closeEditModal()" class="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition">
+                <x-icon name="x" size="18" />
+            </button>
+        </div>
+
+        <form id="edit-form" method="POST" class="space-y-4">
             @csrf @method('PUT')
-            <div class="form-group">
-                <label>Branch Name</label>
-                <input type="text" name="name" id="edit-name" required>
+            <div>
+                <label class="block text-xs font-semibold text-slate-400 mb-1">Branch Name</label>
+                <input type="text" name="name" id="edit-name" required
+                    class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-blue-500">
             </div>
-            <div class="form-group">
-                <label>Code</label>
-                <input type="text" name="code" id="edit-code" required style="text-transform: uppercase;">
+            <div>
+                <label class="block text-xs font-semibold text-slate-400 mb-1">Code</label>
+                <input type="text" name="code" id="edit-code" required style="text-transform: uppercase;"
+                    class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-blue-500 font-mono">
             </div>
-            <div class="form-group">
-                <label>Address</label>
-                <input type="text" name="address" id="edit-address">
+            <div>
+                <label class="block text-xs font-semibold text-slate-400 mb-1">Address</label>
+                <input type="text" name="address" id="edit-address"
+                    class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-blue-500">
             </div>
-            <div class="form-group">
-                <label for="edit-monthly-goal">Monthly Page Goal (Print Reduction)</label>
-                <input type="number" name="monthly_page_goal" id="edit-monthly-goal" min="0" step="1" placeholder="e.g. 5000">
-                <div style="font-size: 0.7rem; color: var(--text-muted); margin-top: 4px;">
-                    Set a target to track print reduction progress on the dashboard.
-                </div>
+            <div>
+                <label class="block text-xs font-semibold text-slate-400 mb-1">Monthly Page Goal (Print Reduction)</label>
+                <input type="number" name="monthly_page_goal" id="edit-monthly-goal" min="0" placeholder="e.g. 5000"
+                    class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-blue-500">
             </div>
-            <div class="form-group">
-                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                    <input type="checkbox" name="is_active" id="edit-active" value="1" style="width: 18px; height: 18px;">
-                    Active
+            <div>
+                <label class="inline-flex items-center gap-2 text-xs font-semibold text-slate-300 cursor-pointer">
+                    <input type="checkbox" name="is_active" id="edit-active" value="1" class="rounded border-slate-700 bg-slate-950 text-blue-600">
+                    <span>Branch Active</span>
                 </label>
             </div>
-            <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 1.5rem;">
-                <button type="button" class="btn btn-secondary" onclick="closeEditModal()">Cancel</button>
-                <button type="submit" class="btn btn-primary">Save Changes</button>
+            <div class="pt-4 border-t border-slate-800 flex justify-end gap-2">
+                <button type="button" class="btn-secondary btn-sm" onclick="closeEditModal()">Cancel</button>
+                <button type="submit" class="btn-primary btn-sm">Save Changes</button>
             </div>
         </form>
     </div>
@@ -190,10 +200,10 @@ function openEditModal(branch) {
     document.getElementById('edit-address').value = branch.address || '';
     document.getElementById('edit-monthly-goal').value = branch.monthly_page_goal || '';
     document.getElementById('edit-active').checked = branch.is_active;
-    document.getElementById('edit-modal').style.display = 'flex';
+    document.getElementById('edit-modal').classList.remove('hidden');
 }
 function closeEditModal() {
-    document.getElementById('edit-modal').style.display = 'none';
+    document.getElementById('edit-modal').classList.add('hidden');
 }
 </script>
 @endsection

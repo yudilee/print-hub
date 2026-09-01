@@ -2,134 +2,168 @@
 @section('title', 'Companies')
 
 @section('content')
-<x-breadcrumb :items="[['label' => 'Dashboard', 'url' => route('admin.dashboard')], ['label' => 'Companies']]" />
+<x-breadcrumb :items="[['label' => 'Companies']]" />
 
-<div class="page-header">
-    <h1>Companies</h1>
-    <p>Manage companies within the Hartono Raya Motor Group.</p>
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+    <div>
+        <h2 class="text-base sm:text-lg font-bold text-white">Company Entities</h2>
+        <p class="text-xs text-slate-400">Enterprise organizations and subsidiaries operating within the group</p>
+    </div>
 </div>
 
-{{-- Create Company --}}
-<div class="card">
-    <div class="card-header"><h2>Register New Company</h2></div>
+{{-- Create Form Card --}}
+<div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 mb-6 shadow-xs">
+    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4 pb-2 border-b border-slate-800">
+        Register New Company
+    </h3>
+
     <form action="{{ route('admin.companies.store') }}" method="POST">
         @csrf
         @if($errors->any())
-            <div style="background: rgba(255, 50, 50, 0.1); border: 1px solid var(--danger); color: var(--danger); padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem;">
-                <ul style="margin: 0; padding-left: 1.2rem;">
+            <div class="mb-4 p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs">
+                <ul class="list-disc pl-5 space-y-0.5">
                     @foreach($errors->all() as $error)
                         <li>{{ $error }}</li>
                     @endforeach
                 </ul>
             </div>
         @endif
-        <div class="form-row">
-            <div class="form-group">
-                <label for="name">Company Name</label>
-                <input type="text" name="name" id="name" required placeholder="e.g. Surya Darma Perkasa" value="{{ old('name') }}">
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+            <div>
+                <label class="block text-xs font-semibold text-slate-400 mb-1">Company Name</label>
+                <input type="text" name="name" required placeholder="e.g. Surya Darma Perkasa" value="{{ old('name') }}"
+                    class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-blue-500">
             </div>
-            <div class="form-group">
-                <label for="code">Code (unique identifier)</label>
-                <input type="text" name="code" id="code" required placeholder="e.g. SDP" style="text-transform: uppercase;" value="{{ old('code') }}">
+            <div>
+                <label class="block text-xs font-semibold text-slate-400 mb-1">Unique Code</label>
+                <input type="text" name="code" required placeholder="e.g. SDP" style="text-transform: uppercase;" value="{{ old('code') }}"
+                    class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-blue-500 font-mono">
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-slate-400 mb-1">Short Name / Alias</label>
+                <input type="text" name="short_name" placeholder="e.g. Harent" value="{{ old('short_name') }}"
+                    class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-blue-500">
             </div>
         </div>
-        <div class="form-row">
-            <div class="form-group">
-                <label for="short_name">Short Name / Alias (optional)</label>
-                <input type="text" name="short_name" id="short_name" placeholder="e.g. Harent" value="{{ old('short_name') }}">
-            </div>
-            <div class="form-group" style="display: flex; align-items: flex-end;">
-                <button type="submit" class="btn btn-primary">+ Register Company</button>
-            </div>
+
+        <div class="flex justify-end">
+            <button type="submit" class="btn-primary btn-sm">
+                <x-icon name="plus" size="13" />
+                <span>Register Company</span>
+            </button>
         </div>
     </form>
 </div>
 
-{{-- Company List --}}
-<div class="card">
-    <div class="card-header"><h2>All Companies ({{ $companies->count() }})</h2></div>
-    <table role="table">
-        <caption class="sr-only">Companies list</caption>
-        <thead>
-            <tr>
-                <th scope="col">Company</th>
-                <th scope="col">Code</th>
-                <th scope="col">Short Name</th>
-                <th scope="col">Branches</th>
-                <th scope="col">Status</th>
-                <th scope="col">Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            @forelse($companies as $company)
-            <tr>
-                <td><strong>{{ $company->name }}</strong></td>
-                <td><span class="mono">{{ $company->code }}</span></td>
-                <td style="color: var(--text-muted);">{{ $company->short_name ?? '—' }}</td>
-                <td>
-                    <span class="badge badge-info">{{ $company->branches_count }} branch{{ $company->branches_count !== 1 ? 'es' : '' }}</span>
-                    @foreach($company->branches as $branch)
-                        <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">
-                            📍 {{ $branch->name }}
-                            <span style="color: var(--text-muted);">({{ $branch->agents_count }} agents, {{ $branch->users_count }} users)</span>
-                        </div>
-                    @endforeach
-                </td>
-                <td>
-                    @if($company->is_active)
-                        <span class="badge badge-success">Active</span>
-                    @else
-                        <span class="badge badge-danger">Inactive</span>
-                    @endif
-                </td>
-                <td>
-                    <div style="display: flex; gap: 8px;">
-                        <button class="btn btn-secondary btn-sm" onclick="openEditModal({{ json_encode($company) }})">Edit</button>
-                        @if($company->branches_count === 0)
-                        <form action="{{ route('admin.companies.destroy', $company) }}" method="POST" onsubmit="return confirm('Delete this company?')">
-                            @csrf @method('DELETE')
-                            <button class="btn btn-danger btn-sm">Delete</button>
-                        </form>
+{{-- Companies List Card --}}
+<div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xs">
+    <div class="p-4 border-b border-slate-800 flex items-center justify-between">
+        <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider">
+            Total Registered: <span class="text-white font-mono font-bold">{{ $companies->count() }}</span>
+        </h3>
+    </div>
+
+    <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm text-slate-300">
+            <thead class="bg-slate-950/60 text-xs uppercase text-slate-400 border-b border-slate-800 font-semibold tracking-wider">
+                <tr>
+                    <th class="px-5 py-3.5">Company Name</th>
+                    <th class="px-5 py-3.5">Code</th>
+                    <th class="px-5 py-3.5">Alias</th>
+                    <th class="px-5 py-3.5">Branches & Scopes</th>
+                    <th class="px-5 py-3.5">Status</th>
+                    <th class="px-5 py-3.5 text-right">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-800/60">
+                @forelse($companies as $company)
+                <tr class="hover:bg-slate-800/40 transition">
+                    <td class="px-5 py-3.5 font-bold text-white">
+                        {{ $company->name }}
+                    </td>
+                    <td class="px-5 py-3.5 font-mono font-bold text-blue-400 text-xs">
+                        {{ $company->code }}
+                    </td>
+                    <td class="px-5 py-3.5 text-xs text-slate-400">
+                        {{ $company->short_name ?? '—' }}
+                    </td>
+                    <td class="px-5 py-3.5 text-xs">
+                        <span class="badge badge-info mb-1">{{ $company->branches_count }} branch{{ $company->branches_count !== 1 ? 'es' : '' }}</span>
+                        @foreach($company->branches as $branch)
+                            <div class="text-[11px] text-slate-400 mt-0.5">
+                                📍 {{ $branch->name }}
+                                <span class="text-slate-500">({{ $branch->agents_count }} agents, {{ $branch->users_count }} users)</span>
+                            </div>
+                        @endforeach
+                    </td>
+                    <td class="px-5 py-3.5">
+                        @if($company->is_active)
+                            <span class="badge badge-success">Active</span>
+                        @else
+                            <span class="badge badge-danger">Inactive</span>
                         @endif
-                    </div>
-                </td>
-            </tr>
-            @empty
-            <tr><td colspan="6">
-                <x-empty-state icon="🏢" title="No companies registered yet" description="Create a company to start organizing branches and users." actionText="+ Create Company" :actionUrl="'#'" />
-            </td></tr>
-            @endforelse
-        </tbody>
-    </table>
+                    </td>
+                    <td class="px-5 py-3.5 text-right">
+                        <div class="inline-flex items-center gap-1.5">
+                            <button class="btn-secondary btn-sm" onclick="openEditModal({{ json_encode($company) }})">Edit</button>
+                            @if($company->branches_count === 0)
+                            <form action="{{ route('admin.companies.destroy', $company) }}" method="POST" class="inline" onsubmit="return confirm('Delete this company?')">
+                                @csrf @method('DELETE')
+                                <button class="btn-danger btn-sm">Delete</button>
+                            </form>
+                            @endif
+                        </div>
+                    </td>
+                </tr>
+                @empty
+                <tr>
+                    <td colspan="6">
+                        <x-empty-state icon="🏢" title="No companies found" description="Register your organizational entities to scope branches and agents." />
+                    </td>
+                </tr>
+                @endforelse
+            </tbody>
+        </table>
+    </div>
 </div>
 
 {{-- Edit Modal --}}
-<div id="edit-modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 1000; align-items: center; justify-content: center;">
-    <div class="card" style="width: 480px; padding: 2rem;">
-        <div class="card-header"><h2>Edit Company</h2></div>
-        <form id="edit-form" method="POST">
+<div id="edit-modal" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl">
+        <div class="flex items-center justify-between pb-4 mb-4 border-b border-slate-800">
+            <h3 class="text-base font-bold text-white">Edit Company</h3>
+            <button onclick="closeEditModal()" class="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition">
+                <x-icon name="x" size="18" />
+            </button>
+        </div>
+
+        <form id="edit-form" method="POST" class="space-y-4">
             @csrf @method('PUT')
-            <div class="form-group">
-                <label>Company Name</label>
-                <input type="text" name="name" id="edit-name" required>
+            <div>
+                <label class="block text-xs font-semibold text-slate-400 mb-1">Company Name</label>
+                <input type="text" name="name" id="edit-name" required
+                    class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-blue-500">
             </div>
-            <div class="form-group">
-                <label>Code</label>
-                <input type="text" name="code" id="edit-code" required style="text-transform: uppercase;">
+            <div>
+                <label class="block text-xs font-semibold text-slate-400 mb-1">Code</label>
+                <input type="text" name="code" id="edit-code" required style="text-transform: uppercase;"
+                    class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-blue-500 font-mono">
             </div>
-            <div class="form-group">
-                <label>Short Name</label>
-                <input type="text" name="short_name" id="edit-short-name">
+            <div>
+                <label class="block text-xs font-semibold text-slate-400 mb-1">Short Name</label>
+                <input type="text" name="short_name" id="edit-short-name"
+                    class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-blue-500">
             </div>
-            <div class="form-group">
-                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                    <input type="checkbox" name="is_active" id="edit-active" value="1" style="width: 18px; height: 18px;">
-                    Active
+            <div>
+                <label class="inline-flex items-center gap-2 text-xs font-semibold text-slate-300 cursor-pointer">
+                    <input type="checkbox" name="is_active" id="edit-active" value="1" class="rounded border-slate-700 bg-slate-950 text-blue-600">
+                    <span>Company Active</span>
                 </label>
             </div>
-            <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 1.5rem;">
-                <button type="button" class="btn btn-secondary" onclick="closeEditModal()">Cancel</button>
-                <button type="submit" class="btn btn-primary">Save Changes</button>
+            <div class="pt-4 border-t border-slate-800 flex justify-end gap-2">
+                <button type="button" class="btn-secondary btn-sm" onclick="closeEditModal()">Cancel</button>
+                <button type="submit" class="btn-primary btn-sm">Save Changes</button>
             </div>
         </form>
     </div>
@@ -142,10 +176,10 @@ function openEditModal(company) {
     document.getElementById('edit-code').value = company.code;
     document.getElementById('edit-short-name').value = company.short_name || '';
     document.getElementById('edit-active').checked = company.is_active;
-    document.getElementById('edit-modal').style.display = 'flex';
+    document.getElementById('edit-modal').classList.remove('hidden');
 }
 function closeEditModal() {
-    document.getElementById('edit-modal').style.display = 'none';
+    document.getElementById('edit-modal').classList.add('hidden');
 }
 </script>
 @endsection

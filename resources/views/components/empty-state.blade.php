@@ -1,13 +1,18 @@
 {{-- Empty State Component --}}
 @props(['icon' => '📋', 'title' => 'No items found', 'description' => null, 'actionText' => null, 'actionUrl' => null])
 
-<div style="text-align: center; padding: 3rem 2rem;">
-    <div style="font-size: 2.5rem; margin-bottom: 0.75rem; opacity: 0.5;">{{ $icon }}</div>
-    <h3 style="font-size: 1rem; font-weight: 600; color: var(--text); margin-bottom: 0.35rem;">{{ $title }}</h3>
+<div class="text-center py-12 px-6">
+    <div class="w-16 h-16 rounded-2xl bg-slate-800/80 border border-slate-700/60 flex items-center justify-center text-3xl mx-auto mb-4 shadow-sm text-slate-300">
+        {{ $icon }}
+    </div>
+    <h3 class="text-base font-bold text-white mb-1">{{ $title }}</h3>
     @if($description)
-    <p style="color: var(--text-muted); font-size: 0.85rem; max-width: 360px; margin: 0 auto 1.25rem;">{{ $description }}</p>
+    <p class="text-xs text-slate-400 max-w-sm mx-auto mb-6">{{ $description }}</p>
     @endif
     @if($actionText && $actionUrl)
-    <a href="{{ $actionUrl }}" class="btn btn-primary" style="text-decoration: none;">{{ $actionText }}</a>
+    <a href="{{ $actionUrl }}" class="btn-primary">
+        <x-icon name="plus" size="14" />
+        <span>{{ $actionText }}</span>
+    </a>
     @endif
 </div>
