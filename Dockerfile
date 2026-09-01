@@ -19,7 +19,7 @@ RUN apt-get update && apt-get install -y \
     zip \
     unzip \
     git \
-    && docker-php-ext-install -j$(nproc) pdo pdo_pgsql pdo_sqlite mbstring xml zip bcmath \
+    && docker-php-ext-install -j$(nproc) pdo pdo_pgsql pdo_sqlite mbstring xml zip bcmath pcntl \
     && a2enmod rewrite proxy proxy_http proxy_wstunnel
 
 # Increase PHP upload / POST size limits to handle large base64-encoded print payloads
