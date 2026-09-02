@@ -1256,10 +1256,12 @@ $templateSchemasData = $template->relationLoaded('schemas') ? $template->schemas
     let selectedSection = null;
 
     function findElementSection(elId) {
+        if (!elId && elId !== 0) return null;
+        const strId = String(elId);
         for (const key of SECTION_ORDER) {
             const sec = sections[key];
             if (sec && sec.elements) {
-                const found = sec.elements.find(e => e.id === elId);
+                const found = sec.elements.find(e => String(e.id) === strId);
                 if (found) return key;
             }
         }
@@ -1267,10 +1269,12 @@ $templateSchemasData = $template->relationLoaded('schemas') ? $template->schemas
     }
 
     function removeElementFromAllSections(elId) {
+        if (!elId && elId !== 0) return;
+        const strId = String(elId);
         for (const key of SECTION_ORDER) {
             const sec = sections[key];
             if (sec && sec.elements) {
-                const idx = sec.elements.findIndex(e => e.id === elId);
+                const idx = sec.elements.findIndex(e => String(e.id) === strId);
                 if (idx !== -1) {
                     sec.elements.splice(idx, 1);
                     return;
@@ -1280,16 +1284,17 @@ $templateSchemasData = $template->relationLoaded('schemas') ? $template->schemas
     }
 
     function findElement(elId) {
-        if (!elId) return null;
+        if (!elId && elId !== 0) return null;
+        const strId = String(elId);
         for (const key of SECTION_ORDER) {
             const sec = sections[key];
             if (sec && sec.elements) {
-                const found = sec.elements.find(e => e.id === elId);
+                const found = sec.elements.find(e => String(e.id) === strId);
                 if (found) return found;
             }
         }
         if (Array.isArray(elements)) {
-            const found = elements.find(e => e.id === elId);
+            const found = elements.find(e => String(e.id) === strId);
             if (found) return found;
         }
         return null;
@@ -3974,9 +3979,12 @@ $templateSchemasData = $template->relationLoaded('schemas') ? $template->schemas
 
     // ── Select / Align / Group ───────────────────────────────
     function selectElements(ids) {
-        activeIds = ids; activeId = ids.length === 1 ? ids[0] : null;
-        renderElements(); updateInspector();
-        if (ids.length > 0) switchTab('props');
+        activeIds = ids || [];
+        activeId = activeIds.length === 1 ? activeIds[0] : null;
+        selectedSection = null;
+        renderElements();
+        updateInspector();
+        if (activeIds.length > 0) switchTab('props');
     }
     function alignElements(type) {
         if (activeIds.length < 2) return; pushHistory();
