@@ -59,29 +59,92 @@
     .tab-panel.active { display: flex; }
 
     .props-header {
-        padding: 12px 1rem; border-bottom: 1px solid var(--border);
-        background: rgba(0,0,0,0.05); font-weight: 600; font-size: 0.8rem;
-        text-transform: uppercase; color: var(--text-muted);
+        padding: 10px 14px; border-bottom: 1px solid var(--border);
+        background: var(--bg); font-weight: 700; font-size: 0.75rem;
+        text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted);
     }
-    .props-section { border-bottom: 1px solid var(--border); }
+    .props-section {
+        border-bottom: 1px solid var(--border);
+        background: var(--surface);
+    }
     .props-label {
-        padding: 10px 1rem; background: var(--surface-hover); cursor: pointer;
+        padding: 8px 12px; background: rgba(0,0,0,0.03);
         display: flex; justify-content: space-between; align-items: center;
-        font-size: 0.75rem; font-weight: 600; color: var(--text-muted);
+        font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+        letter-spacing: 0.03em; color: var(--text-muted);
+        border-bottom: 1px solid var(--border);
+    }
+    .prop-table {
+        display: flex;
+        flex-direction: column;
+        background: var(--surface);
+    }
+    .prop-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 5px 12px;
+        min-height: 32px;
+        border-bottom: 1px solid rgba(0,0,0,0.04);
+        box-sizing: border-box;
+    }
+    .prop-item:last-child {
+        border-bottom: none;
+    }
+    .prop-key {
+        width: 42%;
+        color: var(--text-muted);
+        font-size: 11px;
+        font-weight: 500;
+        flex-shrink: 0;
+    }
+    .prop-val {
+        width: 58%;
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 6px;
+    }
+    .prop-val input[type="text"],
+    .prop-val input[type="number"],
+    .prop-val select {
+        width: 100%;
+        height: 26px;
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        background: var(--bg);
+        color: var(--text);
+        padding: 2px 6px;
+        font-size: 11px;
+        font-family: inherit;
+        outline: none;
+        box-sizing: border-box;
+        transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .prop-val input[type="text"]:focus,
+    .prop-val input[type="number"]:focus,
+    .prop-val select:focus {
+        border-color: var(--primary);
+        background: #ffffff;
+        box-shadow: 0 0 0 1px var(--primary);
+    }
+    .prop-val input[type="checkbox"] {
+        width: 16px;
+        height: 16px;
+        accent-color: var(--primary);
+        cursor: pointer;
+        margin: 0;
+    }
+    .prop-val input[type="range"] {
+        width: 100%;
+        height: 4px;
+        accent-color: var(--primary);
+        cursor: pointer;
     }
     .prop-row {
         display: flex; align-items: center; justify-content: space-between;
-        padding: 6px 1rem; border-bottom: 1px solid rgba(0,0,0,0.05); font-size: 11px;
+        padding: 6px 12px; border-bottom: 1px solid var(--border); font-size: 11px;
     }
-    .prop-title { width: 40%; color: var(--text-muted); font-size: 11px; }
-    .prop-val { 
-        width: 60%; padding: 0; font-size: 11px; display: flex; align-items: center;
-    }
-    .prop-val input, .prop-val select {
-        width: 100%; height: 28px; border: none; background: transparent; 
-        color: var(--text); padding: 0 8px; font-size: 11px; outline: none;
-    }
-    .prop-val input:focus { background: rgba(255,255,255,0.05); color: var(--primary); }
     
     .badge-delphi {
         background: #334155; color: #fbbf24; padding: 2px 6px; border-radius: 4px;
@@ -92,7 +155,7 @@
     .ruler-top { top: 0; left: 40px; right: 0; height: 25px; border-bottom: 1px solid var(--border); }
     .ruler-left { top: 40px; left: 0; bottom: 0; width: 25px; border-right: 1px solid var(--border); }
 
-    #canvas-wrapper { position: relative; box-shadow: 0 0 50px rgba(0,0,0,0.5); margin: auto 0; flex-shrink: 0; }
+    #canvas-wrapper { position: relative; box-shadow: 0 4px 25px rgba(0,0,0,0.25); margin: 20px auto 120px auto; flex-shrink: 0; }
     #canvas { position: absolute; top: 0; left: 0; background: white; overflow: hidden; transform-origin: top left; }
     #canvas-bg-img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain; opacity: 0.4; pointer-events: none; }
     
@@ -3692,13 +3755,18 @@ $templateSchemasData = $template->relationLoaded('schemas') ? $template->schemas
                 z-index: 10; user-select: none;
             `;
             label.innerHTML = `
-                <span onclick="showSectionInspector('${sectionKey}')" style="cursor:pointer; font-weight:700; background:rgba(255,255,255,0.9); padding:1px 6px; border-radius:4px; border:1px solid #cbd5e1; box-shadow:0 1px 2px rgba(0,0,0,0.05); color: #1e293b;" title="Click to edit section properties">
-                    📌 ${SECTION_LABELS[sectionKey]} (${parseFloat(section.height || sectionHeight).toFixed(0)}mm)
+                <span onclick="showSectionInspector('${sectionKey}')" style="cursor:pointer; font-weight:700; background:rgba(255,255,255,0.95); padding:2px 8px; border-radius:4px; border:1px solid #cbd5e1; box-shadow:0 1px 2px rgba(0,0,0,0.06); color: #1e293b; display:inline-flex; align-items:center; gap:6px;" title="Click to open section settings">
+                    <span>📌 ${SECTION_LABELS[sectionKey]}</span>
+                    <span style="display:inline-flex; align-items:center; background:#f1f5f9; border-radius:3px; padding:1px 3px;" onclick="event.stopPropagation()">
+                        <button type="button" onclick="adjustSectionH('${sectionKey}', -5)" style="background:none;border:none;padding:0 4px;font-size:10px;font-weight:bold;cursor:pointer;color:#475569;" title="Decrease 5mm">−</button>
+                        <span style="font-size:9px; font-weight:700; color:#2563eb; min-width:30px; text-align:center;">${parseFloat(section.height || sectionHeight).toFixed(0)}mm</span>
+                        <button type="button" onclick="adjustSectionH('${sectionKey}', 5)" style="background:none;border:none;padding:0 4px;font-size:10px;font-weight:bold;cursor:pointer;color:#475569;" title="Increase 5mm">+</button>
+                    </span>
                 </span>
-                <button type="button" onclick="addSectionElement('${sectionKey}', 'field')" style="background:#3b82f6; color:#fff; border:none; border-radius:3px; padding:1px 5px; font-size:8px; font-weight:600; cursor:pointer;" title="Add Data Field to ${SECTION_LABELS[sectionKey]}">+ Field</button>
-                <button type="button" onclick="addSectionElement('${sectionKey}', 'label')" style="background:#64748b; color:#fff; border:none; border-radius:3px; padding:1px 5px; font-size:8px; font-weight:600; cursor:pointer;" title="Add Text Label to ${SECTION_LABELS[sectionKey]}">+ Label</button>
-                <button type="button" onclick="addSectionElement('${sectionKey}', 'image')" style="background:#8b5cf6; color:#fff; border:none; border-radius:3px; padding:1px 5px; font-size:8px; font-weight:600; cursor:pointer;" title="Add Logo/Image to ${SECTION_LABELS[sectionKey]}">+ Logo</button>
-                ${sectionKey === 'detail' ? `<button type="button" onclick="addSectionElement('detail', 'table')" style="background:#10b981; color:#fff; border:none; border-radius:3px; padding:1px 5px; font-size:8px; font-weight:600; cursor:pointer;" title="Add Table to Detail">+ Table</button>` : ''}
+                <button type="button" onclick="addSectionElement('${sectionKey}', 'field')" style="background:#3b82f6; color:#fff; border:none; border-radius:3px; padding:2px 6px; font-size:8px; font-weight:600; cursor:pointer;" title="Add Data Field to ${SECTION_LABELS[sectionKey]}">+ Field</button>
+                <button type="button" onclick="addSectionElement('${sectionKey}', 'label')" style="background:#64748b; color:#fff; border:none; border-radius:3px; padding:2px 6px; font-size:8px; font-weight:600; cursor:pointer;" title="Add Text Label to ${SECTION_LABELS[sectionKey]}">+ Label</button>
+                <button type="button" onclick="addSectionElement('${sectionKey}', 'image')" style="background:#8b5cf6; color:#fff; border:none; border-radius:3px; padding:2px 6px; font-size:8px; font-weight:600; cursor:pointer;" title="Add Logo/Image to ${SECTION_LABELS[sectionKey]}">+ Logo</button>
+                ${sectionKey === 'detail' ? `<button type="button" onclick="addSectionElement('detail', 'table')" style="background:#10b981; color:#fff; border:none; border-radius:3px; padding:2px 6px; font-size:8px; font-weight:600; cursor:pointer;" title="Add Table to Detail">+ Table</button>` : ''}
             `;
             c.appendChild(label);
 
@@ -3864,53 +3932,24 @@ $templateSchemasData = $template->relationLoaded('schemas') ? $template->schemas
                 };
                 c.appendChild(div);
             });
-
-            // Section resize handles (compact right-aligned pill, z-index:15, no blocking of canvas objects)
-            if (sectionKey === 'pageHeader' || sectionKey === 'reportHeader') {
-                const rh = document.createElement('div');
-                rh.className = 'section-resize-handle';
-                rh.dataset.section = sectionKey;
-                rh.style.cssText = `
-                    position: absolute; right: 8px; top: ${currentYpx + sectionHpx - 10}px;
-                    padding: 2px 8px; border-radius: 4px;
-                    background: #3b82f6; color: #ffffff;
-                    font-size: 8px; font-weight: 700;
-                    cursor: ns-resize; z-index: 15;
-                    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
-                    user-select: none; display: flex; align-items: center; gap: 2px;
-                `;
-                rh.innerHTML = `⇕ ${SECTION_LABELS[sectionKey]}`;
-                rh.title = `Drag to resize ${SECTION_LABELS[sectionKey]} height`;
-                rh.onmousedown = (ev) => {
-                    ev.stopPropagation(); ev.preventDefault();
-                    sectionResizing = { key: sectionKey, startY: ev.clientY, startHeight: section.height || sectionHeight };
-                };
-                c.appendChild(rh);
-            } else if (sectionKey === 'pageFooter' || sectionKey === 'reportFooter') {
-                const rh = document.createElement('div');
-                rh.className = 'section-resize-handle';
-                rh.dataset.section = sectionKey;
-                rh.style.cssText = `
-                    position: absolute; right: 8px; top: ${currentYpx - 10}px;
-                    padding: 2px 8px; border-radius: 4px;
-                    background: #3b82f6; color: #ffffff;
-                    font-size: 8px; font-weight: 700;
-                    cursor: ns-resize; z-index: 15;
-                    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
-                    user-select: none; display: flex; align-items: center; gap: 2px;
-                `;
-                rh.innerHTML = `⇕ ${SECTION_LABELS[sectionKey]}`;
-                rh.title = `Drag to resize ${SECTION_LABELS[sectionKey]} height`;
-                rh.onmousedown = (ev) => {
-                    ev.stopPropagation(); ev.preventDefault();
-                    sectionResizing = { key: sectionKey, startY: ev.clientY, startHeight: section.height || sectionHeight };
-                };
-                c.appendChild(rh);
-            }
         });
 
         document.getElementById('align-tools').style.display = activeIds.length > 1 ? 'flex' : 'none';
         drawRulers(); updateLayersList(); drawMinimap();
+    }
+
+    function adjustSectionH(key, delta) {
+        if (!sections || !sections[key]) return;
+        pushHistory();
+        const currentH = parseFloat(sections[key].height || 10);
+        const newH = Math.max(5, Math.min(250, currentH + delta));
+        sections[key].height = parseFloat(newH.toFixed(1));
+        elements = flattenSections();
+        updateCanvasSize();
+        renderElements();
+        updateSectionsList();
+        drawMinimap();
+        showToast(`${SECTION_LABELS[key]} set to ${newH}mm`, 'info');
     }
 
     // ── Context Menu ─────────────────────────────────────────
