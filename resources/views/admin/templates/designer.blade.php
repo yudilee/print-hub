@@ -2344,7 +2344,15 @@ $templateSchemasData = $template->relationLoaded('schemas') ? $template->schemas
         document.getElementById('tab-' + tab).classList.add('active');
         if (tab === 'layers') updateLayersList();
         if (tab === 'sections') updateSectionsList();
-        if (tab === 'props') showSectionInspector(selectedSection);
+        if (tab === 'props') {
+            if (activeIds.length > 0) {
+                updateInspector();
+            } else if (selectedSection) {
+                showSectionInspector(selectedSection);
+            } else {
+                updateInspector();
+            }
+        }
         if (tab === 'explorer') { loadFieldExplorer(); }
         if (tab === 'data') { loadConnectors(); loadScenarios(); }
         if (tab === 'sgf') { sgfRenderSortList(); sgfRenderGroupList(); }
