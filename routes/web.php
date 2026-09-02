@@ -141,6 +141,7 @@ Route::middleware(['auth', 'session.activity'])->group(function () {
     Route::get('/jobs/{job}/download', [JobController::class, 'download'])->name('admin.jobs.download');
     Route::post('/jobs/{job}/status', [JobController::class, 'updateStatus'])->name('admin.jobs.status');
     Route::post('/jobs/{job}/retry', [JobController::class, 'retry'])->name('admin.jobs.retry');
+    Route::post('/jobs/{job}/reprint', [JobController::class, 'reprint'])->name('admin.jobs.reprint');
     Route::post('/jobs/retry-all-failed', [JobController::class, 'retryAllFailed'])->name('admin.jobs.retry-all-failed');
     Route::post('/jobs/bulk-retry', [JobController::class, 'bulkRetry'])->name('admin.jobs.bulk-retry');
     Route::get('/jobs/{job}/dependencies', [JobController::class, 'dependencies'])->name('admin.jobs.dependencies');

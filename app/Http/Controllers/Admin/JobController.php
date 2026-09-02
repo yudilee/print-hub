@@ -192,27 +192,18 @@ class JobController extends Controller
 
     public function retry(PrintJob $job)
     {
-        $newJob = $job->replicate();
-        $newJob->job_id = (string) Str::uuid();
-        $newJob->status = 'pending';
-        $newJob->dispatched_at = null;
-        $newJob->retried_from_job_id = $job->id;
-        $newJob->retry_count = $job->retry_count + 1;
-        $newJob->error = null;
-        $newJob->agent_created_at = null;
-        $newJob->agent_completed_at = null;
-        $newJob->created_at = now();
-        $newJob->updated_at = now();
-
-        if ($job->file_path && \Illuminate\Support\Facades\Storage::exists($job->file_path)) {
-            $ext = pathinfo($job->file_path, PATHINFO_EXTENSION);
-            $newJob->file_path = "print_jobs/{$newJob->job_id}.{$ext}";
-            \Illuminate\Support\Facades\Storage::copy($job->file_path, $newJob->file_path);
-        }
-
-        $newJob->save();
+        $orchestrator = new \App\Services\PrintJobOrchestrator();
+        $newJob = $orchestrator->retryJob($job, 'Admin manual retry');
 
         return redirect()->back()->with('success', 'Job retried! New Job ID: ' . $newJob->job_id);
+    }
+
+    public function reprint(PrintJob $job)
+    {
+        $orchestrator = new \App\Services\PrintJobOrchestrator();
+        $newJob = $orchestrator->retryJob($job, 'Admin manual reprint');
+
+        return redirect()->back()->with('success', 'Job reprint queued! New Job ID: ' . $newJob->job_id);
     }
 
     /**

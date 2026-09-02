@@ -6,6 +6,11 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', 'Admin Portal') — Print Hub</title>
 
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ asset('favicon.png') }}">
+    <link rel="icon" type="image/png" sizes="192x192" href="{{ asset('favicon-192.png') }}">
+    <link rel="apple-touch-icon" sizes="180x180" href="{{ asset('apple-touch-icon.png') }}">
+    <link rel="shortcut icon" href="{{ asset('favicon.ico') }}">
+
     <!-- Google Fonts: Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -37,8 +42,8 @@
             <!-- Brand Header -->
             <div class="h-16 px-5 border-b border-slate-800 flex items-center justify-between shrink-0">
                 <a href="{{ route('admin.dashboard') }}" class="flex items-center gap-3 group">
-                    <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-blue-500/20 group-hover:scale-105 transition">
-                        <x-icon name="dashboard" size="18" />
+                    <div class="w-9 h-9 rounded-xl bg-slate-950 border border-slate-700/60 p-1 flex items-center justify-center shadow-md shadow-teal-500/10 group-hover:scale-105 transition">
+                        <img src="{{ asset('logo-icon.png') }}" alt="Print Hub Logo" class="w-full h-full object-contain">
                     </div>
                     <div>
                         <span class="block text-sm font-bold tracking-tight text-white group-hover:text-blue-400 transition">Print Hub</span>
@@ -269,7 +274,7 @@
             </header>
 
             <!-- Page Body -->
-            <main class="flex-1 p-6 overflow-y-auto">
+            <main class="flex-1 @if(!View::hasSection('fullwidth')) p-6 overflow-y-auto @else flex flex-col overflow-hidden p-0 m-0 @endif">
                 <!-- Flash Messages -->
                 @if($errors->any())
                     <div class="mb-5 p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-500 dark:text-rose-400 text-xs font-semibold shadow-xs">

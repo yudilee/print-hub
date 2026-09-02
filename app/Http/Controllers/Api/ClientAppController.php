@@ -107,6 +107,79 @@ class ClientAppController extends Controller
     }
 
     // -------------------------------------------------------------------------
+    // GET /api/v1/printers
+    // -------------------------------------------------------------------------
+
+    public function listPrinters(Request $request)
+    {
+        $query = PrintAgent::with('branch:id,name,code')->where('is_active', true);
+
+        if ($request->filled('branch_code')) {
+            $branch = Branch::where('code', $request->branch_code)->first();
+            if ($branch) {
+                $query->where('branch_id', $branch->id);
+            }
+        }
+
+        $agents = $query->get();
+        $printersList = [];
+
+        foreach ($agents as $agent) {
+            $isAgentOnline = $agent->isOnline();
+            $printers = $agent->printers ?? [];
+            foreach ($printers as $p) {
+                $printerName = is_array($p) ? ($p['name'] ?? 'Unknown') : (string)$p;
+                $isDefault = is_array($p) ? ($p['is_default'] ?? false) : false;
+                $status = is_array($p) ? ($p['status'] ?? ($isAgentOnline ? 'online' : 'offline')) : ($isAgentOnline ? 'online' : 'offline');
+                $paperStatus = is_array($p) ? ($p['paper_status'] ?? 'ok') : 'ok';
+                $capabilities = is_array($p) ? ($p['capabilities'] ?? []) : [];
+
+                $printersList[] = [
+                    'name'          => $printerName,
+                    'agent_id'      => $agent->id,
+                    'agent_name'    => $agent->name,
+                    'agent_online'  => $isAgentOnline,
+                    'branch'        => $agent->branch ? [
+                        'id'   => $agent->branch->id,
+                        'code' => $agent->branch->code,
+                        'name' => $agent->branch->name,
+                    ] : null,
+                    'status'        => $isAgentOnline ? $status : 'offline',
+                    'paper_status'  => $paperStatus,
+                    'is_default'    => $isDefault,
+                    'capabilities'  => $capabilities,
+                ];
+            }
+        }
+
+        return ApiResponse::success(['printers' => $printersList]);
+    }
+
+    // -------------------------------------------------------------------------
+    // GET /api/v1/pools
+    // -------------------------------------------------------------------------
+
+    public function listPools(Request $request)
+    {
+        $pools = \App\Models\PrinterPool::with(['branch:id,name,code'])
+            ->where('is_active', true)
+            ->get()
+            ->map(fn($p) => [
+                'id'       => $p->id,
+                'name'     => $p->name,
+                'strategy' => $p->strategy,
+                'branch'   => $p->branch ? [
+                    'id'   => $p->branch->id,
+                    'code' => $p->branch->code,
+                    'name' => $p->branch->name,
+                ] : null,
+                'printers' => $p->printers ?? [],
+            ]);
+
+        return ApiResponse::success(['pools' => $pools]);
+    }
+
+    // -------------------------------------------------------------------------
     // GET /api/v1/branches
     // -------------------------------------------------------------------------
 
@@ -613,6 +686,7 @@ class ClientAppController extends Controller
             'priority'         => 'nullable|integer|min:0|max:255',
             // Scheduling fields (Feature 1)
             'scheduled_at'     => 'nullable|date',
+            'expires_at'       => 'nullable|date',
             'recurrence'       => 'nullable|string|in:daily,weekly,monthly,none',
             'recurrence_end_at'=> 'nullable|date',
             'recurrence_count' => 'nullable|integer|min:0',
@@ -746,6 +820,7 @@ class ClientAppController extends Controller
             recurrenceEndAt: $data['recurrence_end_at'] ?? null,
             recurrenceCount: $data['recurrence_count'] ?? null,
             poolId: $poolId,
+            expiresAt: $data['expires_at'] ?? null,
         );
 
         $jobId = pathinfo($filePath, PATHINFO_FILENAME);
@@ -759,6 +834,7 @@ class ClientAppController extends Controller
             'priority'          => (int) ($data['priority'] ?? 0),
             'queue'             => $profile ? $profile->name : null,
             'scheduled_at'      => $data['scheduled_at'] ?? null,
+            'expires_at'        => $data['expires_at'] ?? null,
             'recurrence'        => $data['recurrence'] ?? null,
             'document_id'       => $documentId,
         ];
@@ -768,6 +844,80 @@ class ClientAppController extends Controller
         }
 
         return ApiResponse::success($responseData, 202);
+    }
+
+    // -------------------------------------------------------------------------
+    // POST /api/v1/print/odoo-report
+    // -------------------------------------------------------------------------
+
+    public function printOdooReport(Request $request)
+    {
+        $app = $this->app($request);
+        $data = $request->validate([
+            'connector_id' => 'required|string|exists:connectors,id',
+            'report_name'  => 'required|string',
+            'record_ids'   => 'required|array|min:1',
+            'record_ids.*' => 'required|integer',
+            'branch_code'  => 'nullable|string',
+            'branch_id'    => 'nullable|integer',
+            'queue'        => 'nullable|string',
+            'profile'      => 'nullable|string',
+            'printer'      => 'nullable|string',
+            'reference_id' => 'nullable|string',
+            'options'      => 'nullable|array',
+            'priority'     => 'nullable|integer|min:0|max:255',
+        ]);
+
+        $connector = Connector::where('id', $data['connector_id'])
+            ->where('client_app_id', $app->id)
+            ->first();
+
+        if (! $connector || $connector->type !== 'odoo') {
+            return ApiResponse::error('INVALID_CONNECTOR', 'The specified connector is not an active Odoo connector for this application.', 422);
+        }
+
+        $odooConfig = $connector->config ?? [];
+        $url      = $odooConfig['url'] ?? $odooConfig['endpoint_url'] ?? null;
+        $db       = $odooConfig['db'] ?? $odooConfig['database'] ?? null;
+        $login    = $odooConfig['login'] ?? $odooConfig['username'] ?? null;
+        $password = $odooConfig['password'] ?? $odooConfig['api_key'] ?? null;
+
+        if (empty($url) || empty($db) || empty($login) || empty($password)) {
+            return ApiResponse::error('INVALID_CONNECTOR_CONFIG', 'Odoo connector configuration is incomplete (needs url, db, login, password).', 422);
+        }
+
+        $odooService = app(\App\Services\OdooConnectorService::class);
+        $authResult = $odooService->authenticate($url, $db, $login, $password);
+        if (! $authResult['success']) {
+            return ApiResponse::error('ODOO_AUTH_FAILED', 'Failed to authenticate with Odoo: ' . $authResult['error'], 502);
+        }
+
+        try {
+            $pdfBinary = $odooService->renderReportPdf(
+                $url,
+                $db,
+                $authResult['uid'],
+                $password,
+                $data['report_name'],
+                $data['record_ids']
+            );
+        } catch (\Exception $e) {
+            return ApiResponse::error('ODOO_REPORT_FAILED', 'Failed to render Odoo report: ' . $e->getMessage(), 502);
+        }
+
+        $base64 = base64_encode($pdfBinary);
+
+        // Delegate to unifiedPrint request
+        $printPayload = array_merge($data, [
+            'document_base64' => $base64,
+            'type'            => 'pdf',
+        ]);
+        unset($printPayload['connector_id'], $printPayload['report_name'], $printPayload['record_ids']);
+
+        $printRequest = Request::create('/api/v1/print', 'POST', $printPayload);
+        $printRequest->attributes->set('client_app', $app);
+
+        return $this->unifiedPrint($printRequest);
     }
 
     // -------------------------------------------------------------------------
@@ -802,9 +952,40 @@ class ClientAppController extends Controller
             'printer'      => $job->printer_name,
             'template'     => $job->template_name,
             'error'        => $job->error,
+            'error_code'   => $job->error_code,
+            'retry_count'  => $job->retry_count,
             'created_at'   => $job->created_at?->toISOString(),
             'completed_at' => $job->agent_completed_at?->toISOString(),
         ]);
+    }
+
+    // -------------------------------------------------------------------------
+    // POST /api/v1/jobs/{job_id}/reprint
+    // -------------------------------------------------------------------------
+
+    public function reprintJob(Request $request, string $jobId)
+    {
+        $app = $this->app($request);
+        $job = PrintJob::where('job_id', $jobId)->first();
+        if (! $job) {
+            return ApiResponse::notFound('JOB_NOT_FOUND', 'Job not found.');
+        }
+
+        $orchestrator = new PrintJobOrchestrator();
+        try {
+            $newJob = $orchestrator->retryJob($job, 'Reprint requested via API');
+        } catch (\Exception $e) {
+            return ApiResponse::error('REPRINT_FAILED', $e->getMessage(), 500);
+        }
+
+        return ApiResponse::success([
+            'status'          => 'queued',
+            'job_id'          => $newJob->job_id,
+            'original_job_id' => $job->job_id,
+            'agent'           => $newJob->agent?->name,
+            'printer'         => $newJob->printer_name,
+            'message'         => 'Job reprint queued successfully.',
+        ], 202);
     }
 
     // -------------------------------------------------------------------------
@@ -1119,9 +1300,9 @@ class ClientAppController extends Controller
         $app = $this->app($request);
         $connector = Connector::where('client_app_id', $app->id)->findOrFail($id);
 
-        // Only webhook and api connectors support live preview fetching.
-        if (! in_array($connector->type, ['webhook', 'api'], true)) {
-            return ApiResponse::error('UNSUPPORTED_CONNECTOR_TYPE', 'Preview fetching is only supported for webhook and api connectors.', 422);
+        // Only webhook, api, and odoo connectors support live preview fetching.
+        if (! in_array($connector->type, ['webhook', 'api', 'odoo'], true)) {
+            return ApiResponse::error('UNSUPPORTED_CONNECTOR_TYPE', 'Preview fetching is only supported for webhook, api, and odoo connectors.', 422);
         }
 
         $payload = [
@@ -1139,7 +1320,26 @@ class ClientAppController extends Controller
         ];
 
         try {
-            if ($connector->type === 'webhook') {
+            if ($connector->type === 'odoo') {
+                $odooConfig = $connector->config ?? [];
+                $url      = $odooConfig['url'] ?? $odooConfig['endpoint_url'] ?? null;
+                $db       = $odooConfig['db'] ?? $odooConfig['database'] ?? null;
+                $login    = $odooConfig['login'] ?? $odooConfig['username'] ?? null;
+                $password = $odooConfig['password'] ?? $odooConfig['api_key'] ?? null;
+                $model    = $odooConfig['model'] ?? 'res.partner';
+                $fields   = $odooConfig['fields'] ?? [];
+                $domain   = $odooConfig['domain'] ?? [];
+
+                $odooService = app(\App\Services\OdooConnectorService::class);
+                $auth = $odooService->authenticate($url, $db, $login, $password);
+                if (!$auth['success']) {
+                    return ApiResponse::error('ODOO_AUTH_FAILED', 'Odoo authentication failed: ' . $auth['error'], 502);
+                }
+
+                $records = $odooService->readRecords($url, $db, $auth['uid'], $password, $model, $domain, $fields, 1);
+                $data = !empty($records) ? $records[0] : [];
+                $receivedAt = now()->toIso8601String();
+            } elseif ($connector->type === 'webhook') {
                 // Webhook: send POST to the client app via WebhookService.
                 $webhookService = app(WebhookService::class);
                 $result = $webhookService->sendToConnector($connector, $payload);

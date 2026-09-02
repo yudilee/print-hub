@@ -164,6 +164,14 @@
                     </td>
                     <td class="px-5 py-3.5 text-right">
                         <div class="inline-flex items-center gap-1.5">
+                            @if(in_array($job->status, ['success', 'failed', 'cancelled']))
+                                <form action="{{ route('admin.jobs.reprint', $job) }}" method="POST" class="inline" onsubmit="return confirm('Reprint this job?')">
+                                    @csrf
+                                    <button type="submit" class="px-2 py-1 rounded-lg bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-300 text-[11px] font-semibold transition border border-indigo-500/30" title="Clone and re-queue this print job">
+                                        Reprint
+                                    </button>
+                                </form>
+                            @endif
                             <button type="button" @click="expanded = expanded === '{{ $job->job_id }}' ? null : '{{ $job->job_id }}'"
                                 class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-semibold transition">
                                 <span x-text="expanded === '{{ $job->job_id }}' ? 'Hide' : 'Info'">Info</span>

@@ -112,6 +112,7 @@ class PrintJobOrchestrator
         ?int $poolId = null,
         ?int $dependsOnJobId = null,
         ?string $dependencyType = null,
+        ?string $expiresAt = null,
     ): PrintJob {
         $jobId = pathinfo($filePath, PATHINFO_FILENAME);
 
@@ -136,6 +137,7 @@ class PrintJobOrchestrator
             'template_data'    => $templateData,
             'template_name'    => $templateName,
             'scheduled_at'     => $scheduledAt,
+            'expires_at'       => $expiresAt,
             'recurrence'       => $recurrence,
             'recurrence_end_at' => $recurrenceEndAt,
             'recurrence_count'  => $recurrenceCount,
@@ -166,6 +168,65 @@ class PrintJobOrchestrator
         $this->dispatchQueueUpdated();
 
         return $job;
+    }
+
+    /**
+     * Retry/Reprint a PrintJob by creating a clone with a fresh UUID.
+     *
+     * @param PrintJob $job The job to retry.
+     * @param string|null $reason Reason for retry.
+     * @param int|null $newAgentId Optional target agent ID override.
+     * @param string|null $newPrinter Optional printer override.
+     * @return PrintJob The newly created job.
+     */
+    public function retryJob(PrintJob $job, ?string $reason = null, ?int $newAgentId = null, ?string $newPrinter = null): PrintJob
+    {
+        $newJobId = (string) Str::uuid();
+
+        // Copy source file to new job path if exists
+        $newFilePath = $job->file_path;
+        if ($job->file_path && Storage::exists($job->file_path)) {
+            $ext = pathinfo($job->file_path, PATHINFO_EXTENSION);
+            $newFilePath = "print_jobs/{$newJobId}.{$ext}";
+            Storage::copy($job->file_path, $newFilePath);
+        }
+
+        $agentId = $newAgentId ?? $job->print_agent_id;
+        $agent = PrintAgent::find($agentId);
+        if (!$agent) {
+            throw new \RuntimeException("Agent ID {$agentId} not found.");
+        }
+
+        $newJob = PrintJob::create([
+            'job_id'             => $newJobId,
+            'print_agent_id'     => $agentId,
+            'branch_id'          => $job->branch_id,
+            'document_id'        => $job->document_id,
+            'printer_name'       => $newPrinter ?? $job->printer_name,
+            'type'               => $job->type,
+            'priority'           => $job->priority,
+            'status'             => 'pending',
+            'file_path'          => $newFilePath,
+            'webhook_url'        => $job->webhook_url,
+            'reference_id'       => $job->reference_id,
+            'options'            => $job->options,
+            'template_data'      => $job->template_data,
+            'template_name'      => $job->template_name,
+            'pool_id'            => $job->pool_id,
+            'retried_from_job_id'=> $job->id,
+            'retry_count'        => ($job->retry_count ?? 0) + 1,
+            'max_retries'        => $job->max_retries ?? 3,
+            'retry_reason'       => $reason ?? 'Manual retry',
+            'requires_approval'  => false,
+            'approval_status'    => 'approved',
+        ]);
+
+        // Dispatch instant WebSocket event to target agent
+        event(new \App\Events\JobQueuedForAgent($newJob));
+        event(new \App\Events\JobStatusUpdated($newJob));
+        $this->dispatchQueueUpdated();
+
+        return $newJob;
     }
 
     /**
@@ -348,11 +409,16 @@ class PrintJobOrchestrator
                 'margin_right'   => $profile->margin_right,
                 'fit_to_page'    => $profile->extra_options['fit_to_page'] ?? false,
                 // Watermark fields
-                'watermark_text'        => $profile->watermark_text,
-                'watermark_opacity'     => $profile->watermark_opacity ?? 0.3,
-                'watermark_rotation'    => $profile->watermark_rotation ?? -45,
-                'watermark_position'    => $profile->watermark_position ?? 'center',
-                'watermark_copies'  => $profile->watermark_copies ?? [],
+                'watermark_text'         => $profile->watermark_text,
+                'watermark_opacity'      => $profile->watermark_transparency ?? $profile->watermark_opacity ?? 0.3,
+                'watermark_transparency' => $profile->watermark_transparency ?? $profile->watermark_opacity ?? 0.3,
+                'watermark_rotation'     => $profile->watermark_rotation ?? -45,
+                'watermark_position'     => $profile->watermark_position ?? 'center',
+                'watermark_color'        => $profile->watermark_color ?? '#B4B4B4',
+                'watermark_font_size'    => $profile->watermark_font_size,
+                'watermark_font_family'  => $profile->watermark_font_family ?? 'Arial',
+                'watermark_font_style'   => $profile->watermark_font_style ?? 'B',
+                'watermark_copies'       => $profile->watermark_copies ?? [],
             ];
 
             $dimensions = PaperSizeService::resolveFromProfile($profile);

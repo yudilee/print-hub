@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="res_config_settings_view_form_print_hub" model="ir.ui.view">
+        <field name="name">res.config.settings.view.form.inherit.print.hub</field>
+        <field name="model">res.config.settings</field>
+        <field name="priority" eval="70"/>
+        <field name="inherit_id" ref="base.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//form" position="inside">
+                <app data-string="Print Hub" string="Print Hub" name="print_hub">
+                    <block title="Print Hub Server Configuration" id="print_hub_config_section">
+                        <setting id="print_hub_connection_setting" string="Print Hub Connection" help="Connect Odoo to your enterprise Print Hub server for direct physical printing.">
+                            <div class="content-group">
+                                <div class="row mt16">
+                                    <label string="Server URL" for="print_hub_url" class="col-lg-3 o_light_label"/>
+                                    <field name="print_hub_url" placeholder="https://print-hub.hartonomotor-group.com" class="col-lg-9"/>
+                                </div>
+                                <div class="row mt8">
+                                    <label string="API Key (X-API-Key)" for="print_hub_api_key" class="col-lg-3 o_light_label"/>
+                                    <field name="print_hub_api_key" password="True" placeholder="Raw API Key from Print Hub Admin" class="col-lg-9"/>
+                                </div>
+                            </div>
+                        </setting>
+
+                        <setting id="print_hub_defaults_setting" string="Default Routing" help="Fallback branch and virtual queue if not overridden by the user profile.">
+                            <div class="content-group">
+                                <div class="row mt16">
+                                    <label string="Default Branch Code" for="print_hub_default_branch" class="col-lg-3 o_light_label"/>
+                                    <field name="print_hub_default_branch" placeholder="e.g. SDP-MAIN" class="col-lg-9"/>
+                                </div>
+                                <div class="row mt8">
+                                    <label string="Default Queue Profile" for="print_hub_default_queue" class="col-lg-3 o_light_label"/>
+                                    <field name="print_hub_default_queue" placeholder="e.g. default_queue" class="col-lg-9"/>
+                                </div>
+                            </div>
+                        </setting>
+                    </block>
+                </app>
+            </xpath>
+        </field>
+    </record>
+</odoo>

@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Tree View -->
+    <record id="view_print_hub_schedule_tree" model="ir.ui.view">
+        <field name="name">print.hub.schedule.tree</field>
+        <field name="model">print.hub.schedule</field>
+        <field name="arch" type="xml">
+            <tree string="Scheduled Print Jobs">
+                <field name="name"/>
+                <field name="model_id"/>
+                <field name="print_method"/>
+                <field name="branch_code"/>
+                <field name="printer_name"/>
+                <field name="last_run_at"/>
+                <field name="last_run_summary"/>
+                <field name="active" widget="boolean_toggle"/>
+            </tree>
+        </field>
+    </record>
+
+    <!-- Form View -->
+    <record id="view_print_hub_schedule_form" model="ir.ui.view">
+        <field name="name">print.hub.schedule.form</field>
+        <field name="model">print.hub.schedule</field>
+        <field name="arch" type="xml">
+            <form string="Scheduled Print Job">
+                <header>
+                    <button name="action_run_now" string="⚡ Run Batch Now" type="object" class="btn-primary"/>
+                </header>
+                <sheet>
+                    <widget name="web_ribbon" title="Archived" bg_color="text-bg-danger" invisible="active"/>
+                    <div class="oe_title">
+                        <label for="name" string="Schedule Title"/>
+                        <h1>
+                            <field name="name" placeholder="e.g. Morning Shift Delivery Slips (06:00 AM)"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group string="Target Records &amp; Criteria">
+                            <field name="model_id" options="{'no_create': True}"/>
+                            <field name="model_name" invisible="1"/>
+                            <field name="domain" widget="domain" options="{'model': 'model_name'}"/>
+                            <field name="max_records"/>
+                            <field name="active" invisible="1"/>
+                        </group>
+                        <group string="Print Engine &amp; Destination">
+                            <field name="print_method"/>
+                            <field name="report_id" invisible="print_method != 'qweb_pdf'" options="{'no_create': True}"/>
+                            <field name="template_slug" invisible="print_method != 'template_json'"/>
+                            <field name="branch_code" placeholder="e.g. SDP-MAIN"/>
+                            <field name="queue" placeholder="e.g. surat_jalan_queue"/>
+                            <field name="printer_name" placeholder="e.g. EPSON-LQ2190"/>
+                            <field name="copies"/>
+                        </group>
+                    </group>
+                    <group string="Execution Telemetry">
+                        <field name="last_run_at"/>
+                        <field name="last_run_summary"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Action -->
+    <record id="action_print_hub_schedules" model="ir.actions.act_window">
+        <field name="name">Scheduled Jobs</field>
+        <field name="res_model">print.hub.schedule</field>
+        <field name="view_mode">tree,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Create an automated scheduled print job!
+            </p>
+            <p>
+                Scheduled jobs automatically query Odoo records matching your criteria (e.g. assigned delivery slips, posted invoices) and spool them to Print Hub at designated shift hours.
+            </p>
+        </field>
+    </record>
+
+</odoo>

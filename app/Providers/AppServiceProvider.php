@@ -33,6 +33,19 @@ class AppServiceProvider extends ServiceProvider
             }
         });
 
+        // Register dynamic rate limiters for client and agent APIs
+        \Illuminate\Support\Facades\RateLimiter::for('client-api', function (\Illuminate\Http\Request $request) {
+            $limit = (int) (\App\Models\Setting::getValue('max_requests_per_minute_client', 60) ?: 60);
+            $key = $request->header('X-API-Key') ?? $request->ip();
+            return \Illuminate\Cache\RateLimiting\Limit::perMinute($limit)->by($key);
+        });
+
+        \Illuminate\Support\Facades\RateLimiter::for('agent-api', function (\Illuminate\Http\Request $request) {
+            $limit = (int) (\App\Models\Setting::getValue('max_requests_per_minute_agent', 120) ?: 120);
+            $key = $request->bearerToken() ?? $request->header('X-Agent-Key') ?? $request->ip();
+            return \Illuminate\Cache\RateLimiting\Limit::perMinute($limit)->by($key);
+        });
+
         // Register a Gate for each permission in the config
         foreach (PermissionConfig::allPermissions() as $permission) {
             Gate::define($permission, function ($user) use ($permission) {

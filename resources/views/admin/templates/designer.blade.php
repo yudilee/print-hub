@@ -1,5 +1,7 @@
 @extends('admin.layout')
 
+@section('fullwidth', true)
+
 @section('head')
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>
@@ -9,51 +11,51 @@
 
 @section('content')
 <style>
-    [data-theme="dark"] {
-        --primary: #3b82f6; --primary-hover: #2563eb; --bg: #0f172a; --surface: #1e293b;
-        --surface-hover: #334155; --border: #334155; --text: #f1f5f9; --text-muted: #94a3b8;
+    :root, html.dark, [data-theme="dark"] {
+        --primary: #3b82f6; --primary-hover: #2563eb; --bg: #090d16; --surface: #111827;
+        --surface-hover: #1f2937; --border: #1f2937; --text: #f9fafb; --text-muted: #9ca3af;
         --danger: #ef4444; --success: #22c55e;
     }
-    [data-theme="light"] {
-        --primary: #3b82f6; --primary-hover: #2563eb; --bg: #f8fafc; --surface: #ffffff;
-        --surface-hover: #f1f5f9; --border: #e2e8f0; --text: #0f172a; --text-muted: #64748b;
+    html:not(.dark), [data-theme="light"] {
+        --primary: #2563eb; --primary-hover: #1d4ed8; --bg: #e2e8f0; --surface: #ffffff;
+        --surface-hover: #f8fafc; --border: #cbd5e1; --text: #0f172a; --text-muted: #475569;
         --danger: #dc2626; --success: #16a34a;
     }
-    .designer-container { display: flex; flex-direction: column; height: calc(100vh - 100px); margin: -2rem; }
+    .designer-container { display: flex; flex-direction: column; height: calc(100vh - 64px); width: 100%; margin: 0; padding: 0; background: var(--bg); overflow: hidden; position: relative; }
     .designer-top-bar {
-        height: 56px; background: var(--surface); border-bottom: 1px solid var(--border);
-        display: flex; align-items: center; padding: 0 1rem; gap: 1rem; z-index: 100;
+        height: 52px; background: var(--surface); border-bottom: 1px solid var(--border);
+        display: flex; align-items: center; padding: 0 1rem; gap: 0.75rem; z-index: 100; shrink: 0;
     }
-    .designer-main { display: flex; flex: 1; overflow: hidden; position: relative; }
+    .designer-main { display: flex; flex: 1; overflow: hidden; position: relative; height: calc(100% - 52px); }
     .designer-left-toolbar {
-        width: 64px; background: var(--surface); border-right: 1px solid var(--border);
-        display: flex; flex-direction: column; align-items: center; padding: 1rem 0; gap: 1rem;
+        width: 52px; background: var(--surface); border-right: 1px solid var(--border);
+        display: flex; flex-direction: column; align-items: center; padding: 0.75rem 0; gap: 0.5rem; shrink: 0; z-index: 20;
     }
     .designer-workspace {
         flex: 1; background: var(--bg); overflow: auto; position: relative;
-        display: flex; align-items: flex-start; justify-content: flex-start;
-        padding: 40px;
+        display: flex; flex-direction: column; align-items: center;
+        padding: 40px 60px 80px 60px; min-height: 0;
     }
     .designer-right-props {
         width: 320px; background: var(--surface); border-left: 1px solid var(--border);
-        display: flex; flex-direction: column;
+        display: flex; flex-direction: column; height: 100%; overflow: hidden; shrink: 0; z-index: 20;
     }
     @media (max-width: 1100px) {
-        .designer-right-props { width: 260px; }
+        .designer-right-props { width: 280px; }
     }
     @media (max-width: 900px) {
-        .designer-right-props { width: 220px; }
+        .designer-right-props { width: 240px; }
     }
-    .designer-main-wrapper { overflow-x: auto; flex: 1; display: flex; }
+    .designer-main-wrapper { overflow: hidden; flex: 1; display: flex; position: relative; height: 100%; }
     
-    .designer-tabs { display: flex; border-bottom: 1px solid var(--border); background: rgba(0,0,0,0.1); }
+    .designer-tabs { display: flex; border-bottom: 1px solid var(--border); background: rgba(0,0,0,0.05); overflow-x: auto; shrink: 0; }
     .tab-item { 
-        flex: 1; padding: 10px; text-align: center; font-size: 0.75rem; font-weight: 600; 
-        color: var(--text-muted); cursor: pointer; border-bottom: 2px solid transparent;
+        padding: 8px 10px; text-align: center; font-size: 0.72rem; font-weight: 600; 
+        color: var(--text-muted); cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap; flex: 1;
     }
-    .tab-item:hover { color: var(--text); }
-    .tab-item.active { color: var(--primary); border-bottom-color: var(--primary); background: rgba(59,130,246,0.05); }
-    .tab-panel { display: none; flex: 1; flex-direction: column; overflow-y: auto; }
+    .tab-item:hover { color: var(--text); background: var(--surface-hover); }
+    .tab-item.active { color: var(--primary); border-bottom-color: var(--primary); background: rgba(59,130,246,0.08); }
+    .tab-panel { display: none; flex: 1; flex-direction: column; overflow-y: auto; height: calc(100% - 37px); }
     .tab-panel.active { display: flex; }
 
     .props-header {
@@ -67,15 +69,11 @@
         display: flex; justify-content: space-between; align-items: center;
         font-size: 0.75rem; font-weight: 600; color: var(--text-muted);
     }
-    
-    .prop-table { display: flex; flex-direction: column; border-bottom: 1px solid var(--border); }
-    .prop-item { display: flex; border-top: 1px solid var(--border); min-height: 28px; }
-    .prop-item.active { background: rgba(59,130,246,0.1); }
-    .prop-key { 
-        width: 40%; padding: 4px 8px; border-right: 1px solid var(--border); 
-        font-size: 11px; color: var(--text-muted); display: flex; align-items: center;
-        background: rgba(0,0,0,0.05);
+    .prop-row {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 6px 1rem; border-bottom: 1px solid rgba(0,0,0,0.05); font-size: 11px;
     }
+    .prop-title { width: 40%; color: var(--text-muted); font-size: 11px; }
     .prop-val { 
         width: 60%; padding: 0; font-size: 11px; display: flex; align-items: center;
     }
@@ -94,7 +92,7 @@
     .ruler-top { top: 0; left: 40px; right: 0; height: 25px; border-bottom: 1px solid var(--border); }
     .ruler-left { top: 40px; left: 0; bottom: 0; width: 25px; border-right: 1px solid var(--border); }
 
-    #canvas-wrapper { position: relative; box-shadow: 0 0 50px rgba(0,0,0,0.5); }
+    #canvas-wrapper { position: relative; box-shadow: 0 0 50px rgba(0,0,0,0.5); margin: auto 0; flex-shrink: 0; }
     #canvas { position: absolute; top: 0; left: 0; background: white; overflow: hidden; transform-origin: top left; }
     #canvas-bg-img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain; opacity: 0.4; pointer-events: none; }
     
@@ -308,69 +306,85 @@
     .rt-toggle-row label { font-size: 10px; color: var(--text); cursor: pointer; }
     .rt-toggle-row .rt-toggle-hint { font-size: 9px; color: var(--text-muted); margin-left: auto; }
     .rt-preview { background: var(--bg); border: 1px solid var(--border); border-radius: 4px; padding: 6px 8px; font-family: monospace; font-size: 11px; color: var(--text-muted); word-break: break-all; margin-top: 6px; min-height: 20px; }
+
+    /* ── Starter Template Gallery Styles ─────────────────── */
+    .starter-modal { position: fixed; inset: 0; z-index: 10000; display: flex; align-items: center; justify-content: center; }
+    .starter-modal-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,0.65); backdrop-filter: blur(4px); }
+    .starter-modal-dialog { position: relative; z-index: 10001; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; width: 90%; max-width: 950px; max-height: 85vh; display: flex; flex-direction: column; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); overflow: hidden; }
+    .starter-modal-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; background: rgba(59,130,246,0.04); }
+    .starter-close-btn { background: none; border: none; font-size: 24px; color: var(--text-muted); cursor: pointer; line-height: 1; padding: 0 4px; border-radius: 4px; }
+    .starter-close-btn:hover { color: var(--text); background: var(--surface-hover); }
+    .starter-modal-body { padding: 20px; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+    .starter-card { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 16px; cursor: pointer; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); display: flex; flex-direction: column; position: relative; overflow: hidden; }
+    .starter-card:hover { border-color: var(--primary); transform: translateY(-2px); box-shadow: 0 8px 20px rgba(59,130,246,0.15); background: var(--surface-hover); }
+    .starter-card-icon { font-size: 32px; margin-bottom: 8px; }
+    .starter-card-title { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+    .starter-card-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; background: rgba(59,130,246,0.15); color: var(--primary); margin-bottom: 8px; width: fit-content; }
+    .starter-card-desc { font-size: 11px; color: var(--text-muted); line-height: 1.4; margin-bottom: 12px; flex: 1; }
+    .starter-card-features { display: flex; flex-wrap: wrap; gap: 4px; margin-top: auto; }
+    .starter-feature-tag { font-size: 9px; padding: 1px 6px; border-radius: 3px; background: rgba(255,255,255,0.06); color: var(--text-muted); }
+    .starter-card-btn { margin-top: 10px; width: 100%; padding: 6px; border: 1px solid var(--primary); background: rgba(59,130,246,0.1); color: var(--primary); border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+    .starter-card:hover .starter-card-btn { background: var(--primary); color: white; }
 </style>
 
 <div class="designer-container">
     <div class="designer-top-bar">
-        <div class="action-group">
-            <button onclick="saveTemplate()" id="save-btn" class="btn btn-primary btn-sm" title="Save (Ctrl+S)">💾 Save</button>
-            <button onclick="openPreview()" class="btn btn-success btn-sm">👁 Preview</button>
-            <button onclick="showTestPrint()" class="btn btn-warning btn-sm">🖨 Print Test</button>
-            <button onclick="toggleSampleDataPanel()" class="btn btn-secondary btn-sm" title="Sample Data">📋 Sample Data</button>
-            <button onclick="exportTemplate()" class="btn btn-secondary btn-sm" title="Export JSON">↓ Export</button>
-            <button onclick="importTemplate()" class="btn btn-secondary btn-sm" title="Import JSON">↑ Import</button>
+        <!-- Left: Navigation & Template Meta -->
+        <div class="action-group" style="gap: 8px;">
+            <a href="{{ route('admin.templates') }}" class="action-btn" style="text-decoration:none; display:flex; align-items:center; gap:4px; font-weight:600;" title="Back to Templates List">
+                <span>←</span> <span class="hidden lg:inline">Templates</span>
+            </a>
+            <div style="display:flex; align-items:center; gap:4px; background:var(--bg); border:1px solid var(--border); border-radius:6px; padding:2px 6px;">
+                <span style="font-size:10px; color:var(--text-muted); font-weight:600;">Name:</span>
+                <input type="text" id="tpl-name" value="{{ $template->name }}" placeholder="Template Name" style="border:none; background:transparent; font-size:12px; font-weight:600; color:var(--text); outline:none; width:130px;">
+            </div>
+            <select id="paper-preset" onchange="applyPaperPreset()" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:3px 6px;font-size:11px;border-radius:6px;font-weight:500;">
+                <option value="">📄 Preset...</option>
+                <option value="241.3,279.4">Continuous 9.5×11" (3-Ply)</option>
+                <option value="241.3,139.7">Continuous 9.5×5.5" (Half)</option>
+                <option value="210,297">A4 Portrait (210×297mm)</option>
+                <option value="297,210">A4 Landscape (297×210mm)</option>
+                <option value="215.9,139.7">Half Letter / A5</option>
+                <option value="215.9,279.4">Letter</option>
+                <option value="100,150">Thermal Shipping Label (100×150mm)</option>
+                <option value="80,50">Thermal Barcode (80×50mm)</option>
+                <option value="80,200">POS Receipt (80mm Roll)</option>
+            </select>
+        </div>
+
+        <!-- Center: Canvas Controls & Alignment -->
+        <div class="action-group" style="margin: 0 auto; gap: 6px;">
+            <div class="action-group" style="gap:2px; background:var(--bg); border:1px solid var(--border); border-radius:6px; padding:2px 4px;">
+                <button id="undo-btn" onclick="undo()" class="action-btn" style="border:none; background:none; padding:2px 6px;" title="Undo (Ctrl+Z)" disabled>↩</button>
+                <button id="redo-btn" onclick="redo()" class="action-btn" style="border:none; background:none; padding:2px 6px;" title="Redo (Ctrl+Y)" disabled>↪</button>
+            </div>
+            <div class="action-group" style="gap:2px; background:var(--bg); border:1px solid var(--border); border-radius:6px; padding:2px 4px;">
+                <button onclick="changeZoom(-0.1)" class="action-btn" style="border:none; background:none; padding:2px 6px;">−</button>
+                <span id="zoom-val" style="font-size: 11px; font-weight: 600; min-width: 38px; text-align: center; color:var(--text);">100%</span>
+                <button onclick="changeZoom(0.1)" class="action-btn" style="border:none; background:none; padding:2px 6px;">+</button>
+                <button onclick="changeZoom(0, true)" class="action-btn" style="border:none; background:none; padding:2px 4px; font-size:10px;" title="Reset Zoom">↺</button>
+            </div>
+            <button id="snap-btn" onclick="toggleSnap()" class="action-btn" style="font-size:11px;" title="Toggle Snap to Grid">⊞ Snap</button>
+            <button id="live-data-btn" onclick="toggleLiveData()" class="action-btn live-data-btn" style="font-size:11px;" title="Toggle Live Data Preview">◉ Live</button>
+            <button id="guides-btn" onclick="toggleSmartGuides()" class="action-btn" style="font-size:11px;" title="Toggle Smart Guides">⊹ Guides</button>
+        </div>
+
+        <!-- Right: Primary Actions -->
+        <div class="action-group" style="gap: 6px;">
+            <button onclick="openStarterGallery()" class="btn btn-primary btn-sm" style="background: linear-gradient(135deg, #6366f1, #3b82f6); border: none; font-weight: 600; padding:4px 10px; font-size:12px;" title="Browse & Apply Pre-built Report Templates">✨ Gallery</button>
+            <button onclick="openPreview()" class="btn btn-success btn-sm" style="background:#10b981; border:none; font-weight:600; padding:4px 10px; font-size:12px;">👁 Preview</button>
+            <button onclick="saveTemplate()" id="save-btn" class="btn btn-primary btn-sm" style="background:#2563eb; border:none; font-weight:600; padding:4px 12px; font-size:12px;" title="Save (Ctrl+S)">💾 Save</button>
+            
+            <button onclick="showTestPrint()" class="action-btn" title="Print Test">🖨 Test</button>
+            <button onclick="toggleSampleDataPanel()" class="action-btn" title="Sample Data">📋 Data</button>
+            <button onclick="exportTemplate()" class="action-btn" title="Export JSON">↓ JSON</button>
+            <button onclick="importTemplate()" class="action-btn" title="Import JSON">↑</button>
             <input type="file" id="import-file" accept=".json" style="display:none">
-            <button onclick="window.location.href='{{ route('admin.templates') }}'" class="btn btn-secondary btn-sm">Discard</button>
             @if($template->id)
-            <a href="/admin/templates/{{ $template->id }}/versions" class="btn btn-secondary btn-sm" style="text-decoration: none;">
-                📜 Versions
+            <a href="/admin/templates/{{ $template->id }}/versions" class="action-btn" style="text-decoration: none;" title="Version History">
+                📜
             </a>
             @endif
-        </div>
-        <div style="border-left: 1px solid var(--border); height: 20px;"></div>
-        <div class="action-group">
-            <button id="undo-btn" onclick="undo()" class="action-btn" title="Undo (Ctrl+Z)" disabled>↩</button>
-            <button id="redo-btn" onclick="redo()" class="action-btn" title="Redo (Ctrl+Y)" disabled>↪</button>
-        </div>
-        <div style="border-left: 1px solid var(--border); height: 20px;"></div>
-        <div class="action-group">
-            <button onclick="changeZoom(-0.1)" class="action-btn">−</button>
-            <span id="zoom-val" style="font-size: 0.8rem; font-weight: 500; min-width: 40px; text-align: center;">100%</span>
-            <button onclick="changeZoom(0.1)" class="action-btn">+</button>
-            <button onclick="changeZoom(0, true)" class="action-btn" title="Reset Zoom">↺</button>
-        </div>
-        <div style="border-left: 1px solid var(--border); height: 20px;"></div>
-        <div class="action-group">
-            <button id="snap-btn" onclick="toggleSnap()" class="action-btn" title="Toggle Snap to Grid">⊞ Snap</button>
-            <button id="live-data-btn" onclick="toggleLiveData()" class="action-btn live-data-btn" title="Toggle Live Data Preview">◉ Live</button>
-            <button id="guides-btn" onclick="toggleSmartGuides()" class="action-btn" title="Toggle Smart Guides">⊹ Guides</button>
-        </div>
-        <div class="action-group" id="align-tools" style="display:none;">
-            <div style="border-left: 1px solid var(--border); height: 20px; margin: 0 2px;"></div>
-            <button onclick="alignElements('left')" class="action-btn" title="Align Left">⇤</button>
-            <button onclick="alignElements('right')" class="action-btn" title="Align Right">⇥</button>
-            <button onclick="alignElements('top')" class="action-btn" title="Align Top">⤒</button>
-            <button onclick="alignElements('bottom')" class="action-btn" title="Align Bottom">⤓</button>
-            <button onclick="distributeH()" class="action-btn" title="Distribute Horizontally">⇔</button>
-            <button onclick="distributeV()" class="action-btn" title="Distribute Vertically">⇕</button>
-            <div style="border-left: 1px solid var(--border); height: 20px; margin: 0 2px;"></div>
-            <button onclick="groupElements()" class="action-btn" title="Group (Ctrl+G)">📦</button>
-        </div>
-        <div style="border-left: 1px solid var(--border); height: 20px;"></div>
-        <div class="action-group">
-            <span style="font-size: 0.75rem; color: var(--text-muted);">Name:</span>
-            <input type="text" id="tpl-name" value="{{ $template->name }}" style="padding: 2px 8px; font-size:0.8rem; width:150px; background:var(--bg); border:1px solid var(--border); color:var(--text); border-radius:4px;">
-        </div>
-        <div style="border-left: 1px solid var(--border); height: 20px;"></div>
-        <div class="action-group">
-            <select id="paper-preset" onchange="applyPaperPreset()" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:2px 6px;font-size:11px;border-radius:4px;">
-                <option value="">Paper Preset</option>
-                <option value="241.3,139.7">Continuous 9.5×5.5"</option>
-                <option value="241.3,279.4">Continuous 9.5×11"</option>
-                <option value="215.9,139.7">Half Letter</option>
-                <option value="215.9,279.4">Letter</option>
-                <option value="210,297">A4</option>
-            </select>
         </div>
     </div>
 
@@ -386,7 +400,7 @@
             <button onclick="addElement('qrcode')" class="tool-btn" title="Add QR Code">◈</button>
             <button onclick="addElement('running_total')" class="tool-btn" title="Add Running Total">Σ</button>
             <label class="tool-btn" title="Upload Background Trace" style="cursor:pointer">
-                🖼️<input type="file" id="bg-upload" style="display:none" onchange="uploadBg()">
+                📷<input type="file" id="bg-upload" style="display:none" onchange="uploadBg()">
             </label>
         </div>
 
@@ -402,7 +416,7 @@
                     <div id="rubber-band" style="position:absolute; border:1px dashed var(--primary); background:rgba(59,130,246,0.08); display:none; pointer-events:none;"></div>
                 </div>
             </div>
-            <div id="minimap" style="position:absolute; bottom:14px; right:14px;">
+            <div id="minimap" style="display:none; position:absolute; bottom:14px; right:14px;">
                 <canvas id="minimap-canvas" width="120" height="80"></canvas>
             </div>
         </div>
@@ -410,6 +424,7 @@
         <div class="designer-right-props">
             <div class="designer-tabs">
                 <div class="tab-item active" onclick="switchTab('props')">Properties</div>
+                <div class="tab-item" onclick="switchTab('paper')">Paper</div>
                 <div class="tab-item" onclick="switchTab('sections')">Sections</div>
                 <div class="tab-item" onclick="switchTab('layers')">Layers</div>
                 <div class="tab-item" onclick="switchTab('explorer')">Explorer</div>
@@ -418,37 +433,159 @@
             </div>
             
             <div id="tab-props" class="tab-panel active">
-                <div id="inspector-content">
-                    <div style="text-align:center; padding:3rem 1rem; color:var(--text-muted); font-size:0.8rem;">Select an object</div>
+                <div id="inspector-content" style="flex:1; overflow-y:auto;">
+                    <div style="text-align:center; padding:3rem 1.5rem; color:var(--text-muted); font-size:0.8rem;">
+                        <div style="font-size:24px; margin-bottom:8px;">👈</div>
+                        <div style="font-weight:600; color:var(--text); margin-bottom:4px;">No Object Selected</div>
+                        <p style="font-size:11px; margin:0;">Click any element on the canvas to inspect and edit its properties, or switch to the <b>Paper</b> tab to change dimensions.</p>
+                    </div>
                 </div>
+            </div>
 
-                <div style="margin-top:auto; padding:1rem; border-top:1px solid var(--border);">
-                    <div class="props-section">
-                        <div class="props-label">Paper Settings</div>
-                        <div class="props-content" style="padding:1rem;">
-                            <div class="prop-row" style="display:flex; gap:0.5rem;">
-                                <div class="form-group"><label style="font-size:10px; color:var(--text-muted)">W (mm)</label><input type="number" id="paper-w" value="{{ $template->paper_width_mm ?? 215.9 }}" onchange="updateCanvasSize()" style="width:100%; background:var(--bg); border:1px solid var(--border); color:var(--text); padding:4px;"></div>
-                                <div class="form-group"><label style="font-size:10px; color:var(--text-muted)">H (mm)</label><input type="number" id="paper-h" value="{{ $template->paper_height_mm ?? 139.7 }}" onchange="updateCanvasSize()" style="width:100%; background:var(--bg); border:1px solid var(--border); color:var(--text); padding:4px;"></div>
+            <div id="tab-paper" class="tab-panel">
+                <div class="props-header">Paper & Page Settings</div>
+                <div style="padding:0.75rem; display:flex; flex-direction:column; gap:0.75rem; overflow-y:auto;">
+                    
+                    <!-- Presets Selector -->
+                    <div class="props-section" style="border:1px solid var(--border); border-radius:8px; overflow:hidden;">
+                        <div class="props-label">Paper Size Presets</div>
+                        <div class="props-content" style="padding:0.75rem;">
+                            <select id="paper-preset-select" onchange="applyPaperPresetFromSelect(this.value)" style="width:100%; background:var(--bg); border:1px solid var(--border); color:var(--text); padding:6px 8px; border-radius:6px; font-size:11px; font-weight:600; margin-bottom:8px;">
+                                <option value="">-- Choose Standard Preset --</option>
+                                <optgroup label="Continuous Dot Matrix">
+                                    <option value="241.3,279.4">Continuous 9.5×11" (3-Ply Standard)</option>
+                                    <option value="241.3,139.7">Continuous 9.5×5.5" (Half Continuous)</option>
+                                </optgroup>
+                                <optgroup label="Office & Standard Cut Sheets">
+                                    <option value="210,297">A4 Portrait (210×297 mm)</option>
+                                    <option value="297,210">A4 Landscape (297×210 mm)</option>
+                                    <option value="215.9,139.7">Half Letter / A5 (216×140 mm)</option>
+                                    <option value="215.9,279.4">US Letter (216×279 mm)</option>
+                                    <option value="215.9,355.6">US Legal (216×356 mm)</option>
+                                </optgroup>
+                                <optgroup label="Thermal & Labels">
+                                    <option value="100,150">Thermal Shipping Label (100×150 mm)</option>
+                                    <option value="80,50">Barcode Label (80×50 mm)</option>
+                                    <option value="70,40">Asset Tag (70×40 mm)</option>
+                                </optgroup>
+                                <optgroup label="POS Cashier Receipts">
+                                    <option value="80,200">POS 80mm Roll (80×200 mm)</option>
+                                    <option value="58,150">POS 58mm Roll (58×150 mm)</option>
+                                </optgroup>
+                            </select>
+
+                            <!-- Orientation Selector -->
+                            <div style="display:flex; gap:6px;">
+                                <button type="button" onclick="setOrientation('portrait')" id="btn-orient-portrait" class="action-btn" style="flex:1; padding:6px 4px; font-size:11px; font-weight:600; text-align:center; border-radius:6px;">
+                                    ↕ Portrait
+                                </button>
+                                <button type="button" onclick="setOrientation('landscape')" id="btn-orient-landscape" class="action-btn" style="flex:1; padding:6px 4px; font-size:11px; font-weight:600; text-align:center; border-radius:6px;">
+                                    ↔ Landscape
+                                </button>
                             </div>
-                            <input type="hidden" id="bg-path" value="{{ $template->background_image_path }}">
-                            
-                            <div class="props-label" style="padding: 10px 0 5px 0; background:none;">Background Config</div>
-                            <div class="prop-table">
-                                <div class="prop-item">
-                                    <div class="prop-key">Is Printed</div>
-                                    <div class="prop-val" style="padding-left:10px;">
-                                        <input type="checkbox" id="bg-is-printed" {{ ($template->background_config['is_printed'] ?? false) ? 'checked' : '' }} onchange="updateBgConfig()">
+                        </div>
+                    </div>
+
+                    <!-- Custom Dimensions -->
+                    <div class="props-section" style="border:1px solid var(--border); border-radius:8px; overflow:hidden;">
+                        <div class="props-label">Dimensions (mm)</div>
+                        <div class="props-content" style="padding:0.75rem;">
+                            <div class="prop-row" style="display:flex; gap:0.5rem; margin-bottom:0.5rem;">
+                                <div class="form-group" style="flex:1;">
+                                    <label style="font-size:10px; font-weight:600; color:var(--text-muted); display:block; margin-bottom:2px;">Width (mm)</label>
+                                    <input type="number" step="0.1" id="paper-w" value="{{ $template->paper_width_mm ?? 215.9 }}" onchange="updateCanvasSize(); syncOrientationButtons();" style="width:100%; background:var(--bg); border:1px solid var(--border); color:var(--text); padding:6px 8px; border-radius:4px; font-size:12px; font-weight:600;">
+                                </div>
+                                <div class="form-group" style="flex:1;">
+                                    <label style="font-size:10px; font-weight:600; color:var(--text-muted); display:block; margin-bottom:2px;">Height (mm)</label>
+                                    <input type="number" step="0.1" id="paper-h" value="{{ $template->paper_height_mm ?? 139.7 }}" onchange="updateCanvasSize(); syncOrientationButtons();" style="width:100%; background:var(--bg); border:1px solid var(--border); color:var(--text); padding:6px 8px; border-radius:4px; font-size:12px; font-weight:600;">
+                                </div>
+                            </div>
+                            <button type="button" onclick="autoFitSectionsToPaper()" class="action-btn" style="width:100%; padding:6px; font-size:11px; font-weight:600; color:var(--primary); background:rgba(59,130,246,0.08); border-color:var(--primary);" title="Automatically scale Header, Detail and Footer bands to fit paper height">
+                                ✨ Auto-Fit Sections to Page Height
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Page Margins (mm) -->
+                    <div class="props-section" style="border:1px solid var(--border); border-radius:8px; overflow:hidden;">
+                        <div class="props-label">Print Margins (mm)</div>
+                        <div class="props-content" style="padding:0.75rem;">
+                            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:0.5rem;">
+                                <div class="form-group">
+                                    <label style="font-size:10px; font-weight:600; color:var(--text-muted); display:block; margin-bottom:2px;">Top Margin</label>
+                                    <input type="number" step="0.5" min="0" id="margin-top" value="5" onchange="renderMarginGuides()" style="width:100%; background:var(--bg); border:1px solid var(--border); color:var(--text); padding:4px 6px; border-radius:4px; font-size:11px;">
+                                </div>
+                                <div class="form-group">
+                                    <label style="font-size:10px; font-weight:600; color:var(--text-muted); display:block; margin-bottom:2px;">Bottom Margin</label>
+                                    <input type="number" step="0.5" min="0" id="margin-bottom" value="5" onchange="renderMarginGuides()" style="width:100%; background:var(--bg); border:1px solid var(--border); color:var(--text); padding:4px 6px; border-radius:4px; font-size:11px;">
+                                </div>
+                                <div class="form-group">
+                                    <label style="font-size:10px; font-weight:600; color:var(--text-muted); display:block; margin-bottom:2px;">Left Margin</label>
+                                    <input type="number" step="0.5" min="0" id="margin-left" value="5" onchange="renderMarginGuides()" style="width:100%; background:var(--bg); border:1px solid var(--border); color:var(--text); padding:4px 6px; border-radius:4px; font-size:11px;">
+                                </div>
+                                <div class="form-group">
+                                    <label style="font-size:10px; font-weight:600; color:var(--text-muted); display:block; margin-bottom:2px;">Right Margin</label>
+                                    <input type="number" step="0.5" min="0" id="margin-right" value="5" onchange="renderMarginGuides()" style="width:100%; background:var(--bg); border:1px solid var(--border); color:var(--text); padding:4px 6px; border-radius:4px; font-size:11px;">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Dot Matrix Tractor Feed & Multi-Ply Options -->
+                    <div class="props-section" style="border:1px solid var(--border); border-radius:8px; overflow:hidden;">
+                        <div class="props-label">Continuous Form Options</div>
+                        <div class="props-content" style="padding:0.75rem;">
+                            <div class="prop-table" style="border:none;">
+                                <div class="prop-item" style="border-top:none; padding:4px 0; justify-content:space-between;">
+                                    <div class="prop-key" style="border:none; width:auto; background:none;">Tractor Feed Guides</div>
+                                    <div class="prop-val" style="width:auto;">
+                                        <input type="checkbox" id="show-sprocket-holes" onchange="toggleSprocketGuides(this.checked)">
                                     </div>
                                 </div>
-                                <div class="prop-item">
-                                    <div class="prop-key">Opacity</div>
-                                    <div class="prop-val">
-                                        <input type="number" id="bg-opacity" value="{{ $template->background_config['opacity'] ?? 40 }}" min="0" max="100" oninput="updateBgConfig()">
+                                <div class="prop-item" style="border-top:1px solid var(--border); padding:6px 0; align-items:center;">
+                                    <div class="prop-key" style="border:none; width:auto; background:none;">Paper Ply</div>
+                                    <div class="prop-val" style="width:auto; margin-left:auto;">
+                                        <select id="paper-ply-count" style="background:var(--bg); border:1px solid var(--border); color:var(--text); border-radius:4px; padding:2px 6px; font-size:11px;">
+                                            <option value="1">1-Ply (Single)</option>
+                                            <option value="2">2-Ply (White/Pink)</option>
+                                            <option value="3" selected>3-Ply (White/Pink/Yellow)</option>
+                                            <option value="4">4-Ply</option>
+                                        </select>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
+
+                    <!-- Background Watermark -->
+                    <div class="props-section" style="border:1px solid var(--border); border-radius:8px; overflow:hidden;">
+                        <div class="props-label">Background Watermark & Tracing</div>
+                        <div class="props-content" style="padding:0.75rem;">
+                            <input type="hidden" id="bg-path" value="{{ $template->background_image_path }}">
+                            <div class="prop-table" style="border:none; margin-bottom:8px;">
+                                <div class="prop-item" style="border-top:none; padding:4px 0; justify-content:space-between;">
+                                    <div class="prop-key" style="border:none; width:auto; background:none;">Print on Output</div>
+                                    <div class="prop-val" style="width:auto;">
+                                        <input type="checkbox" id="bg-is-printed" {{ ($template->background_config['is_printed'] ?? false) ? 'checked' : '' }} onchange="updateBgConfig()">
+                                    </div>
+                                </div>
+                                <div class="prop-item" style="border-top:1px solid var(--border); padding:6px 0; align-items:center;">
+                                    <div class="prop-key" style="border:none; width:auto; background:none;">Opacity (%)</div>
+                                    <div class="prop-val" style="width:auto; margin-left:auto;">
+                                        <input type="number" id="bg-opacity" value="{{ $template->background_config['opacity'] ?? 40 }}" min="0" max="100" oninput="updateBgConfig()" style="width:60px; text-align:right; background:var(--bg); border:1px solid var(--border); border-radius:4px; padding:2px 6px;">
+                                    </div>
+                                </div>
+                            </div>
+                            <div style="display:flex; gap:6px;">
+                                <label class="action-btn" style="flex:1; text-align:center; padding:6px; font-size:11px; cursor:pointer;">
+                                    📁 Upload Trace Image
+                                    <input type="file" id="bg-upload-paper" style="display:none" onchange="uploadBgFromPaper(this)">
+                                </label>
+                                <button type="button" onclick="clearBgImage()" class="action-btn" style="padding:6px 10px; font-size:11px; color:var(--danger);" title="Remove Watermark">✕</button>
+                            </div>
+                        </div>
+                    </div>
+
                 </div>
             </div>
 
@@ -1028,6 +1165,7 @@ $templateSchemasData = $template->relationLoaded('schemas') ? $template->schemas
         pushHistory();
         sections[key].enabled = enabled;
         selectedSection = key;
+        elements = flattenSections();
         updateCanvasSize();
         renderElements();
         updateSectionsList();
@@ -1136,6 +1274,7 @@ $templateSchemasData = $template->relationLoaded('schemas') ? $template->schemas
     let activeId = null;
     let activeIds = [];
     let draggingEl = null, resizingEl = null, resizeHandle = null;
+    let isDragging = false, dragCandidate = null;
     let startX, startY, startW, startH, startMouseX, startMouseY;
     let snapEnabled = false, SNAP_MM = 2;
     let undoStack = [], redoStack = [];
@@ -1664,6 +1803,18 @@ $templateSchemasData = $template->relationLoaded('schemas') ? $template->schemas
         initCanvasDropHandlers();
         document.addEventListener('click', () => hideCtxMenu());
 
+        // Ctrl + Mouse Wheel Zoom (interception of browser zoom)
+        const ws = document.getElementById('designer-workspace');
+        if (ws) {
+            ws.addEventListener('wheel', (e) => {
+                if (e.ctrlKey || e.metaKey) {
+                    e.preventDefault();
+                    const delta = e.deltaY < 0 ? 0.05 : -0.05;
+                    changeZoom(delta);
+                }
+            }, { passive: false });
+        }
+
         // Fetch sample data from server if template exists
         if (templateId) {
             fetch(`/templates/${templateId}/sample-data`)
@@ -1803,14 +1954,212 @@ $templateSchemasData = $template->relationLoaded('schemas') ? $template->schemas
         document.querySelectorAll('.smart-guide').forEach(g => g.remove());
     }
 
-    // ── Paper Presets ────────────────────────────────────────
+    // ── Paper Presets & Page Studio ───────────────────────────
     function applyPaperPreset() {
         const val = document.getElementById('paper-preset').value;
         if (!val) return;
+        applyPaperPresetFromSelect(val);
+    }
+
+    function applyPaperPresetFromSelect(val) {
+        if (!val) return;
         const [w, h] = val.split(',').map(Number);
-        document.getElementById('paper-w').value = w;
-        document.getElementById('paper-h').value = h;
+        const wInput = document.getElementById('paper-w');
+        const hInput = document.getElementById('paper-h');
+        if (wInput) wInput.value = w;
+        if (hInput) hInput.value = h;
+        const topPreset = document.getElementById('paper-preset');
+        if (topPreset) topPreset.value = val;
+        const selectPreset = document.getElementById('paper-preset-select');
+        if (selectPreset) selectPreset.value = val;
         updateCanvasSize();
+        syncOrientationButtons();
+        autoFitSectionsToPaper();
+    }
+
+    function setOrientation(orient) {
+        const wInput = document.getElementById('paper-w');
+        const hInput = document.getElementById('paper-h');
+        if (!wInput || !hInput) return;
+        let w = parseFloat(wInput.value) || 215.9;
+        let h = parseFloat(hInput.value) || 139.7;
+        if (orient === 'portrait' && w > h) {
+            wInput.value = h;
+            hInput.value = w;
+            updateCanvasSize();
+            syncOrientationButtons();
+        } else if (orient === 'landscape' && h > w) {
+            wInput.value = h;
+            hInput.value = w;
+            updateCanvasSize();
+            syncOrientationButtons();
+        }
+    }
+
+    function syncOrientationButtons() {
+        const w = parseFloat(document.getElementById('paper-w')?.value || 215.9);
+        const h = parseFloat(document.getElementById('paper-h')?.value || 139.7);
+        const isPortrait = h >= w;
+        const btnP = document.getElementById('btn-orient-portrait');
+        const btnL = document.getElementById('btn-orient-landscape');
+        if (btnP && btnL) {
+            btnP.style.background = isPortrait ? 'var(--primary)' : 'var(--surface-hover)';
+            btnP.style.color = isPortrait ? '#ffffff' : 'var(--text)';
+            btnP.style.borderColor = isPortrait ? 'var(--primary)' : 'var(--border)';
+            btnL.style.background = !isPortrait ? 'var(--primary)' : 'var(--surface-hover)';
+            btnL.style.color = !isPortrait ? '#ffffff' : 'var(--text)';
+            btnL.style.borderColor = !isPortrait ? 'var(--primary)' : 'var(--border)';
+        }
+    }
+
+    function autoFitSectionsToPaper() {
+        if (!sections) return;
+        pushHistory();
+        const paperH = parseFloat(document.getElementById('paper-h')?.value || 139.7);
+        // Proportional distribution: Header 20%, Detail 65%, Footer 15%
+        if (sections.pageHeader && sections.pageFooter && sections.detail) {
+            const headerH = Math.max(10, Math.min(40, parseFloat((paperH * 0.20).toFixed(1))));
+            const footerH = Math.max(10, Math.min(30, parseFloat((paperH * 0.15).toFixed(1))));
+            const detailH = parseFloat(Math.max(15, paperH - headerH - footerH).toFixed(1));
+            
+            sections.pageHeader.height = headerH;
+            sections.pageHeader.enabled = true;
+            sections.detail.height = detailH;
+            sections.detail.enabled = true;
+            sections.pageFooter.height = footerH;
+            sections.pageFooter.enabled = true;
+        }
+        updateCanvasSize();
+        renderElements();
+        updateSectionsList();
+        showToast(`Auto-fitted sections to ${paperH}mm`, 'success');
+    }
+
+    function renderMarginGuides() {
+        document.querySelectorAll('.margin-guide-line').forEach(g => g.remove());
+        const c = document.getElementById('canvas');
+        if (!c) return;
+        const tm = parseFloat(document.getElementById('margin-top')?.value || 0);
+        const bm = parseFloat(document.getElementById('margin-bottom')?.value || 0);
+        const lm = parseFloat(document.getElementById('margin-left')?.value || 0);
+        const rm = parseFloat(document.getElementById('margin-right')?.value || 0);
+        const pw = parseFloat(document.getElementById('paper-w')?.value || 215.9);
+        const ph = parseFloat(document.getElementById('paper-h')?.value || 139.7);
+
+        if (tm > 0 || bm > 0 || lm > 0 || rm > 0) {
+            const guide = document.createElement('div');
+            guide.className = 'margin-guide-line';
+            guide.style.cssText = `
+                position: absolute;
+                left: ${lm * BASE_SCALE}px;
+                top: ${tm * BASE_SCALE}px;
+                width: ${Math.max(10, (pw - lm - rm) * BASE_SCALE)}px;
+                height: ${Math.max(10, (ph - tm - bm) * BASE_SCALE)}px;
+                border: 1px dashed rgba(59, 130, 246, 0.4);
+                pointer-events: none;
+                z-index: 2;
+            `;
+            c.appendChild(guide);
+        }
+    }
+
+    function toggleSprocketGuides(show) {
+        document.querySelectorAll('.sprocket-feed-guide').forEach(g => g.remove());
+        if (!show) return;
+        const c = document.getElementById('canvas');
+        if (!c) return;
+        
+        const leftStrip = document.createElement('div');
+        leftStrip.className = 'sprocket-feed-guide';
+        leftStrip.style.cssText = `
+            position: absolute; left: 0; top: 0; width: 28px; height: 100%;
+            background: repeating-linear-gradient(180deg, transparent 0px, transparent 14px, rgba(148,163,184,0.3) 14px, rgba(148,163,184,0.3) 20px);
+            border-right: 1px dashed rgba(148,163,184,0.5); pointer-events: none; z-index: 2;
+        `;
+        const rightStrip = document.createElement('div');
+        rightStrip.className = 'sprocket-feed-guide';
+        rightStrip.style.cssText = `
+            position: absolute; right: 0; top: 0; width: 28px; height: 100%;
+            background: repeating-linear-gradient(180deg, transparent 0px, transparent 14px, rgba(148,163,184,0.3) 14px, rgba(148,163,184,0.3) 20px);
+            border-left: 1px dashed rgba(148,163,184,0.5); pointer-events: none; z-index: 2;
+        `;
+        c.appendChild(leftStrip);
+        c.appendChild(rightStrip);
+    }
+
+    function uploadBgFromPaper(input) {
+        if (!input.files || !input.files[0]) return;
+        const file = input.files[0];
+        const fd = new FormData();
+        fd.append('background', file);
+        fd.append('_token', '{{ csrf_token() }}');
+        
+        fetch('{{ route('admin.templates.upload-bg') }}', {
+            method: 'POST', body: fd
+        })
+        .then(r => r.json())
+        .then(res => {
+            if (res.path) {
+                document.getElementById('bg-path').value = res.path;
+                const img = document.getElementById('canvas-bg-img');
+                if (img) { img.src = res.path; img.style.display = 'block'; }
+                showToast('Trace image uploaded successfully', 'success');
+            }
+        })
+        .catch(err => {
+            const url = URL.createObjectURL(file);
+            document.getElementById('bg-path').value = url;
+            const img = document.getElementById('canvas-bg-img');
+            if (img) { img.src = url; img.style.display = 'block'; }
+            showToast('Preview loaded locally', 'info');
+        });
+    }
+
+    function clearBgImage() {
+        document.getElementById('bg-path').value = '';
+        const img = document.getElementById('canvas-bg-img');
+        if (img) { img.src = ''; img.style.display = 'none'; }
+        showToast('Watermark image removed', 'info');
+    }
+
+    // ── Add & Move Section Elements ───────────────────────────
+    function addSectionElement(sectionKey, type) {
+        if (!sections || !sections[sectionKey]) sectionKey = 'detail';
+        pushHistory();
+        const id = 'el_new_' + Date.now();
+        const defaultStyles = { font_size: 10, fontFamily: 'Arial', bold: false, border: false, align: 'L' };
+        let el = { id, type, key: '', x: 10, y: 3, width: 50, height: 8, font_size: 10, fontFamily: 'Arial', bold: false, border: false, align: 'L' };
+        if (type === 'field')  { el.key = 'field_key'; el.rotation = 0; }
+        if (type === 'label')  { el.key = ''; el.text = SECTION_LABELS[sectionKey] + ' Label'; el.width = 60; el.rotation = 0; }
+        if (type === 'table')  { el.key = 'items'; el.width = 180; el.height = 25; el.columns = [{ label: 'Item', key: 'name', width: 100 }, { label: 'Qty', key: 'qty', width: 40, align: 'R' }]; }
+        if (type === 'line')   { el.key = ''; el.width = 180; el.height = 0.5; el.lineColor = '#000000'; }
+        if (type === 'image')  { el.key = ''; el.src = 'https://via.placeholder.com/150?text=Logo'; el.width = 30; el.height = 20; el.rotation = 0; }
+        if (type === 'barcode') { el = { id, type: 'barcode', symbology: 'code128', value: '', showText: true, barWidth: 0, height_mm: 15, x: 10, y: 3, width: 70, height: 20, ...defaultStyles }; }
+        if (type === 'qrcode') { el = { id, type: 'qrcode', value: '', errorCorrection: 'M', x: 10, y: 3, size: 20, width: 20, height: 20, ...defaultStyles }; }
+
+        if (!sections[sectionKey].elements) sections[sectionKey].elements = [];
+        sections[sectionKey].elements.push(el);
+        elements = flattenSections();
+        renderElements();
+        selectElements([id]);
+        showToast(`Added ${type} to ${SECTION_LABELS[sectionKey]}`, 'success');
+    }
+
+    function moveElementToSection(elId, newSectionKey) {
+        if (!sections || !sections[newSectionKey]) return;
+        const oldSectionKey = findElementSection(elId);
+        if (oldSectionKey === newSectionKey) return;
+        pushHistory();
+        const el = elements.find(e => e.id === elId);
+        if (!el) return;
+        removeElementFromAllSections(elId);
+        el.y = Math.min(el.y, Math.max(0, sections[newSectionKey].height - (el.height || 8)));
+        if (!sections[newSectionKey].elements) sections[newSectionKey].elements = [];
+        sections[newSectionKey].elements.push(el);
+        elements = flattenSections();
+        renderElements();
+        updateInspector();
+        showToast(`Moved to ${SECTION_LABELS[newSectionKey]}`, 'success');
     }
 
     // ── Tab switch ───────────────────────────────────────────
@@ -2770,7 +3119,7 @@ $templateSchemasData = $template->relationLoaded('schemas') ? $template->schemas
             cw.style.height = (rawH * zoomLevel) + 'px';
         }
 
-        drawSnapGrid(); drawMinimap();
+        drawSnapGrid(); drawMinimap(); renderMarginGuides(); syncOrientationButtons();
     }
 
     // ── Add Element ──────────────────────────────────────────
@@ -2890,34 +3239,69 @@ $templateSchemasData = $template->relationLoaded('schemas') ? $template->schemas
 
     // ── Mouse move (drag / resize / rubber band / tooltip) ───
     window.addEventListener('mousemove', (e) => {
-        const dx = (e.clientX-startMouseX)/(BASE_SCALE*zoomLevel), dy = (e.clientY-startMouseY)/(BASE_SCALE*zoomLevel);
-        if (draggingEl) {
-            activeIds.forEach(id => {
-                const el = elements.find(i => i.id === id); if (!el || el.locked) return;
-                el.x = snapVal(parseFloat((el.origX+dx).toFixed(2)));
-                el.y = snapVal(parseFloat((el.origY+dy).toFixed(2)));
-                const div = document.querySelector(`.design-element[data-id="${el.id}"]`);
-                if (div) { div.style.left = (el.x * BASE_SCALE) + 'px'; div.style.top = (el.y * BASE_SCALE) + 'px'; }
-            });
-            // Coord tooltip + smart guides
-            const el = elements.find(i => i.id === activeId);
-            if (el) {
-                showCoordTip(e.clientX, e.clientY, el.x, el.y);
-                showSmartGuides(el);
+        if (dragCandidate && !isDragging) {
+            if (typeof startMouseX === 'number' && typeof startMouseY === 'number') {
+                const dist = Math.hypot(e.clientX - startMouseX, e.clientY - startMouseY);
+                if (dist >= 3) {
+                    isDragging = true;
+                    draggingEl = dragCandidate;
+                }
             }
-            updateInspector();
+        }
+
+        if (draggingEl && isDragging) {
+            if (typeof startMouseX !== 'number' || isNaN(startMouseX)) return;
+            if (typeof startMouseY !== 'number' || isNaN(startMouseY)) return;
+
+            const dx = (e.clientX - startMouseX) / (BASE_SCALE * zoomLevel);
+            const dy = (e.clientY - startMouseY) / (BASE_SCALE * zoomLevel);
+            if (!isNaN(dx) && !isNaN(dy)) {
+                activeIds.forEach(id => {
+                    const el = elements.find(i => i.id === id); if (!el || el.locked) return;
+                    const origX = (typeof el.origX === 'number' && !isNaN(el.origX)) ? el.origX : (parseFloat(el.x) || 0);
+                    const origY = (typeof el.origY === 'number' && !isNaN(el.origY)) ? el.origY : (parseFloat(el.y) || 0);
+                    el.x = snapVal(parseFloat((origX + dx).toFixed(2)));
+                    el.y = snapVal(parseFloat((origY + dy).toFixed(2)));
+                    const div = document.querySelector(`.design-element[data-id="${el.id}"]`);
+                    if (div) {
+                        const secKey = findElementSection(el.id) || 'detail';
+                        const secOffset = getSectionOffset(secKey);
+                        div.style.left = (el.x * BASE_SCALE) + 'px';
+                        div.style.top = ((secOffset + el.y) * BASE_SCALE) + 'px';
+                    }
+                });
+                // Coord tooltip + smart guides
+                const el = elements.find(i => i.id === activeId);
+                if (el && !isNaN(el.x) && !isNaN(el.y)) {
+                    showCoordTip(e.clientX, e.clientY, el.x, el.y);
+                    showSmartGuides(el);
+                } else {
+                    hideCoordTip();
+                }
+                updateInspector();
+            }
         } else if (resizingEl) {
-            if (resizeHandle.includes('e')) resizingEl.width = Math.max(1, snapVal(startW + dx));
-            if (resizeHandle.includes('s')) resizingEl.height = Math.max(0.5, snapVal(startH + dy));
-            if (resizeHandle.includes('w')) { const nw = Math.max(1, snapVal(startW-dx)); resizingEl.x = startX+(startW-nw); resizingEl.width = nw; }
-            if (resizeHandle.includes('n')) { const nh = Math.max(0.5, snapVal(startH-dy)); resizingEl.y = startY+(startH-nh); resizingEl.height = nh; }
-            const div = document.querySelector(`.design-element[data-id="${resizingEl.id}"]`);
-            if (div) {
-                div.style.left = (resizingEl.x * BASE_SCALE) + 'px'; div.style.top = (resizingEl.y * BASE_SCALE) + 'px';
-                div.style.width = (resizingEl.width * BASE_SCALE) + 'px'; div.style.height = (resizingEl.height * BASE_SCALE) + 'px';
+            if (typeof startMouseX === 'number' && typeof startMouseY === 'number') {
+                const dx = (e.clientX - startMouseX) / (BASE_SCALE * zoomLevel);
+                const dy = (e.clientY - startMouseY) / (BASE_SCALE * zoomLevel);
+                if (!isNaN(dx) && !isNaN(dy)) {
+                    if (resizeHandle.includes('e')) resizingEl.width = Math.max(1, snapVal(startW + dx));
+                    if (resizeHandle.includes('s')) resizingEl.height = Math.max(0.5, snapVal(startH + dy));
+                    if (resizeHandle.includes('w')) { const nw = Math.max(1, snapVal(startW - dx)); resizingEl.x = startX + (startW - nw); resizingEl.width = nw; }
+                    if (resizeHandle.includes('n')) { const nh = Math.max(0.5, snapVal(startH - dy)); resizingEl.y = startY + (startH - nh); resizingEl.height = nh; }
+                    const div = document.querySelector(`.design-element[data-id="${resizingEl.id}"]`);
+                    if (div) {
+                        const secKey = findElementSection(resizingEl.id) || 'detail';
+                        const secOffset = getSectionOffset(secKey);
+                        div.style.left = (resizingEl.x * BASE_SCALE) + 'px';
+                        div.style.top = ((secOffset + resizingEl.y) * BASE_SCALE) + 'px';
+                        div.style.width = (resizingEl.width * BASE_SCALE) + 'px';
+                        div.style.height = ((resizingEl.height || 10) * BASE_SCALE) + 'px';
+                    }
+                    showCoordTip(e.clientX, e.clientY, resizingEl.width, resizingEl.height, 'W×H');
+                    updateInspector();
+                }
             }
-            showCoordTip(e.clientX, e.clientY, resizingEl.width, resizingEl.height, 'W×H');
-            updateInspector();
         } else if (rubberBanding) {
             const rect = document.getElementById('canvas').getBoundingClientRect();
             const cx = (e.clientX - rect.left) / zoomLevel, cy = (e.clientY - rect.top) / zoomLevel;
@@ -2926,21 +3310,30 @@ $templateSchemasData = $template->relationLoaded('schemas') ? $template->schemas
             rb.style.width = Math.abs(cx - rbStartX) + 'px'; rb.style.height = Math.abs(cy - rbStartY) + 'px';
         } else if (sectionResizing) {
             const dy = (e.clientY - sectionResizing.startY) / (BASE_SCALE * zoomLevel);
-            const newH = Math.max(5, sectionResizing.startHeight + dy);
-            sections[sectionResizing.key].height = parseFloat(newH.toFixed(1));
-            updateCanvasSize();
-            renderElements();
+            if (!isNaN(dy)) {
+                const newH = Math.max(5, sectionResizing.startHeight + dy);
+                sections[sectionResizing.key].height = parseFloat(newH.toFixed(1));
+                updateCanvasSize();
+                renderElements();
+            }
         } else {
             hideCoordTip();
         }
     });
 
     function showCoordTip(cx, cy, a, b, label = 'X,Y') {
+        const valA = parseFloat(a);
+        const valB = parseFloat(b);
+        if (isNaN(valA) || isNaN(valB)) {
+            hideCoordTip();
+            return;
+        }
         const t = document.getElementById('coord-tip');
-        t.style.display = 'block'; t.style.left = (cx+14)+'px'; t.style.top = (cy-20)+'px';
-        t.textContent = `${label}: ${parseFloat(a).toFixed(1)}, ${parseFloat(b).toFixed(1)}`;
+        if (!t) return;
+        t.style.display = 'block'; t.style.left = (cx + 14) + 'px'; t.style.top = (cy - 20) + 'px';
+        t.textContent = `${label}: ${valA.toFixed(1)}, ${valB.toFixed(1)}`;
     }
-    function hideCoordTip() { document.getElementById('coord-tip').style.display = 'none'; }
+    function hideCoordTip() { const t = document.getElementById('coord-tip'); if (t) t.style.display = 'none'; }
 
     window.addEventListener('mouseup', (e) => {
         if (rubberBanding) {
@@ -2955,12 +3348,10 @@ $templateSchemasData = $template->relationLoaded('schemas') ? $template->schemas
                 if (hit.length) selectElements(hit);
             }
         }
-        if (draggingEl) {
+        if (isDragging && draggingEl) {
             // ── Section boundary detection on drop ──────────────
             const movedIds = [];
-            // Collect all dragged element IDs
             activeIds.forEach(id => { if (!movedIds.includes(id)) movedIds.push(id); });
-            // Also include draggingEl if not in activeIds
             if (draggingEl && !movedIds.includes(draggingEl.id)) movedIds.push(draggingEl.id);
 
             movedIds.forEach(id => {
@@ -3000,16 +3391,30 @@ $templateSchemasData = $template->relationLoaded('schemas') ? $template->schemas
                     }
                 }
             });
+            pushHistory();
+            renderElements();
+            drawMinimap();
+        } else if (resizingEl || sectionResizing) {
+            pushHistory();
+            renderElements();
+            drawMinimap();
         }
-        if (draggingEl || resizingEl || sectionResizing) { pushHistory(); renderElements(); drawMinimap(); }
-        draggingEl = null; resizingEl = null; sectionResizing = null; hideCoordTip(); clearSmartGuides();
+        dragCandidate = null;
+        isDragging = false;
+        draggingEl = null;
+        resizingEl = null;
+        sectionResizing = null;
+        hideCoordTip();
+        clearSmartGuides();
     });
 
     // ── Render ───────────────────────────────────────────────
     function renderElements() {
         const c = document.getElementById('canvas');
+        if (!c) return;
         c.querySelectorAll('.design-element').forEach(el => el.remove());
         c.querySelectorAll('.section-band').forEach(el => el.remove());
+        c.querySelectorAll('.section-label').forEach(el => el.remove());
         c.querySelectorAll('.section-resize-handle').forEach(el => el.remove());
         
         const activeSchemaId = document.getElementById('data-schema-select')?.value;
@@ -3060,22 +3465,26 @@ $templateSchemasData = $template->relationLoaded('schemas') ? $template->schemas
             `;
             c.appendChild(band);
 
-            // Section label (clickable for section properties)
+            // Section label and quick actions bar
             const label = document.createElement('div');
             label.className = 'section-label';
             label.dataset.section = sectionKey;
             label.style.cssText = `
                 position: absolute; left: 4px; top: ${currentYpx + 2}px;
+                display: flex; align-items: center; gap: 4px;
                 font-size: 9px; font-family: sans-serif;
-                color: #6b7280; pointer-events: auto; cursor: pointer;
-                z-index: 1; user-select: none;
+                color: #475569; pointer-events: auto;
+                z-index: 10; user-select: none;
             `;
-            label.textContent = SECTION_LABELS[sectionKey] + ` (${sectionHeight}mm)`;
-            label.title = 'Click to edit section properties';
-            label.onclick = (e) => {
-                e.stopPropagation();
-                showSectionInspector(sectionKey);
-            };
+            label.innerHTML = `
+                <span onclick="showSectionInspector('${sectionKey}')" style="cursor:pointer; font-weight:700; background:rgba(255,255,255,0.9); padding:1px 6px; border-radius:4px; border:1px solid #cbd5e1; box-shadow:0 1px 2px rgba(0,0,0,0.05); color: #1e293b;" title="Click to edit section properties">
+                    📌 ${SECTION_LABELS[sectionKey]} (${sectionHeight}mm)
+                </span>
+                <button type="button" onclick="addSectionElement('${sectionKey}', 'field')" style="background:#3b82f6; color:#fff; border:none; border-radius:3px; padding:1px 5px; font-size:8px; font-weight:600; cursor:pointer;" title="Add Data Field to ${SECTION_LABELS[sectionKey]}">+ Field</button>
+                <button type="button" onclick="addSectionElement('${sectionKey}', 'label')" style="background:#64748b; color:#fff; border:none; border-radius:3px; padding:1px 5px; font-size:8px; font-weight:600; cursor:pointer;" title="Add Text Label to ${SECTION_LABELS[sectionKey]}">+ Label</button>
+                <button type="button" onclick="addSectionElement('${sectionKey}', 'image')" style="background:#8b5cf6; color:#fff; border:none; border-radius:3px; padding:1px 5px; font-size:8px; font-weight:600; cursor:pointer;" title="Add Logo/Image to ${SECTION_LABELS[sectionKey]}">+ Logo</button>
+                ${sectionKey === 'detail' ? `<button type="button" onclick="addSectionElement('detail', 'table')" style="background:#10b981; color:#fff; border:none; border-radius:3px; padding:1px 5px; font-size:8px; font-weight:600; cursor:pointer;" title="Add Table to Detail">+ Table</button>` : ''}
+            `;
             c.appendChild(label);
 
             // Render elements in this section
@@ -3267,17 +3676,29 @@ $templateSchemasData = $template->relationLoaded('schemas') ? $template->schemas
                     if (ev.target.classList.contains('handle')) return;
                     if (el.locked) return;
                     ev.stopPropagation();
-                    draggingEl = el;
+
+                    startMouseX = ev.clientX;
+                    startMouseY = ev.clientY;
+                    dragCandidate = el;
+                    isDragging = false;
+                    draggingEl = null;
+
                     let tIds = [el.id];
                     if (el.groupId) tIds = elements.filter(i => i.groupId === el.groupId).map(i => i.id);
                     if (ev.shiftKey) {
                         tIds.forEach(id => { if (activeIds.includes(id)) activeIds = activeIds.filter(a => a !== id); else activeIds.push(id); });
                         selectElements(activeIds);
                     } else if (!activeIds.includes(el.id)) {
-                        activeIds = tIds; selectElements(activeIds);
+                        activeIds = tIds;
+                        selectElements(activeIds);
                     }
-                    activeIds.forEach(id => { const t = elements.find(x => x.id === id); if (t) { t.origX = t.x; t.origY = t.y; } });
-                    startMouseX = ev.clientX; startMouseY = ev.clientY;
+                    activeIds.forEach(id => {
+                        const t = elements.find(x => x.id === id);
+                        if (t) {
+                            t.origX = (typeof t.x === 'number' && !isNaN(t.x)) ? t.x : (parseFloat(t.x) || 0);
+                            t.origY = (typeof t.y === 'number' && !isNaN(t.y)) ? t.y : (parseFloat(t.y) || 0);
+                        }
+                    });
                 };
                 c.appendChild(div);
             });
@@ -3341,14 +3762,27 @@ $templateSchemasData = $template->relationLoaded('schemas') ? $template->schemas
     function selectElements(ids) {
         activeIds = ids; activeId = ids.length === 1 ? ids[0] : null;
         renderElements(); updateInspector();
+        if (ids.length > 0) switchTab('props');
     }
     function alignElements(type) {
         if (activeIds.length < 2) return; pushHistory();
         const sel = elements.filter(el => activeIds.includes(el.id));
         if (type === 'left') { const mx = Math.min(...sel.map(e => e.x)); sel.forEach(e => e.x = mx); }
-        if (type === 'right') { const mx = Math.max(...sel.map(e => e.x + e.width)); sel.forEach(e => e.x = mx - e.width); }
+        if (type === 'right') { const mx = Math.max(...sel.map(e => e.x + (e.width||20))); sel.forEach(e => e.x = mx - (e.width||20)); }
+        if (type === 'centerH') {
+            const minX = Math.min(...sel.map(e => e.x));
+            const maxX = Math.max(...sel.map(e => e.x + (e.width||20)));
+            const midX = (minX + maxX) / 2;
+            sel.forEach(e => e.x = Math.round(midX - ((e.width||20) / 2)));
+        }
         if (type === 'top') { const my = Math.min(...sel.map(e => e.y)); sel.forEach(e => e.y = my); }
         if (type === 'bottom') { const my = Math.max(...sel.map(e => e.y + (e.height||10))); sel.forEach(e => e.y = my - (e.height||10)); }
+        if (type === 'centerV') {
+            const minY = Math.min(...sel.map(e => e.y));
+            const maxY = Math.max(...sel.map(e => e.y + (e.height||10)));
+            const midY = (minY + maxY) / 2;
+            sel.forEach(e => e.y = Math.round(midY - ((e.height||10) / 2)));
+        }
         renderElements();
     }
     function groupElements() {
@@ -3391,9 +3825,13 @@ $templateSchemasData = $template->relationLoaded('schemas') ? $template->schemas
         if (!el) { cont.innerHTML = `<div style="text-align:center;padding:3rem 1rem;color:var(--text-muted);font-size:0.8rem;">Select an object</div>`; return; }
 
         const lockedWarn = el.locked ? `<div style="background:rgba(239,68,68,0.1);border:1px solid var(--danger);border-radius:4px;padding:6px 10px;font-size:11px;color:var(--danger);margin:8px;">🔒 Locked — unlock from Layers</div>` : '';
+        const curSec = findElementSection(el.id) || 'detail';
+        const sectionOptions = SECTION_ORDER.map(k => `<option value="${k}" ${curSec === k ? 'selected' : ''}>${SECTION_LABELS[k]}</option>`).join('');
+
         let html = lockedWarn + `
-            <div class="props-section"><div class="props-label">Identity</div><div class="prop-table">
-                <div class="prop-item"><div class="prop-key">Type</div><div class="prop-val" style="padding-left:8px;font-size:11px;color:var(--text-muted);">${el.type}</div></div>
+            <div class="props-section"><div class="props-label">Identity & Section</div><div class="prop-table">
+                <div class="prop-item"><div class="prop-key">Type</div><div class="prop-val" style="padding-left:8px;font-size:11px;font-weight:700;color:var(--primary);">${el.type.toUpperCase()}</div></div>
+                <div class="prop-item"><div class="prop-key">Section</div><div class="prop-val"><select onchange="moveElementToSection('${el.id}', this.value)" style="font-weight:600; color:var(--text);">${sectionOptions}</select></div></div>
                 <div class="prop-item"><div class="prop-key">${el.type==='label'?'Text':'Key'}</div><div class="prop-val"><input type="text" value="${el.type==='label'?(el.text||''):(el.key||'')}" oninput="updateElProps('${el.type==='label'?'text':'key'}', this.value)"${el.type==='field'?' list="field-key-list"':''}></div></div>
                 <div class="prop-item"><div class="prop-key">Group</div><div class="prop-val" style="padding-left:10px;">${el.groupId ? `<span style="color:var(--primary);font-size:10px;">${el.groupId.slice(-6)}</span> <button onclick="ungroupElements()" style="background:none;border:none;color:var(--danger);cursor:pointer;">[X]</button>` : 'None'}</div></div>
             </div></div>`;
@@ -3760,7 +4198,20 @@ $templateSchemasData = $template->relationLoaded('schemas') ? $template->schemas
                         </div>
                     </div>`;
             });
-            html += `</div><div style="padding:0.5rem;"><button onclick="addCol()" class="btn btn-secondary btn-sm" style="width:100%;">+ Add Column</button></div></div>`;
+            html += `</div>
+            <div style="padding:0.5rem;display:flex;flex-direction:column;gap:6px;">
+                <button onclick="addCol()" class="btn btn-secondary btn-sm" style="width:100%;">+ Add Column</button>
+                <div style="display:flex;gap:4px;">
+                    <select onchange="applyTablePreset(this.value); this.value='';" style="flex:1;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:4px;font-size:10px;border-radius:4px;">
+                        <option value="">📋 Column Presets...</option>
+                        <option value="items_pricing">Items + Price + Subtotal</option>
+                        <option value="warehouse_picking">Warehouse Delivery Picking</option>
+                        <option value="accounting_ledger">Debit / Credit / Balance Ledger</option>
+                        <option value="simple_2col">2-Column Key / Value List</option>
+                    </select>
+                    <button onclick="equalizeColWidths()" class="btn btn-secondary btn-sm" style="padding:2px 6px;font-size:10px;" title="Equalize all column widths">⚖️ Equalize</button>
+                </div>
+            </div></div>`;
         }
 
         html += `<div style="padding:0.75rem;display:flex;gap:0.5rem;">
@@ -3802,6 +4253,56 @@ $templateSchemasData = $template->relationLoaded('schemas') ? $template->schemas
     function deleteCol(idx) { const el=elements.find(e=>e.id===activeId); if(el&&el.columns.length>1){el.columns.splice(idx,1);updateInspector();renderElements();} }
     function moveColUp(idx) { pushHistory(); const el=elements.find(e=>e.id===activeId); if(el&&idx>0){const c=el.columns.splice(idx,1)[0]; el.columns.splice(idx-1,0,c); updateInspector(); renderElements(); } }
     function moveColDown(idx) { pushHistory(); const el=elements.find(e=>e.id===activeId); if(el&&idx<el.columns.length-1){const c=el.columns.splice(idx,1)[0]; el.columns.splice(idx+1,0,c); updateInspector(); renderElements(); } }
+    function equalizeColWidths() {
+        const el = elements.find(e => e.id === activeId);
+        if (!el || !el.columns || el.columns.length === 0) return;
+        pushHistory();
+        const totalW = el.width || 180;
+        const avgW = Math.max(15, Math.floor(totalW / el.columns.length));
+        el.columns.forEach(c => c.width = avgW);
+        updateInspector();
+        renderElements();
+        showToast('Equalized all column widths', 'success');
+    }
+    function applyTablePreset(presetKey) {
+        const el = elements.find(e => e.id === activeId);
+        if (!el || el.type !== 'table') return;
+        pushHistory();
+        if (presetKey === 'items_pricing') {
+            el.columns = [
+                { label: 'No', key: 'index', width: 12, align: 'C' },
+                { label: 'Item & Description', key: 'product_name', width: 85, align: 'L' },
+                { label: 'Qty', key: 'quantity', width: 20, align: 'R', format_type: 'number', decimal_places: 0 },
+                { label: 'Unit Price', key: 'price_unit', width: 35, align: 'R', format_type: 'currency', format_string: 'Rp' },
+                { label: 'Total', key: 'subtotal', width: 38, align: 'R', format_type: 'currency', format_string: 'Rp' }
+            ];
+        } else if (presetKey === 'warehouse_picking') {
+            el.columns = [
+                { label: 'No', key: 'index', width: 15, align: 'C' },
+                { label: 'Product Code', key: 'product_code', width: 40, align: 'L' },
+                { label: 'Product Name', key: 'product_name', width: 100, align: 'L' },
+                { label: 'Qty Picked', key: 'quantity', width: 25, align: 'R', format_type: 'number', decimal_places: 0 },
+                { label: 'UoM', key: 'uom', width: 20, align: 'C' }
+            ];
+        } else if (presetKey === 'accounting_ledger') {
+            el.columns = [
+                { label: 'Date', key: 'date', width: 25, align: 'C' },
+                { label: 'Ref / Invoice', key: 'reference', width: 35, align: 'L' },
+                { label: 'Description', key: 'description', width: 65, align: 'L' },
+                { label: 'Debit', key: 'debit', width: 25, align: 'R', format_type: 'currency', format_string: 'Rp' },
+                { label: 'Credit', key: 'credit', width: 25, align: 'R', format_type: 'currency', format_string: 'Rp' },
+                { label: 'Balance', key: 'balance', width: 25, align: 'R', format_type: 'currency', format_string: 'Rp' }
+            ];
+        } else if (presetKey === 'simple_2col') {
+            el.columns = [
+                { label: 'Parameter / Property', key: 'name', width: 80, align: 'L' },
+                { label: 'Value / Status', key: 'value', width: 100, align: 'L' }
+            ];
+        }
+        updateInspector();
+        renderElements();
+        showToast('Applied column preset', 'success');
+    }
     function updateElProps(prop,val) { pushHistory(); const el=elements.find(e=>e.id===activeId); if(el){el[prop]=val;renderElements();} }
     function deleteActive() { 
         if(!confirm('Delete selected element(s)?'))return; 
@@ -5617,6 +6118,337 @@ $templateSchemasData = $template->relationLoaded('schemas') ? $template->schemas
             showToast('Scenario deleted', 'success');
         })
         .catch(err => showToast('Failed: ' + err.message, 'error'));
+    }
+
+    // ── 🌟 Report Starter Gallery Library ─────────────────────────
+    const STARTER_TEMPLATES = {
+        surat_jalan_3ply: {
+            title: "Surat Jalan / Delivery Slip (3-Ply)",
+            name: "Surat_Jalan_Continuous_9.5x11",
+            icon: "🚚",
+            badge: "Continuous 9.5\" × 11\"",
+            desc: "Continuous form 3-ply delivery note with company header, multi-page item table, and 3 recipient signature boxes.",
+            paper_width_mm: 241.3,
+            paper_height_mm: 279.4,
+            sections: {
+                pageHeader: { enabled: true, height: 45, visible: true },
+                reportHeader: { enabled: false, height: 0, visible: false },
+                detail: { enabled: true, height: 160, visible: true },
+                reportFooter: { enabled: false, height: 0, visible: false },
+                pageFooter: { enabled: true, height: 50, visible: true }
+            },
+            elements: [
+                { id: 'sj_h1', type: 'text', content: 'PT HARTONO MOTOR GROUP', x: 10, y: 8, font_size: 13, bold: true },
+                { id: 'sj_h2', type: 'text', content: 'SURAT JALAN / PENGIRIMAN BARANG', x: 10, y: 15, font_size: 11, bold: true },
+                { id: 'sj_h3', type: 'line', x: 10, y: 20, width: 220, height: 0.5, lineColor: '#000000' },
+                { id: 'sj_f1', type: 'field', key: 'picking_number', prefix: 'No. SJ: ', x: 150, y: 8, font_size: 10, bold: true },
+                { id: 'sj_f2', type: 'field', key: 'date_done', prefix: 'Tanggal: ', x: 150, y: 14, font_size: 9 },
+                { id: 'sj_f3', type: 'field', key: 'customer_name', prefix: 'Kepada: ', x: 10, y: 24, font_size: 10, bold: true },
+                { id: 'sj_f4', type: 'field', key: 'customer_address', prefix: 'Alamat: ', x: 10, y: 30, font_size: 9 },
+                { id: 'sj_f5', type: 'field', key: 'vehicle_number', prefix: 'No. Polisi: ', x: 150, y: 24, font_size: 9 },
+                { id: 'sj_f6', type: 'field', key: 'driver_name', prefix: 'Supir: ', x: 150, y: 30, font_size: 9 },
+                {
+                    id: 'sj_tbl', type: 'table', key: 'items', x: 10, y: 48, width: 220, height: 150,
+                    header_height: 7, row_height: 6, bottom_padding: 35, font_size: 9,
+                    columns: [
+                        { label: 'No', key: 'index', width: 15, align: 'C' },
+                        { label: 'Kode Barang', key: 'product_code', width: 35, align: 'L' },
+                        { label: 'Nama Barang & Spesifikasi', key: 'product_name', width: 110, align: 'L' },
+                        { label: 'Qty', key: 'quantity', width: 25, align: 'R', format_type: 'number', decimal_places: 0 },
+                        { label: 'Satuan', key: 'uom', width: 25, align: 'C' }
+                    ]
+                },
+                { id: 'sj_sig1', type: 'text', content: "Penerima / Toko,\n\n\n( ........................... )", x: 15, y: 235, font_size: 9 },
+                { id: 'sj_sig2', type: 'text', content: "Pengemudi / Supir,\n\n\n( ........................... )", x: 90, y: 235, font_size: 9 },
+                { id: 'sj_sig3', type: 'text', content: "Bagian Gudang,\n\n\n( ........................... )", x: 165, y: 235, font_size: 9 }
+            ]
+        },
+        tax_invoice_faktur: {
+            title: "Faktur Penjualan / Tax Invoice",
+            name: "Faktur_Penjualan_A4",
+            icon: "💼",
+            badge: "A4 Portrait (210 × 297mm)",
+            desc: "Standard commercial invoice with tax calculation, customer VAT info, multi-column item table, and Indonesian Terbilang words.",
+            paper_width_mm: 210.0,
+            paper_height_mm: 297.0,
+            elements: [
+                { id: 'inv_h1', type: 'text', content: 'FAKTUR PENJUALAN / INVOICE', x: 10, y: 12, font_size: 14, bold: true },
+                { id: 'inv_no', type: 'field', key: 'invoice_number', prefix: 'Invoice No: ', x: 140, y: 12, font_size: 11, bold: true },
+                { id: 'inv_dt', type: 'field', key: 'invoice_date', prefix: 'Date: ', x: 140, y: 18, font_size: 9 },
+                { id: 'inv_due', type: 'field', key: 'date_due', prefix: 'Due Date: ', x: 140, y: 23, font_size: 9 },
+                { id: 'inv_ln1', type: 'line', x: 10, y: 30, width: 190, height: 0.5, lineColor: '#000000' },
+                { id: 'inv_c1', type: 'field', key: 'customer_name', prefix: 'Bill To: ', x: 10, y: 34, font_size: 10, bold: true },
+                { id: 'inv_c2', type: 'field', key: 'customer_address', x: 10, y: 40, font_size: 9 },
+                { id: 'inv_c3', type: 'field', key: 'customer_vat', prefix: 'NPWP: ', x: 10, y: 46, font_size: 9 },
+                {
+                    id: 'inv_tbl', type: 'table', key: 'items', x: 10, y: 55, width: 190, height: 160,
+                    header_height: 7, row_height: 6, bottom_padding: 50, font_size: 9,
+                    columns: [
+                        { label: 'Item & Description', key: 'product_name', width: 85, align: 'L' },
+                        { label: 'Qty', key: 'quantity', width: 20, align: 'R', format_type: 'number', decimal_places: 0 },
+                        { label: 'Unit Price', key: 'price_unit', width: 35, align: 'R', format_type: 'currency', format_string: 'Rp' },
+                        { label: 'Discount', key: 'discount', width: 20, align: 'R' },
+                        { label: 'Subtotal', key: 'subtotal', width: 30, align: 'R', format_type: 'currency', format_string: 'Rp' }
+                    ]
+                },
+                { id: 'inv_sub', type: 'field', key: 'amount_untaxed', prefix: 'Subtotal: Rp ', x: 135, y: 220, font_size: 9, bold: true },
+                { id: 'inv_tax', type: 'field', key: 'amount_tax', prefix: 'PPN 11%: Rp ', x: 135, y: 226, font_size: 9 },
+                { id: 'inv_tot', type: 'field', key: 'amount_total', prefix: 'GRAND TOTAL: Rp ', x: 135, y: 233, font_size: 11, bold: true },
+                { id: 'inv_terbilang', type: 'field', key: 'terbilang', prefix: 'Terbilang: # ', suffix: ' Rupiah #', x: 10, y: 245, font_size: 9, bold: true },
+                { id: 'inv_bank', type: 'text', content: "Pembayaran Transfer:\nBCA: 123-456-7890 (A/N PT Hartono)\nMandiri: 098-765-4321", x: 10, y: 255, font_size: 8 },
+                { id: 'inv_sig', type: 'text', content: "Hormat Kami,\n\n\n( Finance & Accounting )", x: 140, y: 255, font_size: 9 }
+            ]
+        },
+        thermal_shipping_label: {
+            title: "Logistics Thermal Shipping Label",
+            name: "Shipping_Label_100x150",
+            icon: "🏷️",
+            badge: "100 × 150mm Thermal (4×6\")",
+            desc: "Standard e-commerce & courier shipping label with prominent Code128 barcode, QR code, and clear destination boxes.",
+            paper_width_mm: 100.0,
+            paper_height_mm: 150.0,
+            elements: [
+                { id: 'lbl_title', type: 'text', content: 'EXPRESS COURIER SHIPPING LABEL', x: 5, y: 8, font_size: 10, bold: true },
+                { id: 'lbl_bc', type: 'barcode', value: 'EXP-8891029381', symbology: 'code128', x: 10, y: 15, width: 80, height_mm: 18, showText: true },
+                { id: 'lbl_ln1', type: 'line', x: 5, y: 38, width: 90, height: 0.5, lineColor: '#000000' },
+                { id: 'lbl_rcp_lbl', type: 'text', content: 'PENERIMA (RECIPIENT):', x: 5, y: 42, font_size: 8, bold: true },
+                { id: 'lbl_rcp_name', type: 'field', key: 'recipient_name', x: 5, y: 48, font_size: 11, bold: true },
+                { id: 'lbl_rcp_phone', type: 'field', key: 'recipient_phone', prefix: 'Telp: ', x: 5, y: 55, font_size: 9 },
+                { id: 'lbl_rcp_addr', type: 'field', key: 'recipient_address', x: 5, y: 61, font_size: 9 },
+                { id: 'lbl_ln2', type: 'line', x: 5, y: 95, width: 90, height: 0.5, lineColor: '#000000' },
+                { id: 'lbl_snd_lbl', type: 'text', content: 'PENGIRIM (SENDER):', x: 5, y: 100, font_size: 8, bold: true },
+                { id: 'lbl_snd_name', type: 'field', key: 'sender_name', x: 5, y: 105, font_size: 9, bold: true },
+                { id: 'lbl_snd_addr', type: 'field', key: 'sender_address', x: 5, y: 111, font_size: 8 },
+                { id: 'lbl_wt', type: 'field', key: 'weight_kg', prefix: 'BERAT: ', suffix: ' KG', x: 5, y: 135, font_size: 10, bold: true },
+                { id: 'lbl_qr', type: 'qrcode', value: 'https://track.example.com/EXP-8891029381', x: 70, y: 120, size: 25 }
+            ]
+        },
+        pos_receipt_80mm: {
+            title: "POS Cashier Thermal Receipt",
+            name: "POS_Receipt_80mm",
+            icon: "🧾",
+            badge: "80mm Thermal Roll",
+            desc: "Retail POS transaction receipt with store header, itemized quantities, subtotal, tax breakdown, and change return.",
+            paper_width_mm: 80.0,
+            paper_height_mm: 180.0,
+            elements: [
+                { id: 'pos_h1', type: 'text', content: 'HARTONO STORE & MART', x: 10, y: 8, font_size: 11, bold: true },
+                { id: 'pos_h2', type: 'text', content: 'Jl. Raya Utama No. 88, Jakarta', x: 8, y: 14, font_size: 8 },
+                { id: 'pos_dt', type: 'field', key: 'date', prefix: 'Tgl: ', x: 5, y: 22, font_size: 8 },
+                { id: 'pos_rc', type: 'field', key: 'receipt_no', prefix: 'No: ', x: 45, y: 22, font_size: 8, bold: true },
+                { id: 'pos_ln1', type: 'line', x: 5, y: 28, width: 70, height: 0.3, lineColor: '#000000' },
+                {
+                    id: 'pos_tbl', type: 'table', key: 'items', x: 5, y: 32, width: 70, height: 80,
+                    header_height: 5, row_height: 5, bottom_padding: 20, font_size: 8,
+                    columns: [
+                        { label: 'Item', key: 'product_name', width: 35, align: 'L' },
+                        { label: 'Qty', key: 'quantity', width: 10, align: 'R' },
+                        { label: 'Total', key: 'subtotal', width: 25, align: 'R' }
+                    ]
+                },
+                { id: 'pos_ln2', type: 'line', x: 5, y: 120, width: 70, height: 0.3, lineColor: '#000000' },
+                { id: 'pos_sub', type: 'field', key: 'subtotal', prefix: 'Subtotal: Rp ', x: 30, y: 125, font_size: 8 },
+                { id: 'pos_tax', type: 'field', key: 'tax', prefix: 'PB1 10%: Rp ', x: 30, y: 130, font_size: 8 },
+                { id: 'pos_tot', type: 'field', key: 'total', prefix: 'TOTAL: Rp ', x: 25, y: 137, font_size: 10, bold: true },
+                { id: 'pos_cash', type: 'field', key: 'cash_paid', prefix: 'Tunai: Rp ', x: 30, y: 145, font_size: 8 },
+                { id: 'pos_chg', type: 'field', key: 'change', prefix: 'Kembali: Rp ', x: 30, y: 150, font_size: 8 },
+                { id: 'pos_ft', type: 'text', content: 'TERIMA KASIH ATAS KUNJUNGAN ANDA', x: 8, y: 165, font_size: 8 }
+            ]
+        },
+        workshop_spk: {
+            title: "Workshop SPK / Job Order",
+            name: "Workshop_SPK_HalfLetter",
+            icon: "🔧",
+            badge: "Half Letter (216 × 140mm)",
+            desc: "Automotive & machine workshop job order with vehicle details, complaints checklist, replacement parts table, and mechanic signoff.",
+            paper_width_mm: 215.9,
+            paper_height_mm: 139.7,
+            elements: [
+                { id: 'spk_h1', type: 'text', content: 'SURAT PERINTAH KERJA (SPK) WORKSHOP', x: 10, y: 8, font_size: 12, bold: true },
+                { id: 'spk_no', type: 'field', key: 'spk_number', prefix: 'No. SPK: ', x: 145, y: 8, font_size: 10, bold: true },
+                { id: 'spk_ln', type: 'line', x: 10, y: 14, width: 195, height: 0.5, lineColor: '#000000' },
+                { id: 'spk_plt', type: 'field', key: 'license_plate', prefix: 'No. Polisi: ', x: 10, y: 18, font_size: 10, bold: true },
+                { id: 'spk_car', type: 'field', key: 'vehicle_model', prefix: 'Tipe Kendaraan: ', x: 75, y: 18, font_size: 9 },
+                { id: 'spk_km', type: 'field', key: 'odometer_km', prefix: 'KM: ', x: 150, y: 18, font_size: 9 },
+                { id: 'spk_cust', type: 'field', key: 'customer_name', prefix: 'Pemilik: ', x: 10, y: 25, font_size: 9 },
+                { id: 'spk_tel', type: 'field', key: 'customer_phone', prefix: 'Telp: ', x: 75, y: 25, font_size: 9 },
+                { id: 'spk_mech', type: 'field', key: 'mechanic_name', prefix: 'Mekanik: ', x: 150, y: 25, font_size: 9 },
+                {
+                    id: 'spk_tbl', type: 'table', key: 'tasks', x: 10, y: 34, width: 195, height: 65,
+                    header_height: 6, row_height: 5.5, bottom_padding: 25, font_size: 8.5,
+                    columns: [
+                        { label: 'Uraian Pekerjaan / Jasa Servis & Sparepart', key: 'description', width: 115, align: 'L' },
+                        { label: 'Qty', key: 'quantity', width: 20, align: 'R' },
+                        { label: 'Estimasi Biaya', key: 'estimated_cost', width: 35, align: 'R' },
+                        { label: 'Status', key: 'status', width: 25, align: 'C' }
+                    ]
+                },
+                { id: 'spk_s1', type: 'text', content: "Pelanggan,\n\n\n( .......................... )", x: 20, y: 110, font_size: 8 },
+                { id: 'spk_s2', type: 'text', content: "Service Advisor,\n\n\n( .......................... )", x: 90, y: 110, font_size: 8 },
+                { id: 'spk_s3', type: 'text', content: "Kepala Bengkel,\n\n\n( .......................... )", x: 155, y: 110, font_size: 8 }
+            ]
+        },
+        customer_statement_ledger: {
+            title: "Customer Statement / Account Ledger",
+            name: "Customer_Statement_Ledger_A4",
+            icon: "📊",
+            badge: "A4 Portrait (210 × 297mm)",
+            desc: "Monthly transaction history and financial account statement with debit, credit, and running balance tracking.",
+            paper_width_mm: 210.0,
+            paper_height_mm: 297.0,
+            elements: [
+                { id: 'led_h1', type: 'text', content: 'REKENING KORAN / CUSTOMER STATEMENT', x: 10, y: 12, font_size: 13, bold: true },
+                { id: 'led_cust', type: 'field', key: 'customer_name', prefix: 'Customer: ', x: 10, y: 20, font_size: 10, bold: true },
+                { id: 'led_period', type: 'field', key: 'statement_period', prefix: 'Periode: ', x: 130, y: 20, font_size: 9 },
+                { id: 'led_ln', type: 'line', x: 10, y: 26, width: 190, height: 0.5, lineColor: '#000000' },
+                {
+                    id: 'led_tbl', type: 'table', key: 'transactions', x: 10, y: 32, width: 190, height: 210,
+                    header_height: 7, row_height: 6, bottom_padding: 30, font_size: 9,
+                    columns: [
+                        { label: 'Date', key: 'date', width: 25, align: 'C' },
+                        { label: 'Reference / Invoice', key: 'reference', width: 35, align: 'L' },
+                        { label: 'Transaction Details', key: 'description', width: 60, align: 'L' },
+                        { label: 'Debit (Rp)', key: 'debit', width: 25, align: 'R', format_type: 'currency', format_string: 'Rp' },
+                        { label: 'Credit (Rp)', key: 'credit', width: 25, align: 'R', format_type: 'currency', format_string: 'Rp' },
+                        { label: 'Balance (Rp)', key: 'balance', width: 20, align: 'R', format_type: 'currency', format_string: 'Rp' }
+                    ]
+                },
+                { id: 'led_tot_bal', type: 'field', key: 'total_balance_due', prefix: 'TOTAL SALDO AKHIR: Rp ', x: 120, y: 255, font_size: 10, bold: true }
+            ]
+        }
+    };
+
+    function openStarterGallery() {
+        let modal = document.getElementById('starter-gallery-modal');
+        if (!modal) {
+            const modalHtml = `
+            <div id="starter-gallery-modal" class="starter-modal">
+                <div class="starter-modal-backdrop" onclick="closeStarterGallery()"></div>
+                <div class="starter-modal-dialog">
+                    <div class="starter-modal-header">
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <span style="font-size: 24px;">✨</span>
+                            <div>
+                                <h3 style="margin:0; font-size:1.15rem; font-weight:700; color:var(--text);">Report Starter Template Gallery</h3>
+                                <p style="margin:0; font-size:0.8rem; color:var(--text-muted);">Select a pre-built professional report structure with standard dimensions and elements.</p>
+                            </div>
+                        </div>
+                        <button onclick="closeStarterGallery()" class="starter-close-btn">&times;</button>
+                    </div>
+                    <div class="starter-modal-body">
+                        ${Object.keys(STARTER_TEMPLATES).map(key => {
+                            const tpl = STARTER_TEMPLATES[key];
+                            return `
+                            <div class="starter-card" onclick="applyStarterTemplate('${key}')">
+                                <div class="starter-card-icon">${tpl.icon}</div>
+                                <div class="starter-card-title">${tpl.title}</div>
+                                <div class="starter-card-badge">${tpl.badge}</div>
+                                <div class="starter-card-desc">${tpl.desc}</div>
+                                <button class="starter-card-btn">⚡ Use This Template</button>
+                            </div>
+                            `;
+                        }).join('')}
+                    </div>
+                </div>
+            </div>`;
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+            modal = document.getElementById('starter-gallery-modal');
+        }
+        modal.style.display = 'flex';
+    }
+
+    function closeStarterGallery() {
+        const modal = document.getElementById('starter-gallery-modal');
+        if (modal) modal.style.display = 'none';
+    }
+
+    function applyStarterTemplate(key) {
+        const tpl = STARTER_TEMPLATES[key];
+        if (!tpl) return;
+
+        if (elements.length > 0) {
+            if (!confirm(`Apply "${tpl.title}" template? This will replace current elements on the canvas.`)) {
+                return;
+            }
+        }
+
+        // 1. Immediately close modal
+        closeStarterGallery();
+
+        pushHistory();
+
+        // 2. Set Template Name & Paper
+        const nameInput = document.getElementById('tpl-name');
+        if (nameInput) {
+            nameInput.value = tpl.name;
+        }
+
+        const wInput = document.getElementById('paper-w');
+        const hInput = document.getElementById('paper-h');
+        if (wInput) wInput.value = tpl.paper_width_mm;
+        if (hInput) hInput.value = tpl.paper_height_mm;
+
+        // 3. Initialize & Configure Sections
+        if (tpl.sections) {
+            sections = JSON.parse(JSON.stringify(tpl.sections));
+        } else {
+            sections = JSON.parse(JSON.stringify(SECTION_DEFAULTS));
+        }
+
+        SECTION_ORDER.forEach(sKey => {
+            if (!sections[sKey]) {
+                sections[sKey] = JSON.parse(JSON.stringify(SECTION_DEFAULTS[sKey]));
+            }
+            sections[sKey].elements = [];
+        });
+
+        const headerH = sections.pageHeader?.enabled ? (sections.pageHeader.height || 0) : 0;
+        const detailH = sections.detail?.enabled ? (sections.detail.height || 0) : 0;
+
+        // 4. Distribute Elements into Sections
+        const rawEls = JSON.parse(JSON.stringify(tpl.elements || []));
+        rawEls.forEach((el, idx) => {
+            if (!el.id) el.id = 'el_' + Date.now() + '_' + idx;
+            if (el.type === 'text') {
+                el.type = 'label';
+                el.text = el.content || el.text || 'Label';
+            }
+            if (!el.width) el.width = 50;
+            if (!el.height) el.height = (el.type === 'line' ? 0.5 : 8);
+            if (!el.fontFamily) el.fontFamily = 'Arial';
+            if (el.rotation === undefined) el.rotation = 0;
+
+            const globalY = el.y || 0;
+            let targetSec = 'detail';
+            let localY = globalY;
+
+            if (headerH > 0 && globalY < headerH) {
+                targetSec = 'pageHeader';
+                localY = globalY;
+            } else if (sections.pageFooter?.enabled && globalY >= (headerH + detailH)) {
+                targetSec = 'pageFooter';
+                localY = Math.max(0, globalY - headerH - detailH);
+            } else {
+                targetSec = 'detail';
+                localY = Math.max(0, globalY - headerH);
+            }
+
+            el.y = parseFloat(localY.toFixed(1));
+            sections[targetSec].elements.push(el);
+        });
+
+        elements = flattenSections();
+        activeId = null;
+        activeIds = [];
+
+        updateCanvasSize();
+        renderElements();
+        updateInspector();
+        updateSectionsList();
+        updateLayersList();
+        syncOrientationButtons();
+        renderMarginGuides();
+        showToast(`Loaded "${tpl.title}" template successfully!`, 'success');
     }
 </script>
 @endsection

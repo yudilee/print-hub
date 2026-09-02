@@ -326,6 +326,8 @@ class PrintHubController extends Controller
             'type'          => 'required|string',
             'status'        => 'required|string',
             'error'         => 'nullable|string',
+            'error_code'    => 'nullable|string',
+            'error_details' => 'nullable|array',
             'options'       => 'nullable|array',
             'created_at'    => 'nullable|string',
             'completed_at'  => 'nullable|string',
@@ -333,25 +335,38 @@ class PrintHubController extends Controller
             'is_color'      => 'nullable|boolean',
         ]);
 
-        $job = PrintJob::where('job_id', $data['job_id'])->first();
+        $job = PrintJob::with('branch')->where('job_id', $data['job_id'])->first();
 
         if ($job) {
+            $durationSeconds = null;
+            if ($job->created_at) {
+                $durationSeconds = (int) now()->diffInSeconds($job->created_at);
+            }
+
             $job->update([
                 'status'              => $data['status'],
                 'error'               => $data['error'] ?? null,
+                'error_code'          => $data['error_code'] ?? null,
                 'agent_created_at'    => $data['created_at'] ?? null,
                 'agent_completed_at'  => $data['completed_at'] ?? null,
             ]);
 
-            // Fire webhook via WebhookService
+            // Fire enriched webhook via WebhookService
             try {
                 $eventType = $job->status === 'success' ? 'job.completed' : 'job.failed';
                 app(\App\Services\WebhookService::class)->dispatch($eventType, [
-                    'reference_id' => $job->reference_id,
-                    'job_id'       => $job->job_id,
-                    'status'       => $job->status,
-                    'error'        => $job->error,
-                    'printer'      => $job->printer_name,
+                    'job_id'           => $job->job_id,
+                    'reference_id'     => $job->reference_id,
+                    'status'           => $job->status,
+                    'error'            => $job->error,
+                    'error_code'       => $job->error_code,
+                    'error_details'    => $data['error_details'] ?? null,
+                    'printer'          => $job->printer_name,
+                    'agent'            => $agent->name,
+                    'template'         => $job->template_name,
+                    'branch'           => $job->branch?->code,
+                    'duration_seconds' => $durationSeconds,
+                    'page_count'       => $data['pages_printed'] ?? $job->options['pages_printed'] ?? null,
                 ]);
             } catch (\Exception $e) {
                 Log::warning('WebhookService dispatch failed: ' . $e->getMessage(), [
@@ -367,6 +382,7 @@ class PrintHubController extends Controller
                 'type'                => $data['type'],
                 'status'              => $data['status'],
                 'error'               => $data['error'] ?? null,
+                'error_code'          => $data['error_code'] ?? null,
                 'options'             => $data['options'] ?? null,
                 'agent_created_at'    => $data['created_at'] ?? null,
                 'agent_completed_at'  => $data['completed_at'] ?? null,

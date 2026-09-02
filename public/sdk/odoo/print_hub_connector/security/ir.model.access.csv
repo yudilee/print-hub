@@ -1,0 +1,9 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_print_hub_job_user,print.hub.job.user,model_print_hub_job,base.group_user,1,1,1,0
+access_print_hub_job_manager,print.hub.job.manager,model_print_hub_job,base.group_system,1,1,1,1
+access_print_hub_rule_user,print.hub.rule.user,model_print_hub_rule,base.group_user,1,0,0,0
+access_print_hub_rule_manager,print.hub.rule.manager,model_print_hub_rule,base.group_system,1,1,1,1
+access_print_hub_printer_user,print.hub.printer.user,model_print_hub_printer,base.group_user,1,0,0,0
+access_print_hub_printer_manager,print.hub.printer.manager,model_print_hub_printer,base.group_system,1,1,1,1
+access_print_hub_schedule_user,print.hub.schedule.user,model_print_hub_schedule,base.group_user,1,0,0,0
+access_print_hub_schedule_manager,print.hub.schedule.manager,model_print_hub_schedule,base.group_system,1,1,1,1

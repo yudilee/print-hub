@@ -1,0 +1,25 @@
+# -*- coding: utf-8 -*-
+{
+    'name': 'Print Hub Direct Printing & Enterprise Routing',
+    'version': '19.0.2.0.0',
+    'summary': 'High-performance background printing from Odoo: JSON Templates, Batch Tree Spooling, Live Printer Health, Dynamic Watermarks & Schedules',
+    'category': 'Technical/Printing',
+    'author': 'Print Hub',
+    'website': 'https://print-hub.hartonomotor-group.com',
+    'license': 'LGPL-3',
+    'depends': ['base', 'base_setup'],
+    'data': [
+        'security/ir.model.access.csv',
+        'data/ir_cron_data.xml',
+        'views/res_config_settings_views.xml',
+        'views/res_users_views.xml',
+        'views/print_hub_job_views.xml',
+        'views/print_hub_printer_views.xml',
+        'views/print_hub_schedule_views.xml',
+        'views/print_hub_rule_views.xml',
+        'views/print_hub_menus.xml',
+    ],
+    'installable': True,
+    'application': True,
+    'auto_install': False,
+}

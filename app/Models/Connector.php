@@ -81,14 +81,24 @@ class Connector extends Model
     // ── Connection Testing ────────────────────────────────────
 
     /**
-     * Test the connector by sending a simple GET/HEAD request to its URL.
+     * Test the connector by sending a request to its URL or authenticating to Odoo.
      *
      * @return array{success: bool, message: string, latency_ms: ?int}
      */
     public function testConnection(): array
     {
         $config = $this->config ?? [];
-        $url    = $config['endpoint_url'] ?? $config['url'] ?? null;
+
+        if ($this->type === 'odoo') {
+            $odooService = app(\App\Services\OdooConnectorService::class);
+            $result = $odooService->testConnection($config);
+            if ($result['success']) {
+                $this->update(['last_test_at' => now()]);
+            }
+            return $result;
+        }
+
+        $url = $config['endpoint_url'] ?? $config['url'] ?? $config['base_url'] ?? null;
 
         if (empty($url)) {
             return [

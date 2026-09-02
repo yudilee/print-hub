@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+
+        <!-- Cron: Periodic Printer Health Sync -->
+        <record id="ir_cron_sync_print_hub_printers" model="ir.cron">
+            <field name="name">Print Hub: Sync Physical Printers &amp; Health</field>
+            <field name="model_id" ref="model_print_hub_printer"/>
+            <field name="state">code</field>
+            <field name="code">model.sync_printers_from_hub()</field>
+            <field name="interval_number">15</field>
+            <field name="interval_type">minutes</field>
+            <field name="numbercall">-1</field>
+            <field name="active" eval="True"/>
+        </record>
+
+        <!-- Cron: Process Scheduled Print Automation -->
+        <record id="ir_cron_process_print_hub_schedules" model="ir.cron">
+            <field name="name">Print Hub: Process Scheduled Print Automation</field>
+            <field name="model_id" ref="model_print_hub_schedule"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_process_all_schedules()</field>
+            <field name="interval_number">10</field>
+            <field name="interval_type">minutes</field>
+            <field name="numbercall">-1</field>
+            <field name="active" eval="True"/>
+        </record>
+
+    </data>
+</odoo>

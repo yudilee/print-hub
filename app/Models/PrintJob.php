@@ -20,13 +20,13 @@ class PrintJob extends Model
     protected $fillable = [
         'job_id', 'print_agent_id', 'branch_id', 'document_id', 'printer_name', 'type', 'priority',
         'status', 'file_path', 'webhook_url', 'reference_id',
-        'error', 'options', 'template_data', 'template_name',
+        'error', 'error_code', 'options', 'template_data', 'template_name',
         'agent_created_at', 'agent_completed_at',
-        'scheduled_at', 'recurrence', 'recurrence_end_at', 'recurrence_count',
+        'scheduled_at', 'expires_at', 'dead_lettered_at', 'recurrence', 'recurrence_end_at', 'recurrence_count',
         'approval_status', 'approved_by', 'approved_at', 'rejected_reason', 'requires_approval',
         'pool_id',
         'depends_on_job_id', 'dependency_type',
-        'dispatched_at', 'retried_from_job_id', 'retry_count',
+        'dispatched_at', 'retried_from_job_id', 'retry_count', 'max_retries', 'retry_reason',
     ];
 
     protected $casts = [
@@ -35,7 +35,11 @@ class PrintJob extends Model
         'agent_created_at'     => 'datetime',
         'agent_completed_at'   => 'datetime',
         'priority'             => 'integer',
+        'retry_count'          => 'integer',
+        'max_retries'          => 'integer',
         'scheduled_at'         => 'datetime',
+        'expires_at'           => 'datetime',
+        'dead_lettered_at'     => 'datetime',
         'recurrence_end_at'    => 'datetime',
         'recurrence_count'     => 'integer',
         'approved_at'          => 'datetime',

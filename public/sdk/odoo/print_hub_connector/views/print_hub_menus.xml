@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Top-Level Root Menu -->
+    <menuitem id="menu_print_hub_root"
+              name="Print Hub"
+              sequence="75"/>
+
+    <!-- Operations / Print Jobs Menu -->
+    <menuitem id="menu_print_hub_jobs"
+              name="Print Jobs"
+              parent="menu_print_hub_root"
+              action="action_print_hub_jobs"
+              sequence="10"/>
+
+    <!-- Physical Printers & Health -->
+    <menuitem id="menu_print_hub_printers"
+              name="Printers &amp; Health"
+              parent="menu_print_hub_root"
+              action="action_print_hub_printers"
+              sequence="15"/>
+
+    <!-- Scheduled Automation -->
+    <menuitem id="menu_print_hub_schedules"
+              name="Scheduled Jobs"
+              parent="menu_print_hub_root"
+              action="action_print_hub_schedules"
+              sequence="20"/>
+
+    <!-- Configuration Menu & Submenus -->
+    <menuitem id="menu_print_hub_config"
+              name="Configuration"
+              parent="menu_print_hub_root"
+              sequence="50"/>
+
+    <menuitem id="menu_print_hub_rules"
+              name="Routing Rules"
+              parent="menu_print_hub_config"
+              action="action_print_hub_rules"
+              sequence="10"/>
+
+    <!-- Shortcut to General Settings -->
+    <record id="action_print_hub_config_settings" model="ir.actions.act_window">
+        <field name="name">Settings</field>
+        <field name="res_model">res.config.settings</field>
+        <field name="view_mode">form</field>
+        <field name="target">inline</field>
+        <field name="context">{'module': 'print_hub_connector', 'bin_size': False}</field>
+    </record>
+
+    <menuitem id="menu_print_hub_settings"
+              name="Settings"
+              parent="menu_print_hub_config"
+              action="action_print_hub_config_settings"
+              sequence="100"/>
+
+</odoo>

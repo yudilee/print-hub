@@ -24,6 +24,16 @@ class ProcessScheduledJobs extends Command
         $processed = 0;
         $created   = 0;
 
+        // Auto-expire pending/scheduled jobs that have passed their expires_at date
+        $expiredCount = PrintJob::whereNotNull('expires_at')
+            ->where('expires_at', '<=', now())
+            ->whereIn('status', ['pending', 'scheduled'])
+            ->update(['status' => 'expired']);
+
+        if ($expiredCount > 0) {
+            $this->line("  ⌛ Expired {$expiredCount} stale job(s) past expiration deadline.");
+        }
+
         $jobs = PrintJob::where('scheduled_at', '<=', now())
             ->whereIn('status', ['pending', 'scheduled'])
             ->get();

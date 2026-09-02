@@ -1276,12 +1276,30 @@ class ContinuousFormEngine
 
     protected function resolveValue($key, $data)
     {
-        if (!$key) return '';
-        $keys = explode('.', $key);
+        if ($key === null || $key === '') return '';
+        // Support syntax like items[0].name or items.0.name
+        $normalizedKey = str_replace(['[', ']'], ['.', ''], $key);
+        $keys = explode('.', $normalizedKey);
         $val = $data;
+
         foreach ($keys as $k) {
-            if (isset($val[$k])) {
-                $val = $val[$k];
+            if ($k === '') continue;
+            if (is_array($val)) {
+                if (array_key_exists($k, $val)) {
+                    $val = $val[$k];
+                } elseif (is_numeric($k) && isset($val[(int)$k])) {
+                    $val = $val[(int)$k];
+                } else {
+                    return null;
+                }
+            } elseif (is_object($val)) {
+                if (isset($val->$k)) {
+                    $val = $val->$k;
+                } elseif (method_exists($val, $k)) {
+                    $val = $val->$k();
+                } else {
+                    return null;
+                }
             } else {
                 return null;
             }
@@ -1372,6 +1390,63 @@ class ContinuousFormEngine
     /**
      * Apply watermark to all pages of the PDF.
      *
+    /**
+     * Convert a hex color string (e.g. "#FF0000" or "B4B4B4") to an RGB array [r, g, b].
+     */
+    protected function hexToRgb(string $hex): array
+    {
+        $hex = ltrim($hex, '#');
+        if (strlen($hex) === 3) {
+            $hex = $hex[0].$hex[0].$hex[1].$hex[1].$hex[2].$hex[2];
+        }
+        if (strlen($hex) !== 6) {
+            return [180, 180, 180];
+        }
+        return [
+            hexdec(substr($hex, 0, 2)),
+            hexdec(substr($hex, 2, 2)),
+            hexdec(substr($hex, 4, 2)),
+        ];
+    }
+
+    /**
+     * Resolve dynamic placeholders in watermark text (e.g. {date}, {time}, {copy_number}, {branch_name}, {field}).
+     */
+    protected function resolveWatermarkText(string $text, int $copyIndex = 0): string
+    {
+        $data = $this->data ?? [];
+
+        return preg_replace_callback('/\{(\w+)\}/', function ($matches) use ($copyIndex, $data) {
+            $key = strtolower($matches[1]);
+            if ($key === 'date') {
+                return now()->format('d-M-Y');
+            }
+            if ($key === 'time') {
+                return now()->format('H:i');
+            }
+            if ($key === 'copy_number') {
+                return (string) ($copyIndex + 1);
+            }
+            if ($key === 'branch_name' && !empty($data['branch_name'])) {
+                return (string) $data['branch_name'];
+            }
+            if ($key === 'company_name' && !empty($data['company_name'])) {
+                return (string) $data['company_name'];
+            }
+            // Look up from payload data
+            if (array_key_exists($matches[1], $data)) {
+                return (string) $data[$matches[1]];
+            }
+            if (array_key_exists($key, $data)) {
+                return (string) $data[$key];
+            }
+            return $matches[0];
+        }, $text);
+    }
+
+    /**
+     * Apply watermark to all pages of the PDF.
+     *
      * Watermark configuration can come from $options['watermark'] array or
      * individual $options keys (watermark_text, watermark_opacity, etc.).
      */
@@ -1379,8 +1454,16 @@ class ContinuousFormEngine
     {
         $wm = $options['watermark'] ?? $options;
 
+        $globalColor       = $wm['watermark_color'] ?? '#B4B4B4';
+        $globalFontSize    = !empty($wm['watermark_font_size']) ? (float) $wm['watermark_font_size'] : null;
+        $globalFontFamily  = $wm['watermark_font_family'] ?? 'Arial';
+        $globalFontStyle   = $wm['watermark_font_style'] ?? 'B';
+        $globalOpacity     = (float) ($wm['watermark_transparency'] ?? $wm['watermark_opacity'] ?? 0.3);
+        $globalRotation    = (int) ($wm['watermark_rotation'] ?? -45);
+        $globalPosition    = $wm['watermark_position'] ?? 'center';
+
         // ── Per-Copy Watermark Mode ─────────────────────────────────────
-        // Each entry in watermark_copies is an object: {text, opacity, rotation, position}
+        // Each entry in watermark_copies is an object: {text, opacity, rotation, position, color, font_size}
         $watermarkCopies = $wm['watermark_copies'] ?? null;
         if (!empty($watermarkCopies) && is_array($watermarkCopies)) {
             $totalPages = $this->pdf->n;
@@ -1397,28 +1480,33 @@ class ContinuousFormEngine
                     $copyConfig = $watermarkCopies[$c] ?? [];
                     // Support both object format and legacy string format
                     if (is_string($copyConfig)) {
-                        $text = $copyConfig;
-                        $opacity  = (float) ($wm['watermark_opacity'] ?? 0.3);
-                        $rotation = (int) ($wm['watermark_rotation'] ?? -45);
-                        $position = $wm['watermark_position'] ?? 'center';
+                        $rawText  = $copyConfig;
+                        $opacity  = $globalOpacity;
+                        $rotation = $globalRotation;
+                        $position = $globalPosition;
+                        $color    = $globalColor;
+                        $fontSize = $globalFontSize;
                     } else {
-                        $text     = $copyConfig['text'] ?? '';
-                        $opacity  = (float) ($copyConfig['opacity'] ?? $wm['watermark_opacity'] ?? 0.3);
-                        $rotation = (int) ($copyConfig['rotation'] ?? $wm['watermark_rotation'] ?? -45);
-                        $position = $copyConfig['position'] ?? $wm['watermark_position'] ?? 'center';
+                        $rawText  = $copyConfig['text'] ?? '';
+                        $opacity  = (float) ($copyConfig['transparency'] ?? $copyConfig['opacity'] ?? $globalOpacity);
+                        $rotation = (int) ($copyConfig['rotation'] ?? $globalRotation);
+                        $position = $copyConfig['position'] ?? $globalPosition;
+                        $color    = $copyConfig['color'] ?? $globalColor;
+                        $fontSize = !empty($copyConfig['font_size']) ? (float) $copyConfig['font_size'] : $globalFontSize;
                     }
-                    if (empty($text)) continue;
+                    if (empty($rawText)) continue;
 
-                    $opacity  = max(0.1, min(1.0, $opacity));
+                    $text     = $this->resolveWatermarkText($rawText, $c);
+                    $opacity  = max(0.05, min(1.0, $opacity));
                     $rotation = max(-90, min(90, $rotation));
-                    $fontSize = min($pageW, $pageH) / 8;
+                    $fontSize = $fontSize ?: (min($pageW, $pageH) / 8);
 
                     $startPage = $c * $pagesPerCopy + 1;
                     $endPage = min(($c + 1) * $pagesPerCopy, $totalPages);
 
                     for ($p = $startPage; $p <= $endPage; $p++) {
                         $this->pdf->page = $p;
-                        $this->renderWatermarkOnPage($text, $fontSize, $opacity, $rotation, $position, $pageW, $pageH);
+                        $this->renderWatermarkOnPage($text, $fontSize, $opacity, $rotation, $position, $pageW, $pageH, $color, $globalFontFamily, $globalFontStyle);
                     }
                 }
 
@@ -1429,29 +1517,26 @@ class ContinuousFormEngine
         // ────────────────────────────────────────────────────────────────
 
         // ── Original Single Watermark (backward compatible) ────────────
-        $text     = $wm['watermark_text'] ?? null;
-        if (!$text) {
+        $rawText = $wm['watermark_text'] ?? null;
+        if (!$rawText) {
             return;
         }
 
-        $opacity  = (float) ($wm['watermark_opacity'] ?? 0.3);
-        $rotation = (int) ($wm['watermark_rotation'] ?? -45);
-        $position = $wm['watermark_position'] ?? 'center';
-
-        // Clamp values
-        $opacity  = max(0.1, min(1.0, $opacity));
-        $rotation = max(-90, min(90, $rotation));
+        $text     = $this->resolveWatermarkText($rawText, 0);
+        $opacity  = max(0.05, min(1.0, $globalOpacity));
+        $rotation = max(-90, min(90, $globalRotation));
+        $position = $globalPosition;
 
         $pageW = $this->pdf->w;
         $pageH = $this->pdf->h;
 
-        // Font size relative to page (about 1/8 of shortest side)
-        $fontSize = min($pageW, $pageH) / 8;
+        // Font size relative to page (about 1/8 of shortest side) or custom
+        $fontSize = $globalFontSize ?: (min($pageW, $pageH) / 8);
 
         $pages = $this->pdf->page; // total pages rendered
         for ($i = 1; $i <= $pages; $i++) {
             $this->pdf->page = $i;
-            $this->renderWatermarkOnPage($text, $fontSize, $opacity, $rotation, $position, $pageW, $pageH);
+            $this->renderWatermarkOnPage($text, $fontSize, $opacity, $rotation, $position, $pageW, $pageH, $globalColor, $globalFontFamily, $globalFontStyle);
         }
 
         // Reset to first page
@@ -1459,7 +1544,7 @@ class ContinuousFormEngine
     }
 
     /**
-     * Render watermark on a single page.
+     * Render watermark on a single page with customizable styling.
      */
     protected function renderWatermarkOnPage(
         string $text,
@@ -1468,14 +1553,18 @@ class ContinuousFormEngine
         int $rotation,
         string $position,
         float $pageW,
-        float $pageH
+        float $pageH,
+        string $color = '#B4B4B4',
+        string $fontFamily = 'Arial',
+        string $fontStyle = 'B'
     ): void {
         // Set the alpha channel for the watermark
         $this->pdf->SetAlpha($opacity);
 
-        // Set watermark color (light gray)
-        $this->pdf->SetTextColor(180, 180, 180);
-        $this->pdf->SetFont('Arial', 'B', $fontSize);
+        // Set watermark color
+        [$r, $g, $b] = $this->hexToRgb($color);
+        $this->pdf->SetTextColor($r, $g, $b);
+        $this->pdf->SetFont($fontFamily, $fontStyle, $fontSize);
 
         if ($position === 'tile') {
             $this->renderTiledWatermark($text, $fontSize, $rotation, $pageW, $pageH);

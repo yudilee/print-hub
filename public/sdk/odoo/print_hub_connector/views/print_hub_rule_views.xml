@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Tree View -->
+    <record id="view_print_hub_rule_tree" model="ir.ui.view">
+        <field name="name">print.hub.rule.tree</field>
+        <field name="model">print.hub.rule</field>
+        <field name="arch" type="xml">
+            <tree string="Print Routing Rules">
+                <field name="sequence" widget="handle"/>
+                <field name="name"/>
+                <field name="routing_type"/>
+                <field name="report_id"/>
+                <field name="template_slug"/>
+                <field name="branch_code"/>
+                <field name="pool_name"/>
+                <field name="printer_name"/>
+                <field name="watermark_rule"/>
+                <field name="active" widget="boolean_toggle"/>
+            </tree>
+        </field>
+    </record>
+
+    <!-- Form View -->
+    <record id="view_print_hub_rule_form" model="ir.ui.view">
+        <field name="name">print.hub.rule.form</field>
+        <field name="model">print.hub.rule</field>
+        <field name="arch" type="xml">
+            <form string="Print Routing Rule">
+                <sheet>
+                    <widget name="web_ribbon" title="Archived" bg_color="text-bg-danger" invisible="active"/>
+                    <div class="oe_title">
+                        <label for="name" string="Rule Name"/>
+                        <h1>
+                            <field name="name" placeholder="e.g. Surat Jalan -> Dot Matrix Warehouse Pool"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group string="Print Engine &amp; Document Matching">
+                            <field name="routing_type" widget="radio"/>
+                            <field name="report_id" invisible="routing_type != 'qweb_pdf'" options="{'no_create': True}"/>
+                            <field name="report_technical_name" invisible="routing_type != 'qweb_pdf'"/>
+                            <field name="template_slug" invisible="routing_type != 'template_json'"
+                                   placeholder="e.g. odoo_surat_jalan_continuous"/>
+                            <field name="branch_code" placeholder="Leave empty for all branches"/>
+                            <field name="sequence"/>
+                            <field name="active" invisible="1"/>
+                        </group>
+                        <group string="Destination &amp; Failover">
+                            <field name="pool_name" placeholder="e.g. Warehouse Dot-Matrix Pool (Recommended)"/>
+                            <field name="queue" placeholder="e.g. surat_jalan_queue"/>
+                            <field name="printer_name" placeholder="e.g. EPSON-LQ2190-Warehouse"/>
+                            <field name="copies"/>
+                        </group>
+                    </group>
+                    <group string="Dynamic Watermarking">
+                        <group>
+                            <field name="watermark_rule"/>
+                            <field name="watermark_text" invisible="watermark_rule != 'custom'"/>
+                            <field name="watermark_opacity" invisible="watermark_rule == 'none'"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Description &amp; Notes" name="notes">
+                            <field name="notes" placeholder="Add operational notes or tray specifications here..."/>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Search View -->
+    <record id="view_print_hub_rule_search" model="ir.ui.view">
+        <field name="name">print.hub.rule.search</field>
+        <field name="model">print.hub.rule</field>
+        <field name="arch" type="xml">
+            <search string="Search Routing Rules">
+                <field name="name"/>
+                <field name="report_id"/>
+                <field name="template_slug"/>
+                <field name="branch_code"/>
+                <field name="pool_name"/>
+                <field name="printer_name"/>
+                <separator/>
+                <filter string="Archived" name="inactive" domain="[('active', '=', False)]"/>
+                <group expand="0" string="Group By">
+                    <filter string="Engine" name="group_engine" context="{'group_by': 'routing_type'}"/>
+                    <filter string="Report" name="group_report" context="{'group_by': 'report_id'}"/>
+                    <filter string="Branch" name="group_branch" context="{'group_by': 'branch_code'}"/>
+                    <filter string="Pool" name="group_pool" context="{'group_by': 'pool_name'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- Action -->
+    <record id="action_print_hub_rules" model="ir.actions.act_window">
+        <field name="name">Routing Rules</field>
+        <field name="res_model">print.hub.rule</field>
+        <field name="view_mode">tree,form</field>
+        <field name="search_view_id" ref="view_print_hub_rule_search"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Create your first Print Hub Routing Rule!
+            </p>
+            <p>
+                Routing rules automatically map specific Odoo reports or JSON templates to physical printers and Print Hub pools for each branch.
+            </p>
+        </field>
+    </record>
+
+</odoo>

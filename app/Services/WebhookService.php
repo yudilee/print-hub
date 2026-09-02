@@ -97,8 +97,14 @@ class WebhookService
         $timeout = $clientApp->webhook_timeout ?: 10;
 
         try {
-            $request = Http::timeout($timeout)
-                ->withHeaders(['Content-Type' => 'application/json']);
+            $headers = ['Content-Type' => 'application/json'];
+
+            // Merge custom webhook headers if configured on the client app
+            if (!empty($clientApp->webhook_headers) && is_array($clientApp->webhook_headers)) {
+                $headers = array_merge($headers, $clientApp->webhook_headers);
+            }
+
+            $request = Http::timeout($timeout)->withHeaders($headers);
 
             // Add HMAC-SHA256 signature if secret is set
             if ($clientApp->webhook_secret) {

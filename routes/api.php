@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Route;
 // ─────────────────────────────────────────────
 // Print Agent API  (authenticated by agent_key Bearer token)
 // ─────────────────────────────────────────────
-Route::prefix('print-hub')->middleware(['throttle:120,1', 'throttle.api-key'])->group(function () {
+Route::prefix('print-hub')->middleware(['throttle:agent-api', 'throttle.api-key'])->group(function () {
     Route::get('/profiles',                    [PrintHubController::class, 'getProfiles']);
     Route::get('/queue',                       [PrintHubController::class, 'getQueue']);
     Route::post('/jobs',                       [PrintHubController::class, 'reportJob']);
@@ -57,12 +57,14 @@ Route::prefix('v1')->group(function () {
 // ─────────────────────────────────────────────
 // Client Apps API  (authenticated by X-API-Key header)
 // ─────────────────────────────────────────────
-Route::prefix('v1')->middleware(['throttle:60,1', 'auth.api-key', 'throttle.api-key'])->group(function () {
+Route::prefix('v1')->middleware(['throttle:client-api', 'auth.api-key', 'throttle.api-key'])->group(function () {
     // Test Connection
     Route::get('/test', [ClientAppController::class, 'testConnection']);
 
     // Discovery
     Route::get('/agents/online', [ClientAppController::class, 'getOnlineAgents']);
+    Route::get('/printers',      [ClientAppController::class, 'listPrinters']);
+    Route::get('/pools',         [ClientAppController::class, 'listPools']);
     Route::get('/branches',      [ClientAppController::class, 'listBranches']);
     Route::get('/queues',        [ClientAppController::class, 'listQueues']);
 
@@ -79,14 +81,16 @@ Route::prefix('v1')->middleware(['throttle:60,1', 'auth.api-key', 'throttle.api-
     Route::get('/schemas/{name}/diff',        [ClientAppController::class, 'schemaVersionDiff']);
 
     // Print endpoints
-    Route::post('/print',        [ClientAppController::class, 'unifiedPrint']);
-    Route::post('/print/batch',  [ClientAppController::class, 'batchPrint']);
-    Route::post('/preview',      [ClientAppController::class, 'previewPrint']);
+    Route::post('/print',             [ClientAppController::class, 'unifiedPrint']);
+    Route::post('/print/batch',       [ClientAppController::class, 'batchPrint']);
+    Route::post('/print/odoo-report', [ClientAppController::class, 'printOdooReport']);
+    Route::post('/preview',           [ClientAppController::class, 'previewPrint']);
 
     // Job management
-    Route::post('/jobs',              [ClientAppController::class, 'submitJob']);    // legacy
-    Route::get('/jobs/{job_id}',      [ClientAppController::class, 'jobStatus']);
-    Route::delete('/jobs/{job_id}',   [ClientAppController::class, 'cancelJob']);
+    Route::post('/jobs',                    [ClientAppController::class, 'submitJob']);    // legacy
+    Route::get('/jobs/{job_id}',            [ClientAppController::class, 'jobStatus']);
+    Route::post('/jobs/{job_id}/reprint',   [ClientAppController::class, 'reprintJob']);
+    Route::delete('/jobs/{job_id}',         [ClientAppController::class, 'cancelJob']);
 
     // Health
     Route::get('/health', [ClientAppController::class, 'health']);
