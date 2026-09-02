@@ -21,6 +21,11 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Enforce HTTPS URLs in production or when APP_URL is HTTPS
+        if ($this->app->environment('production') || str_starts_with((string) config('app.url'), 'https://')) {
+            \Illuminate\Support\Facades\URL::forceScheme('https');
+        }
+
         // Super-admin bypasses all Gate checks
         Gate::before(function ($user, $ability) {
             if ($user->isSuperAdmin()) {
