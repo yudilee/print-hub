@@ -1216,6 +1216,22 @@ $templateSchemasData = $template->relationLoaded('schemas') ? $template->schemas
         }
     }
 
+    function findElement(elId) {
+        if (!elId) return null;
+        for (const key of SECTION_ORDER) {
+            const sec = sections[key];
+            if (sec && sec.elements) {
+                const found = sec.elements.find(e => e.id === elId);
+                if (found) return found;
+            }
+        }
+        if (Array.isArray(elements)) {
+            const found = elements.find(e => e.id === elId);
+            if (found) return found;
+        }
+        return null;
+    }
+
     function updateSectionsList() {
         const container = document.getElementById('sections-list');
         if (!container) return;
@@ -3680,6 +3696,8 @@ $templateSchemasData = $template->relationLoaded('schemas') ? $template->schemas
                 if (el.locked) div.style.cursor = 'not-allowed';
                 div.setAttribute('data-id', displayEl.id);
                 if (activeIds.includes(displayEl.id)) div.classList.add('active');
+                div.style.zIndex = activeIds.includes(displayEl.id) ? '40' : '25';
+                div.style.pointerEvents = 'auto';
                 div.style.left = (displayEl.x * BASE_SCALE) + 'px';
                 div.style.top = ((displayEl.y + sectionTop) * BASE_SCALE) + 'px';
                 div.style.width = (displayEl.width * BASE_SCALE) + 'px';
@@ -3832,31 +3850,46 @@ $templateSchemasData = $template->relationLoaded('schemas') ? $template->schemas
                 c.appendChild(div);
             });
 
-            // Section resize handles
+            // Section resize handles (compact right-aligned pill, z-index:15, no blocking of canvas objects)
             if (sectionKey === 'pageHeader' || sectionKey === 'reportHeader') {
                 const rh = document.createElement('div');
                 rh.className = 'section-resize-handle';
                 rh.dataset.section = sectionKey;
                 rh.style.cssText = `
-                    position: absolute; left: 0; top: ${currentYpx + sectionHpx - 3}px;
-                    width: ${pw * BASE_SCALE}px; height: 6px;
-                    cursor: ns-resize; z-index: 50;
-                    background: transparent;
+                    position: absolute; right: 8px; top: ${currentYpx + sectionHpx - 10}px;
+                    padding: 2px 8px; border-radius: 4px;
+                    background: #3b82f6; color: #ffffff;
+                    font-size: 8px; font-weight: 700;
+                    cursor: ns-resize; z-index: 15;
+                    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+                    user-select: none; display: flex; align-items: center; gap: 2px;
                 `;
-                rh.title = 'Drag to resize section height';
+                rh.innerHTML = `⇕ ${SECTION_LABELS[sectionKey]}`;
+                rh.title = `Drag to resize ${SECTION_LABELS[sectionKey]} height`;
                 rh.onmousedown = (ev) => {
                     ev.stopPropagation(); ev.preventDefault();
-                    sectionResizing = { key: sectionKey, startY: ev.clientY, startHeight: sectionHeight };
+                    sectionResizing = { key: sectionKey, startY: ev.clientY, startHeight: section.height || sectionHeight };
                 };
-                // Visual indicator line
-                const line = document.createElement('div');
-                line.style.cssText = `
-                    position: absolute; left: 0; top: 2px;
-                    width: 100%; height: 2px;
-                    background: rgba(59,130,246,0.5);
-                    pointer-events: none;
+                c.appendChild(rh);
+            } else if (sectionKey === 'pageFooter' || sectionKey === 'reportFooter') {
+                const rh = document.createElement('div');
+                rh.className = 'section-resize-handle';
+                rh.dataset.section = sectionKey;
+                rh.style.cssText = `
+                    position: absolute; right: 8px; top: ${currentYpx - 10}px;
+                    padding: 2px 8px; border-radius: 4px;
+                    background: #3b82f6; color: #ffffff;
+                    font-size: 8px; font-weight: 700;
+                    cursor: ns-resize; z-index: 15;
+                    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+                    user-select: none; display: flex; align-items: center; gap: 2px;
                 `;
-                rh.appendChild(line);
+                rh.innerHTML = `⇕ ${SECTION_LABELS[sectionKey]}`;
+                rh.title = `Drag to resize ${SECTION_LABELS[sectionKey]} height`;
+                rh.onmousedown = (ev) => {
+                    ev.stopPropagation(); ev.preventDefault();
+                    sectionResizing = { key: sectionKey, startY: ev.clientY, startHeight: section.height || sectionHeight };
+                };
                 c.appendChild(rh);
             }
         });
@@ -3937,8 +3970,10 @@ $templateSchemasData = $template->relationLoaded('schemas') ? $template->schemas
 
     // ── Inspector ────────────────────────────────────────────
     function updateInspector() {
-        const el = elements.find(e => e.id === activeId), cont = document.getElementById('inspector-content');
-        if (!el && activeIds.length > 1) {
+        const cont = document.getElementById('inspector-content');
+        if (!cont) return;
+
+        if (activeIds.length > 1) {
             cont.innerHTML = `<div style="text-align:center;padding:1.5rem 1rem;"><p style="color:var(--primary);font-weight:bold;">${activeIds.length} elements selected</p><div style="display:grid;gap:0.5rem;margin-top:1rem;">
                 <button onclick="groupElements()" class="btn btn-primary btn-sm">📦 Group</button>
                 <button onclick="distributeH()" class="btn btn-secondary btn-sm">⇔ Distribute H</button>
@@ -3949,7 +3984,16 @@ $templateSchemasData = $template->relationLoaded('schemas') ? $template->schemas
             </div></div>`;
             return;
         }
-        if (!el) { cont.innerHTML = `<div style="text-align:center;padding:3rem 1rem;color:var(--text-muted);font-size:0.8rem;">Select an object</div>`; return; }
+
+        const el = findElement(activeId);
+        if (!el) {
+            cont.innerHTML = `<div style="text-align:center;padding:3rem 1.5rem;color:var(--text-muted);font-size:0.8rem;">
+                <div style="font-size:24px; margin-bottom:8px;">👈</div>
+                <div style="font-weight:600; color:var(--text); margin-bottom:4px;">No Object Selected</div>
+                <p style="font-size:11px; margin:0;">Click any element on the canvas to inspect and edit its properties, or switch to the <b>Paper</b> tab to change dimensions.</p>
+            </div>`;
+            return;
+        }
 
         const lockedWarn = el.locked ? `<div style="background:rgba(239,68,68,0.1);border:1px solid var(--danger);border-radius:4px;padding:6px 10px;font-size:11px;color:var(--danger);margin:8px;">🔒 Locked — unlock from Layers</div>` : '';
         const curSec = findElementSection(el.id) || 'detail';
@@ -4434,7 +4478,7 @@ $templateSchemasData = $template->relationLoaded('schemas') ? $template->schemas
         renderElements();
         showToast('Applied column preset', 'success');
     }
-    function updateElProps(prop,val) { pushHistory(); const el=elements.find(e=>e.id===activeId); if(el){el[prop]=val;renderElements();} }
+    function updateElProps(prop,val) { pushHistory(); const el=findElement(activeId); if(el){el[prop]=val;renderElements();} }
     function deleteActive() { 
         if(!confirm('Delete selected element(s)?'))return; 
         pushHistory(); 

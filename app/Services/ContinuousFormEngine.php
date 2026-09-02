@@ -1033,17 +1033,19 @@ class ContinuousFormEngine
         $cellWidth = $width - $padLeft - $padRight;
         $this->pdf->SetXY($cellX, $cellY);
         
-        if ($cellWidth > 0) {
+        $lineH = $fontSize * 0.5;
+        $isMultiLine = !empty($el['multiline']) || str_contains($value, "\n");
+
+        if ($isMultiLine && $cellWidth > 0) {
             // MultiCell doesn't accept link param natively; use Link() after rendering
-            $this->pdf->MultiCell($cellWidth, $fontSize * 0.5, $value, $border, $align, $fill);
+            $this->pdf->MultiCell($cellWidth, $lineH, $value, $border, $align, $fill);
             if ($link) {
-                // Estimate rendered height: roughly number of lines * line height
                 $lineCount = max(1, ceil($this->pdf->GetStringWidth($value) / max($cellWidth, 1)));
-                $renderedH = $lineCount * ($fontSize * 0.5);
+                $renderedH = $lineCount * $lineH;
                 $this->pdf->Link($cellX, $cellY, $cellWidth, $renderedH, $link);
             }
         } else {
-            $this->pdf->Cell(0, $fontSize * 0.5, $value, $border, 0, $align, $fill, $link);
+            $this->pdf->Cell($cellWidth > 0 ? $cellWidth : 0, $lineH, $value, $border, 0, $align, $fill, $link);
         }
 
         // Reset text color to default (black) after rendering
