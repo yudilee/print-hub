@@ -426,6 +426,7 @@
                 <div class="tab-item active" onclick="switchTab('props')">Properties</div>
                 <div class="tab-item" onclick="switchTab('paper')">Paper</div>
                 <div class="tab-item" onclick="switchTab('sections')">Sections</div>
+                <div class="tab-item" onclick="switchTab('snippets')">Snippets</div>
                 <div class="tab-item" onclick="switchTab('layers')">Layers</div>
                 <div class="tab-item" onclick="switchTab('explorer')">Explorer</div>
                 <div class="tab-item" onclick="switchTab('data')">Data</div>
@@ -598,6 +599,75 @@
                     </div>
                 </div>
                 <div id="sections-list" style="padding:8px;"></div>
+            </div>
+
+            <div id="tab-snippets" class="tab-panel">
+                <div class="props-header" style="display:flex; justify-content:space-between; align-items:center;">
+                    <span>Prebuilt Blocks & Snippets</span>
+                </div>
+                <div style="padding:0.75rem; display:flex; flex-direction:column; gap:0.75rem; overflow-y:auto;">
+                    
+                    <!-- Tax & Financial Summary -->
+                    <div style="border:1px solid var(--border); border-radius:8px; padding:10px; background:var(--surface);">
+                        <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+                            <span style="font-size:20px;">🧾</span>
+                            <div>
+                                <div style="font-weight:700; font-size:12px; color:var(--text);">Invoice Tax & Totals Summary</div>
+                                <div style="font-size:10px; color:var(--text-muted);">Subtotal + Discount + PPN 11% + Grand Total + Terbilang words</div>
+                            </div>
+                        </div>
+                        <button type="button" onclick="insertSnippet('invoice_summary')" style="width:100%; background:#3b82f6; color:#fff; border:none; border-radius:6px; padding:6px; font-size:11px; font-weight:600; cursor:pointer; margin-top:4px;">+ Insert Totals & Tax Block</button>
+                    </div>
+
+                    <!-- 3-Column Signatures -->
+                    <div style="border:1px solid var(--border); border-radius:8px; padding:10px; background:var(--surface);">
+                        <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+                            <span style="font-size:20px;">✍️</span>
+                            <div>
+                                <div style="font-weight:700; font-size:12px; color:var(--text);">3-Column Signatures (Page Footer)</div>
+                                <div style="font-size:10px; color:var(--text-muted);">Penerima, Pengemudi / Supir, Gudang / Finance</div>
+                            </div>
+                        </div>
+                        <button type="button" onclick="insertSnippet('signatures_3col')" style="width:100%; background:#6366f1; color:#fff; border:none; border-radius:6px; padding:6px; font-size:11px; font-weight:600; cursor:pointer; margin-top:4px;">+ Insert 3-Box Signatures</button>
+                    </div>
+
+                    <!-- 2-Column Signatures -->
+                    <div style="border:1px solid var(--border); border-radius:8px; padding:10px; background:var(--surface);">
+                        <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+                            <span style="font-size:20px;">📝</span>
+                            <div>
+                                <div style="font-weight:700; font-size:12px; color:var(--text);">2-Column Signatures (Page Footer)</div>
+                                <div style="font-size:10px; color:var(--text-muted);">Disetujui Oleh & Dibuat Oleh</div>
+                            </div>
+                        </div>
+                        <button type="button" onclick="insertSnippet('signatures_2col')" style="width:100%; background:#6366f1; color:#fff; border:none; border-radius:6px; padding:6px; font-size:11px; font-weight:600; cursor:pointer; margin-top:4px;">+ Insert 2-Box Signatures</button>
+                    </div>
+
+                    <!-- Company Letterhead -->
+                    <div style="border:1px solid var(--border); border-radius:8px; padding:10px; background:var(--surface);">
+                        <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+                            <span style="font-size:20px;">🏢</span>
+                            <div>
+                                <div style="font-weight:700; font-size:12px; color:var(--text);">Company Letterhead (Page Header)</div>
+                                <div style="font-size:10px; color:var(--text-muted);">Company Name, Subtitle, Full Address, NPWP & Divider Line</div>
+                            </div>
+                        </div>
+                        <button type="button" onclick="insertSnippet('company_letterhead')" style="width:100%; background:#8b5cf6; color:#fff; border:none; border-radius:6px; padding:6px; font-size:11px; font-weight:600; cursor:pointer; margin-top:4px;">+ Insert Header Letterhead</button>
+                    </div>
+
+                    <!-- Multi-Page Table -->
+                    <div style="border:1px solid var(--border); border-radius:8px; padding:10px; background:var(--surface);">
+                        <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+                            <span style="font-size:20px;">📊</span>
+                            <div>
+                                <div style="font-weight:700; font-size:12px; color:var(--text);">Multi-Page Items Table</div>
+                                <div style="font-size:10px; color:var(--text-muted);">6-column table pre-configured with repeating headers and subtotal</div>
+                            </div>
+                        </div>
+                        <button type="button" onclick="insertSnippet('table_standard')" style="width:100%; background:#10b981; color:#fff; border:none; border-radius:6px; padding:6px; font-size:11px; font-weight:600; cursor:pointer; margin-top:4px;">+ Insert Standard Items Table</button>
+                    </div>
+
+                </div>
             </div>
 
             <div id="tab-layers" class="tab-panel">
@@ -1074,35 +1144,49 @@ $templateSchemasData = $template->relationLoaded('schemas') ? $template->schemas
         return all;
     }
 
+    function getSectionLayout() {
+        const ph = parseFloat(document.getElementById('paper-h')?.value) || 297.0;
+        const pageHeaderH = sections.pageHeader?.enabled ? (parseFloat(sections.pageHeader.height) || 0) : 0;
+        const reportHeaderH = sections.reportHeader?.enabled ? (parseFloat(sections.reportHeader.height) || 0) : 0;
+        const pageFooterH = sections.pageFooter?.enabled ? (parseFloat(sections.pageFooter.height) || 0) : 0;
+        const reportFooterH = sections.reportFooter?.enabled ? (parseFloat(sections.reportFooter.height) || 0) : 0;
+
+        const headerTotalH = pageHeaderH + reportHeaderH;
+        const footerTotalH = pageFooterH + reportFooterH;
+        const detailH = Math.max(15, ph - headerTotalH - footerTotalH);
+
+        return {
+            ph,
+            pageHeader: { top: 0, height: pageHeaderH, enabled: !!sections.pageHeader?.enabled },
+            reportHeader: { top: pageHeaderH, height: reportHeaderH, enabled: !!sections.reportHeader?.enabled },
+            detail: { top: headerTotalH, height: detailH, enabled: true },
+            reportFooter: { top: Math.max(headerTotalH, ph - pageFooterH - reportFooterH), height: reportFooterH, enabled: !!sections.reportFooter?.enabled },
+            pageFooter: { top: Math.max(headerTotalH + reportFooterH, ph - pageFooterH), height: pageFooterH, enabled: !!sections.pageFooter?.enabled }
+        };
+    }
+
     function getSectionAtY(y_mm) {
-        let cumulativeY = 0;
-        for (const key of SECTION_ORDER) {
-            const section = sections[key];
-            if (!section || !section.enabled) continue;
-            const h = section.height;
-            if (y_mm >= cumulativeY && y_mm < cumulativeY + h) return key;
-            cumulativeY += h + 2;
-        }
+        const layout = getSectionLayout();
+        if (layout.pageHeader.enabled && y_mm < layout.pageHeader.height) return 'pageHeader';
+        if (layout.reportHeader.enabled && y_mm < (layout.pageHeader.height + layout.reportHeader.height)) return 'reportHeader';
+        if (layout.pageFooter.enabled && y_mm >= layout.pageFooter.top) return 'pageFooter';
+        if (layout.reportFooter.enabled && y_mm >= layout.reportFooter.top) return 'reportFooter';
         return 'detail';
     }
 
     function getSectionOffset(key) {
-        let offset = 0;
-        for (const k of SECTION_ORDER) {
-            if (k === key) return offset;
-            const sec = sections[k];
-            if (sec && sec.enabled) offset += sec.height + 2;
-        }
-        return offset;
+        const layout = getSectionLayout();
+        return layout[key] ? layout[key].top : 0;
+    }
+
+    function getSectionHeight(key) {
+        const layout = getSectionLayout();
+        return layout[key] ? layout[key].height : (parseFloat(sections[key]?.height) || 10);
     }
 
     function getTotalSectionsHeight() {
-        let total = 0;
-        SECTION_ORDER.forEach(key => {
-            const sec = sections[key];
-            if (sec && sec.enabled) total += sec.height + 2;
-        });
-        return Math.max(total - 2, 10);
+        const ph = parseFloat(document.getElementById('paper-h')?.value) || 297.0;
+        return ph;
     }
 
     // ── Sections Panel ────────────────────────────────────────
@@ -1763,7 +1847,6 @@ $templateSchemasData = $template->relationLoaded('schemas') ? $template->schemas
                     alert('No job history found for this template.');
                     return;
                 }
-                // Just load the most recent job data for now
                 const recentJob = data.jobs[0];
                 const sampleData = recentJob.template_data;
                 document.getElementById('json-input').value = JSON.stringify(sampleData, null, 2);
@@ -1771,6 +1854,96 @@ $templateSchemasData = $template->relationLoaded('schemas') ? $template->schemas
                 document.getElementById('preview-json').value = JSON.stringify(sampleData, null, 2);
                 alert(`Loaded sample data from Job ${recentJob.job_id.substring(0, 8)} (${new Date(recentJob.created_at).toLocaleString()})`);
             });
+    }
+
+    // ── Prebuilt Component Snippets ─────────────────────────
+    function insertSnippet(type) {
+        pushHistory();
+        const pw = parseFloat(document.getElementById('paper-w').value) || 215.9;
+        const ph = parseFloat(document.getElementById('paper-h').value) || 297.0;
+
+        if (type === 'invoice_summary') {
+            const rightX = Math.max(10, pw - 85);
+            const added = [
+                { id: 'el_' + Date.now() + '_subl', type: 'label', text: 'Subtotal:', x: rightX, y: 3, width: 35, height: 6, font_size: 9, bold: false, align: 'R' },
+                { id: 'el_' + Date.now() + '_subv', type: 'field', key: 'amount_untaxed', x: rightX + 37, y: 3, width: 38, height: 6, font_size: 9, bold: false, align: 'R' },
+                { id: 'el_' + Date.now() + '_discl', type: 'label', text: 'Diskon:', x: rightX, y: 9, width: 35, height: 6, font_size: 9, bold: false, align: 'R' },
+                { id: 'el_' + Date.now() + '_discv', type: 'field', key: 'discount_amount', x: rightX + 37, y: 9, width: 38, height: 6, font_size: 9, bold: false, align: 'R' },
+                { id: 'el_' + Date.now() + '_taxl', type: 'label', text: 'PPN / Pajak (11%):', x: rightX, y: 15, width: 35, height: 6, font_size: 9, bold: false, align: 'R' },
+                { id: 'el_' + Date.now() + '_taxv', type: 'field', key: 'amount_tax', x: rightX + 37, y: 15, width: 38, height: 6, font_size: 9, bold: false, align: 'R' },
+                { id: 'el_' + Date.now() + '_divln', type: 'line', x: rightX, y: 21, width: 75, height: 0.5, lineColor: '#000000' },
+                { id: 'el_' + Date.now() + '_totl', type: 'label', text: 'TOTAL AKHIR:', x: rightX, y: 23, width: 35, height: 8, font_size: 11, bold: true, align: 'R' },
+                { id: 'el_' + Date.now() + '_totv', type: 'field', key: 'amount_total', x: rightX + 37, y: 23, width: 38, height: 8, font_size: 11, bold: true, align: 'R' },
+                { id: 'el_' + Date.now() + '_terb', type: 'field', key: 'terbilang', prefix: 'Terbilang: ', x: 10, y: 23, width: rightX - 15, height: 8, font_size: 8, italic: true }
+            ];
+            
+            const targetSec = sections.pageFooter?.enabled ? 'pageFooter' : 'detail';
+            if (targetSec === 'pageFooter' && sections.pageFooter.height < 35) {
+                sections.pageFooter.height = 38;
+            }
+            if (!sections[targetSec].elements) sections[targetSec].elements = [];
+            added.forEach(el => sections[targetSec].elements.push(el));
+            showToast('Inserted Invoice Summary & Tax Block', 'success');
+        } else if (type === 'signatures_3col') {
+            if (!sections.pageFooter?.enabled) sections.pageFooter.enabled = true;
+            if (sections.pageFooter.height < 40) sections.pageFooter.height = 42;
+            const colW = (pw - 30) / 3;
+            const added = [
+                { id: 'el_' + Date.now() + '_s1', type: 'label', text: 'Penerima / Customer,\n\n\n\n( ..................................... )', x: 10, y: 5, width: colW, height: 32, font_size: 8, align: 'C' },
+                { id: 'el_' + Date.now() + '_s2', type: 'label', text: 'Pengemudi / Supir,\n\n\n\n( ..................................... )', x: 10 + colW + 5, y: 5, width: colW, height: 32, font_size: 8, align: 'C' },
+                { id: 'el_' + Date.now() + '_s3', type: 'label', text: 'Hormat Kami / Admin,\n\n\n\n( ..................................... )', x: 10 + (colW + 5) * 2, y: 5, width: colW, height: 32, font_size: 8, align: 'C' }
+            ];
+            if (!sections.pageFooter.elements) sections.pageFooter.elements = [];
+            added.forEach(el => sections.pageFooter.elements.push(el));
+            showToast('Inserted 3-Box Signatures into Page Footer', 'success');
+        } else if (type === 'signatures_2col') {
+            if (!sections.pageFooter?.enabled) sections.pageFooter.enabled = true;
+            if (sections.pageFooter.height < 40) sections.pageFooter.height = 42;
+            const colW = (pw - 40) / 2;
+            const added = [
+                { id: 'el_' + Date.now() + '_s1', type: 'label', text: 'Disetujui Oleh,\n\n\n\n( ..................................... )', x: 15, y: 5, width: colW, height: 32, font_size: 9, align: 'C' },
+                { id: 'el_' + Date.now() + '_s2', type: 'label', text: 'Dibuat Oleh,\n\n\n\n( ..................................... )', x: 25 + colW, y: 5, width: colW, height: 32, font_size: 9, align: 'C' }
+            ];
+            if (!sections.pageFooter.elements) sections.pageFooter.elements = [];
+            added.forEach(el => sections.pageFooter.elements.push(el));
+            showToast('Inserted 2-Box Signatures into Page Footer', 'success');
+        } else if (type === 'company_letterhead') {
+            if (!sections.pageHeader?.enabled) sections.pageHeader.enabled = true;
+            if (sections.pageHeader.height < 30) sections.pageHeader.height = 32;
+            const added = [
+                { id: 'el_' + Date.now() + '_h1', type: 'label', text: 'PT HARTONO MOTOR GROUP', x: 10, y: 4, width: pw - 20, height: 7, font_size: 14, bold: true },
+                { id: 'el_' + Date.now() + '_h2', type: 'label', text: 'Authorized Dealer & Heavy Equipment Specialist', x: 10, y: 11, width: pw - 20, height: 5, font_size: 9, bold: false },
+                { id: 'el_' + Date.now() + '_h3', type: 'label', text: 'Jl. Raya Utama No. 123, Jakarta • Telp: (021) 555-1234 • NPWP: 01.234.567.8-901.000', x: 10, y: 16, width: pw - 20, height: 5, font_size: 8, bold: false },
+                { id: 'el_' + Date.now() + '_hln', type: 'line', x: 10, y: 23, width: pw - 20, height: 0.8, lineColor: '#1e293b' }
+            ];
+            if (!sections.pageHeader.elements) sections.pageHeader.elements = [];
+            added.forEach(el => sections.pageHeader.elements.push(el));
+            showToast('Inserted Letterhead into Page Header', 'success');
+        } else if (type === 'table_standard') {
+            const addedTable = {
+                id: 'el_' + Date.now() + '_tbl', type: 'table', key: 'items',
+                x: 10, y: 10, width: pw - 20, height: 80,
+                header_height: 7, row_height: 6, bottom_padding: 20, font_size: 9,
+                repeat_header: true,
+                columns: [
+                    { label: 'No', key: 'index', width: 12, align: 'C' },
+                    { label: 'Kode', key: 'product_code', width: 30, align: 'L' },
+                    { label: 'Deskripsi Barang / Part Name', key: 'product_name', width: 85, align: 'L' },
+                    { label: 'Qty', key: 'quantity', width: 18, align: 'R', format_type: 'number', decimal_places: 0 },
+                    { label: 'Harga Satuan', key: 'price_unit', width: 25, align: 'R', format_type: 'currency', format_string: 'Rp ' },
+                    { label: 'Subtotal', key: 'subtotal', width: 25, align: 'R', format_type: 'currency', format_string: 'Rp ' }
+                ]
+            };
+            if (!sections.detail.elements) sections.detail.elements = [];
+            sections.detail.elements.push(addedTable);
+            showToast('Inserted Standard Items Table into Detail', 'success');
+        }
+
+        elements = flattenSections();
+        updateCanvasSize();
+        renderElements();
+        updateLayersList();
+        updateSectionsList();
     }
 
     // ── Init ─────────────────────────────────────────────────
@@ -3311,7 +3484,12 @@ $templateSchemasData = $template->relationLoaded('schemas') ? $template->schemas
         } else if (sectionResizing) {
             const dy = (e.clientY - sectionResizing.startY) / (BASE_SCALE * zoomLevel);
             if (!isNaN(dy)) {
-                const newH = Math.max(5, sectionResizing.startHeight + dy);
+                let newH;
+                if (sectionResizing.key === 'pageFooter' || sectionResizing.key === 'reportFooter') {
+                    newH = Math.max(5, sectionResizing.startHeight - dy);
+                } else {
+                    newH = Math.max(5, sectionResizing.startHeight + dy);
+                }
                 sections[sectionResizing.key].height = parseFloat(newH.toFixed(1));
                 updateCanvasSize();
                 renderElements();
@@ -3360,32 +3538,26 @@ $templateSchemasData = $template->relationLoaded('schemas') ? $template->schemas
                 const el = sections[sourceKey].elements.find(e => e.id === id);
                 if (!el) return;
 
-                // Calculate global Y = section offset + element Y
-                const srcOffset = getSectionOffset(sourceKey);
-                const globalY = srcOffset + el.y + (el.height || 10) / 2;
+                const layout = getSectionLayout();
+                const globalY = (layout[sourceKey]?.top || 0) + el.y + (el.height || 10) / 2;
 
-                // Determine which section this globalY falls into
                 let targetKey = null;
-                let cumY = 0;
-                for (const sk of SECTION_ORDER) {
-                    const sec = sections[sk];
-                    if (!sec || !sec.enabled) continue;
-                    if (globalY >= cumY && globalY < cumY + sec.height) {
+                for (const sk in layout) {
+                    const sec = layout[sk];
+                    if (!sec.enabled && sk !== 'detail') continue;
+                    if (globalY >= sec.top && globalY < sec.top + sec.height) {
                         targetKey = sk;
                         break;
                     }
-                    cumY += sec.height + 2;
                 }
                 if (!targetKey) targetKey = 'detail';
 
                 if (sourceKey !== targetKey) {
-                    // Move element from source section to target section
                     const elData = sections[sourceKey].elements.find(e => e.id === id);
                     if (elData) {
                         removeElementFromAllSections(id);
-                        // Adjust Y to be relative to target section
-                        const targetOffset = getSectionOffset(targetKey);
-                        elData.y = parseFloat(Math.max(0, (globalY - (elData.height || 10) / 2 - targetOffset)).toFixed(2));
+                        const targetTop = layout[targetKey]?.top || 0;
+                        elData.y = parseFloat(Math.max(0, (globalY - (elData.height || 10) / 2 - targetTop)).toFixed(2));
                         if (!sections[targetKey].elements) sections[targetKey].elements = [];
                         sections[targetKey].elements.push(elData);
                     }
@@ -3424,7 +3596,6 @@ $templateSchemasData = $template->relationLoaded('schemas') ? $template->schemas
             validKeys = Object.keys(activeSchema.fields || {});
             validTables = Object.keys(activeSchema.tables || {});
         }
-        // Also validate against additional schemas' fields
         if (templateSchemas && templateSchemas.length > 1) {
             templateSchemas.forEach(s => {
                 if (s.id == activeSchemaId) return;
@@ -3440,16 +3611,20 @@ $templateSchemasData = $template->relationLoaded('schemas') ? $template->schemas
             });
         }
 
-        let currentY = 0;
+        const layout = getSectionLayout();
         const pw = parseFloat(document.getElementById('paper-w').value) || 215.9;
 
         SECTION_ORDER.forEach(sectionKey => {
             const section = sections[sectionKey];
-            if (!section || !section.enabled) return;
+            if (!section || (!section.enabled && sectionKey !== 'detail')) return;
 
-            const sectionHeight = section.height;
+            const secInfo = layout[sectionKey];
+            if (!secInfo || (!secInfo.enabled && sectionKey !== 'detail')) return;
+
+            const sectionTop = secInfo.top;
+            const sectionHeight = secInfo.height;
             const sectionHpx = sectionHeight * BASE_SCALE;
-            const currentYpx = currentY * BASE_SCALE;
+            const currentYpx = sectionTop * BASE_SCALE;
 
             // Section band background
             const band = document.createElement('div');
@@ -3478,7 +3653,7 @@ $templateSchemasData = $template->relationLoaded('schemas') ? $template->schemas
             `;
             label.innerHTML = `
                 <span onclick="showSectionInspector('${sectionKey}')" style="cursor:pointer; font-weight:700; background:rgba(255,255,255,0.9); padding:1px 6px; border-radius:4px; border:1px solid #cbd5e1; box-shadow:0 1px 2px rgba(0,0,0,0.05); color: #1e293b;" title="Click to edit section properties">
-                    📌 ${SECTION_LABELS[sectionKey]} (${sectionHeight}mm)
+                    📌 ${SECTION_LABELS[sectionKey]} (${parseFloat(section.height || sectionHeight).toFixed(0)}mm)
                 </span>
                 <button type="button" onclick="addSectionElement('${sectionKey}', 'field')" style="background:#3b82f6; color:#fff; border:none; border-radius:3px; padding:1px 5px; font-size:8px; font-weight:600; cursor:pointer;" title="Add Data Field to ${SECTION_LABELS[sectionKey]}">+ Field</button>
                 <button type="button" onclick="addSectionElement('${sectionKey}', 'label')" style="background:#64748b; color:#fff; border:none; border-radius:3px; padding:1px 5px; font-size:8px; font-weight:600; cursor:pointer;" title="Add Text Label to ${SECTION_LABELS[sectionKey]}">+ Label</button>
@@ -3492,17 +3667,13 @@ $templateSchemasData = $template->relationLoaded('schemas') ? $template->schemas
             secEls.forEach(el => {
                 if (el.hidden) return;
                 const displayEl = JSON.parse(JSON.stringify(el));
-                if (displayEl.styleIdx !== undefined && globalStyles[displayEl.styleIdx]) {
-                    const s = globalStyles[displayEl.styleIdx];
-                    displayEl.font_size = s.font_size; displayEl.bold = s.bold;
-                }
                 const div = document.createElement('div');
                 div.className = 'design-element';
                 if (el.locked) div.style.cursor = 'not-allowed';
                 div.setAttribute('data-id', displayEl.id);
                 if (activeIds.includes(displayEl.id)) div.classList.add('active');
                 div.style.left = (displayEl.x * BASE_SCALE) + 'px';
-                div.style.top = ((displayEl.y + currentY) * BASE_SCALE) + 'px';
+                div.style.top = ((displayEl.y + sectionTop) * BASE_SCALE) + 'px';
                 div.style.width = (displayEl.width * BASE_SCALE) + 'px';
                 div.style.height = ((displayEl.height || 10) * BASE_SCALE) + 'px';
 
@@ -3514,23 +3685,11 @@ $templateSchemasData = $template->relationLoaded('schemas') ? $template->schemas
                     div.style.transformOrigin = `${cx}px ${cy}px`;
                 }
 
-                if (activeSchema && displayEl.type === 'field' && !validKeys.includes(displayEl.key) && displayEl.key) {
-                    div.style.outline = '2px solid var(--danger)';
-                    div.style.outlineOffset = '-2px';
-                    div.title = 'Invalid field: ' + displayEl.key + ' is not in schema';
-                }
-                if (activeSchema && displayEl.type === 'table' && !validTables.includes(displayEl.key) && displayEl.key) {
-                    div.style.outline = '2px solid var(--danger)';
-                    div.style.outlineOffset = '-2px';
-                    div.title = 'Invalid table: ' + displayEl.key + ' is not in schema';
-                }
-
                 if (displayEl.type === 'line') {
                     div.innerHTML = `<div style="width:100%; height:${Math.max(1, displayEl.height*BASE_SCALE)}px; background:${displayEl.lineColor||'#000'}; border-radius:1px;"></div>`;
                 } else if (displayEl.type === 'label') {
                     if (displayEl.border) div.style.border = '1px solid #cbd5e1';
-                    const labelFontFamily = displayEl.fontFamily || 'Arial';
-                    div.innerHTML = `<div style="font-size:${displayEl.font_size*BASE_SCALE*0.2}px; font-family:'${labelFontFamily}', sans-serif; color:#1e293b; padding:2px; height:100%; overflow:hidden; font-weight:${displayEl.bold?'bold':'normal'}; text-align:${displayEl.align==='C'?'center':(displayEl.align==='R'?'right':'left')}; background:rgba(100,116,139,0.08);">${displayEl.text || 'Label'}</div>`;
+                    div.innerHTML = `<div style="font-size:${displayEl.font_size*BASE_SCALE*0.2}px; font-family:'${displayEl.fontFamily || 'Arial'}', sans-serif; color:#1e293b; padding:2px; height:100%; overflow:hidden; font-weight:${displayEl.bold?'bold':'normal'}; text-align:${displayEl.align==='C'?'center':(displayEl.align==='R'?'right':'left')}; background:rgba(100,116,139,0.08);">${displayEl.text || 'Label'}</div>`;
                 } else if (displayEl.type === 'table') {
                     if (displayEl.border) div.style.border = '1px solid #cbd5e1';
                     const cols = displayEl.columns || [];
@@ -3548,93 +3707,56 @@ $templateSchemasData = $template->relationLoaded('schemas') ? $template->schemas
                                         currency_symbol: c.format_string
                                     });
                                 }
-                                return `<td style="border:1px solid #e2e8f0; padding:1px 3px; font-size:${displayEl.font_size*BASE_SCALE*0.16}px; color:#334155;${bg}">${val}</td>`;
+                                return `<td style="border:1px solid #e2e8f0; padding:1px 3px; font-size:${displayEl.font_size*BASE_SCALE*0.16}px; color:#334155; white-space:nowrap; overflow:hidden; ${bg}">${val}</td>`;
                             }).join('') + '</tr>';
                         });
-                        div.classList.add('field-resolved');
                     } else {
-                        rowsHtml = '<tr>' + cols.map(c => '<td style="border:1px solid #e2e8f0; padding:1px 3px; font-size:' + (displayEl.font_size*BASE_SCALE*0.16) + 'px; color:#64748b;">@{{' + c.key + '}}</td>').join('') + '</tr>';
+                        rowsHtml = '<tr>' + cols.map(c => `<td style="border:1px solid #e2e8f0; padding:1px 3px; font-size:${displayEl.font_size*BASE_SCALE*0.16}px; color:#94a3b8; white-space:nowrap; overflow:hidden;">{{${c.key}}}</td>`).join('') + '</tr>';
                     }
-                    div.innerHTML = `<table style="border-collapse:collapse; width:100%; table-layout:fixed;"><tr>${colsHtml}</tr>${rowsHtml}</table>`;
-                } else if (displayEl.type === 'image') {
-                    const img = document.createElement('img');
-                    img.src = displayEl.src || 'https://via.placeholder.com/150?text=Image';
-                    img.style.width = '100%'; img.style.height = '100%'; img.style.objectFit = 'contain'; img.style.pointerEvents = 'none';
-                    div.appendChild(img);
-                    if (displayEl.key) {
-                        const badge = document.createElement('div');
-                        badge.textContent = 'LINKED: ' + displayEl.key;
-                        badge.style.position = 'absolute'; badge.style.bottom = '0'; badge.style.left = '0';
-                        badge.style.background = 'rgba(59,130,246,0.8)'; badge.style.color = 'white';
-                        badge.style.fontSize = '8px'; badge.style.padding = '1px 3px';
-                        div.appendChild(badge);
-                    }
-                } else if (displayEl.type === 'barcode') {
-                    div.style.border = '1px dashed #94a3b8';
-                    div.style.background = 'rgba(241,245,249,0.6)';
-                    const barcodeVal = displayEl.value || '(no value)';
-                    const symLabel = displayEl.symbology || 'code128';
-                    div.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;padding:2px;font-family:monospace;">
-                        <div style="font-size:9px;color:#64748b;font-weight:bold;">[BARCODE]</div>
-                        <div style="font-size:8px;color:#475569;margin-top:2px;">${symLabel}</div>
-                        <div style="font-size:7px;color:#94a3b8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%;">${barcodeVal}</div>
-                    </div>`;
-                } else if (displayEl.type === 'qrcode') {
-                    div.style.border = '1px dashed #94a3b8';
-                    div.style.background = 'rgba(241,245,249,0.6)';
-                    const qrVal = displayEl.value || '(no value)';
-                    div.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;padding:2px;font-family:monospace;">
-                        <div style="font-size:9px;color:#64748b;font-weight:bold;">[QR CODE]</div>
-                        <div style="font-size:7px;color:#94a3b8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%;">${qrVal}</div>
-                    </div>`;
-                } else if (displayEl.type === 'running_total') {
-                    div.style.border = '1px dashed #818cf8';
-                    div.style.background = 'rgba(129,140,248,0.1)';
-                    const rtField = displayEl.field || '(no field)';
-                    const rtOp = displayEl.operation || 'sum';
-                    const opLabel = { sum: 'Sum', count: 'Count', average: 'Average', min: 'Min', max: 'Max' };
-                    div.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;padding:2px;font-family:monospace;">
-                        <div style="font-size:9px;color:#6366f1;font-weight:bold;">[Σ Running Total]</div>
-                        <div style="font-size:8px;color:#4f46e5;margin-top:2px;">${rtField} → ${opLabel[rtOp] || rtOp}</div>
-                    </div>`;
-                } else {
-                    if (displayEl.border) div.style.border = '1px solid #1e293b';
-                    const fieldFontFamily = displayEl.fontFamily || 'Arial';
-                    const liveVal = getLiveDisplayValue(displayEl);
+                    div.innerHTML = `<table style="width:100%; border-collapse:collapse; background:white; font-family:sans-serif;"><thead><tr style="background:#eff6ff;">${colsHtml}</tr></thead><tbody>${rowsHtml}</tbody></table>`;
+                } else if (displayEl.type === 'barcode' || displayEl.type === 'qrcode') {
+                    div.style.background = '#f8fafc';
+                    div.style.border = '1px dashed #6366f1';
+                    div.style.display = 'flex';
+                    div.style.alignItems = 'center';
+                    div.style.justifyContent = 'center';
+                    div.style.flexDirection = 'column';
+                    div.style.padding = '2px';
                     
-                    // Evaluate conditional formatting from sample data
-                    let condTextColor = null, condBgColor = null, condBold = null, condItalic = null, condUnderline = null;
-                    if (liveDataMode && Object.keys(sampleDataCache).length > 0) {
-                        const condStyles = getConditionalStyle(displayEl, sampleDataCache);
-                        if (condStyles.length > 0) {
-                            const s = condStyles[0];
-                            if (s.color && s.color !== '#000000') condTextColor = s.color;
-                            if (s.backgroundColor && s.backgroundColor !== '#FFFFFF') condBgColor = s.backgroundColor;
-                            if (s.bold) condBold = true;
-                            if (s.italic) condItalic = true;
-                            if (s.underline) condUnderline = true;
+                    const codeLabel = displayEl.type === 'qrcode' ? 'QR CODE' : (displayEl.symbology || 'CODE128').toUpperCase();
+                    const codeVal = displayEl.value || (displayEl.key ? `{{${displayEl.key}}}` : '[no value]');
+                    div.innerHTML = `
+                        <div style="font-size:8px; font-family:monospace; color:#4f46e5; font-weight:bold; text-align:center;">
+                            [${codeLabel}]
+                        </div>
+                        <div style="font-size:7px; font-family:monospace; color:#64748b; margin-top:2px; text-align:center; overflow:hidden; text-overflow:ellipsis; max-width:95%;">
+                            ${codeVal}
+                        </div>
+                    `;
+                } else if (displayEl.type === 'image') {
+                    if (displayEl.url) {
+                        div.innerHTML = `<img src="${displayEl.url}" style="width:100%; height:100%; object-fit:contain; pointer-events:none;">`;
+                    } else {
+                        div.style.background = 'rgba(139,92,246,0.1)';
+                        div.style.border = '1px dashed #8b5cf6';
+                        div.innerHTML = `<div style="font-size:9px; color:#6d28d9; padding:4px; text-align:center;">🖼️ Image</div>`;
+                    }
+                } else {
+                    // Default field
+                    let fieldVal = `{{${displayEl.key || 'field'}}}`;
+                    if (liveDataMode && sampleDataCache && displayEl.key) {
+                        const resolved = resolveDataValue(displayEl.key, sampleDataCache);
+                        if (resolved !== null && resolved !== undefined) {
+                            fieldVal = (displayEl.prefix || '') + resolved + (displayEl.suffix || '');
                         }
                     }
-                    
-                    if (liveVal !== null) {
-                        div.classList.add('field-resolved');
-                        const textColor = condTextColor || '#0f172a';
-                        const bgColor = condBgColor || 'transparent';
-                        const fontWeight = condBold ? 'bold' : (displayEl.bold ? 'bold' : 'normal');
-                        const fontStyle = condItalic ? 'italic' : 'normal';
-                        const textDecor = condUnderline ? 'underline' : 'none';
-                        div.innerHTML = `<div style="font-size:${displayEl.font_size*BASE_SCALE*0.2}px; font-family:'${fieldFontFamily}', sans-serif; color:${textColor}; background:${bgColor}; padding:2px; height:100%; overflow:hidden; font-weight:${fontWeight}; font-style:${fontStyle}; text-decoration:${textDecor}; text-align:${displayEl.align==='C'?'center':(displayEl.align==='R'?'right':'left')}">${liveVal}</div>`;
-                    } else {
-                        if (liveDataMode) div.classList.add('field-unresolved');
-                        div.innerHTML = `<div style="font-size:${displayEl.font_size*BASE_SCALE*0.2}px; font-family:'${fieldFontFamily}', sans-serif; color:#1e293b; padding:2px; height:100%; overflow:hidden; font-weight:${displayEl.bold?'bold':'normal'}; text-align:${displayEl.align==='C'?'center':(displayEl.align==='R'?'right':'left')}">@{{ ${displayEl.key} }}</div>`;
-                    }
+                    div.innerHTML = `<div style="font-size:${displayEl.font_size*BASE_SCALE*0.2}px; color:#1e293b; padding:1px; white-space:nowrap; overflow:hidden;">${fieldVal}</div>`;
                 }
 
-                // ── Binding status indicator ──────────────
-                const bindInd = document.createElement('div');
+                // Data binding badge
+                const bindInd = document.createElement('span');
                 bindInd.className = 'bind-indicator';
-
-                const fieldKey = displayEl.key;
+                const fieldKey = displayEl.key || (displayEl.columns ? 'table' : null);
                 if (fieldKey && activeSchema) {
                     const keyExists = validKeys.includes(fieldKey) || validTables.includes(fieldKey);
                     if (keyExists) {
@@ -3651,7 +3773,6 @@ $templateSchemasData = $template->relationLoaded('schemas') ? $template->schemas
                     bindInd.textContent = '?';
                     bindInd.title = 'No schema loaded for this field key';
                 } else {
-                    // No field key — not a data-bound element (static text, image, etc.)
                     bindInd.style.display = 'none';
                 }
                 div.appendChild(bindInd);
@@ -3703,8 +3824,8 @@ $templateSchemasData = $template->relationLoaded('schemas') ? $template->schemas
                 c.appendChild(div);
             });
 
-            // Section resize handle (except detail and pageFooter)
-            if (sectionKey !== 'detail' && sectionKey !== 'pageFooter') {
+            // Section resize handles
+            if (sectionKey === 'pageHeader' || sectionKey === 'reportHeader') {
                 const rh = document.createElement('div');
                 rh.className = 'section-resize-handle';
                 rh.dataset.section = sectionKey;
@@ -3730,8 +3851,6 @@ $templateSchemasData = $template->relationLoaded('schemas') ? $template->schemas
                 rh.appendChild(line);
                 c.appendChild(rh);
             }
-
-            currentY += sectionHeight + 2; // gap between sections
         });
 
         document.getElementById('align-tools').style.display = activeIds.length > 1 ? 'flex' : 'none';
@@ -4157,6 +4276,10 @@ $templateSchemasData = $template->relationLoaded('schemas') ? $template->schemas
                 <div class="prop-item"><div class="prop-key">Row H</div><div class="prop-val"><input type="number" step="0.5" value="${el.row_height||6}" oninput="updateElProps('row_height',parseFloat(this.value))"></div></div>
                 <div class="prop-item"><div class="prop-key">Btm Pad</div><div class="prop-val"><input type="number" step="1" value="${el.bottom_padding||10}" oninput="updateElProps('bottom_padding',parseFloat(this.value))"></div></div>
                 <div class="prop-item"><div class="prop-key">Hdr BG</div><div class="prop-val"><input type="color" value="${el.header_bg_color||'#ffffff'}" oninput="updateElProps('header_bg_color',this.value)" style="height:28px;border:none;background:none;cursor:pointer;"></div></div>
+                <div class="prop-item"><div class="prop-key">Multipage</div><div class="prop-val"><label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:10px;"><input type="checkbox" ${el.repeat_header !== false ? 'checked' : ''} onchange="updateElProps('repeat_header', this.checked)"> Repeat Header</label></div></div>
+                <div class="prop-item"><div class="prop-key">Group By</div><div class="prop-val"><input type="text" placeholder="e.g. category" value="${escapeHtml(el.group_by || '')}" oninput="updateElProps('group_by', this.value.trim())"></div></div>
+                <div class="prop-item"><div class="prop-key">Subtotals</div><div class="prop-val"><label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:10px;"><input type="checkbox" ${el.show_group_subtotal ? 'checked' : ''} onchange="updateElProps('show_group_subtotal', this.checked)"> Group Subtotal</label></div></div>
+                <div class="prop-item"><div class="prop-key">Summary</div><div class="prop-val"><label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:10px;"><input type="checkbox" ${el.show_grand_total ? 'checked' : ''} onchange="updateElProps('show_grand_total', this.checked)"> Grand Total Row</label></div></div>
             </div></div>`;
             html += `<div class="props-section"><div class="props-label">Table Columns</div><div class="prop-table">`;
             el.columns.forEach((col, idx) => {

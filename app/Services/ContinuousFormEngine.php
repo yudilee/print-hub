@@ -221,27 +221,36 @@ class ContinuousFormEngine
         $this->pdf->AddPage();
         $this->renderBackground();
 
-        $currentY = 0;
+        $pH = (float)($this->template->paper_height_mm ?? 297.0);
+        $pageHeaderH = (!empty($this->sections['pageHeader']['enabled'])) ? (float)($this->sections['pageHeader']['height'] ?? 0) : 0;
+        $reportHeaderH = (!empty($this->sections['reportHeader']['enabled'])) ? (float)($this->sections['reportHeader']['height'] ?? 0) : 0;
+        $pageFooterH = (!empty($this->sections['pageFooter']['enabled'])) ? (float)($this->sections['pageFooter']['height'] ?? 0) : 0;
+        $reportFooterH = (!empty($this->sections['reportFooter']['enabled'])) ? (float)($this->sections['reportFooter']['height'] ?? 0) : 0;
+
         foreach (self::SECTION_ORDER as $key) {
             $sec = $this->sections[$key] ?? [];
-            if (!($sec['enabled'] ?? false)) continue;
+            if (empty($sec['enabled'])) continue;
 
             $elements = $sec['elements'] ?? [];
-
-            // Check suppressIfBlank
             if (!empty($sec['suppressIfBlank']) && empty($elements)) continue;
 
-            // Not a table section — render elements as static content
+            $sectionTop = match ($key) {
+                'pageHeader' => 0.0,
+                'reportHeader' => $pageHeaderH,
+                'detail' => $pageHeaderH + $reportHeaderH,
+                'reportFooter' => max($pageHeaderH + $reportHeaderH, $pH - $pageFooterH - $reportFooterH),
+                'pageFooter' => max($pageHeaderH + $reportHeaderH + $reportFooterH, $pH - $pageFooterH),
+                default => 0.0,
+            };
+
             foreach ($elements as $el) {
                 if (!empty($el['hidden'])) continue;
-                if (($el['type'] ?? '') === 'table') continue; // Tables handled separately
+                if (($el['type'] ?? '') === 'table') continue;
 
                 $renderedEl = $el;
-                $renderedEl['y'] = ($el['y'] ?? 0) + $currentY;
+                $renderedEl['y'] = ($el['y'] ?? 0) + $sectionTop;
                 $this->renderSingleElement($renderedEl);
             }
-
-            $currentY += ($sec['height'] ?? 10) + 2;
         }
     }
 
