@@ -3436,6 +3436,21 @@ $templateSchemasData = $template->relationLoaded('schemas') ? $template->schemas
 
     // ── Mouse move (drag / resize / rubber band / tooltip) ───
     window.addEventListener('mousemove', (e) => {
+        // If mouse button is not pressed, immediately cancel any active drag or resize state
+        if ((e.buttons & 1) === 0) {
+            if (isDragging || draggingEl || resizingEl || sectionResizing || rubberBanding || dragCandidate) {
+                isDragging = false;
+                draggingEl = null;
+                dragCandidate = null;
+                resizingEl = null;
+                sectionResizing = null;
+                rubberBanding = false;
+                hideCoordTip();
+                clearSmartGuides();
+            }
+            return;
+        }
+
         if (dragCandidate && !isDragging) {
             if (typeof startMouseX === 'number' && typeof startMouseY === 'number') {
                 const dist = Math.hypot(e.clientX - startMouseX, e.clientY - startMouseY);
@@ -3454,7 +3469,7 @@ $templateSchemasData = $template->relationLoaded('schemas') ? $template->schemas
             const dy = (e.clientY - startMouseY) / (BASE_SCALE * zoomLevel);
             if (!isNaN(dx) && !isNaN(dy)) {
                 activeIds.forEach(id => {
-                    const el = elements.find(i => i.id === id); if (!el || el.locked) return;
+                    const el = findElement(id); if (!el || el.locked) return;
                     const origX = (typeof el.origX === 'number' && !isNaN(el.origX)) ? el.origX : (parseFloat(el.x) || 0);
                     const origY = (typeof el.origY === 'number' && !isNaN(el.origY)) ? el.origY : (parseFloat(el.y) || 0);
                     el.x = snapVal(parseFloat((origX + dx).toFixed(2)));
@@ -3467,8 +3482,7 @@ $templateSchemasData = $template->relationLoaded('schemas') ? $template->schemas
                         div.style.top = ((secOffset + el.y) * BASE_SCALE) + 'px';
                     }
                 });
-                // Coord tooltip + smart guides
-                const el = elements.find(i => i.id === activeId);
+                const el = findElement(activeId);
                 if (el && !isNaN(el.x) && !isNaN(el.y)) {
                     showCoordTip(e.clientX, e.clientY, el.x, el.y);
                     showSmartGuides(el);
@@ -3515,8 +3529,7 @@ $templateSchemasData = $template->relationLoaded('schemas') ? $template->schemas
                     newH = Math.max(5, sectionResizing.startHeight + dy);
                 }
                 sections[sectionResizing.key].height = parseFloat(newH.toFixed(1));
-                updateCanvasSize();
-                renderElements();
+                showCoordTip(e.clientX, e.clientY, sections[sectionResizing.key].height, 0, 'Height (mm)');
             }
         } else {
             hideCoordTip();
@@ -3546,12 +3559,12 @@ $templateSchemasData = $template->relationLoaded('schemas') ? $template->schemas
             const x1 = Math.min(cx, rbStartX)/BASE_SCALE, y1 = Math.min(cy, rbStartY)/BASE_SCALE;
             const x2 = Math.max(cx, rbStartX)/BASE_SCALE, y2 = Math.max(cy, rbStartY)/BASE_SCALE;
             if (x2 - x1 > 2 || y2 - y1 > 2) {
-                const hit = elements.filter(el => el.x < x2 && el.x+el.width > x1 && el.y < y2 && el.y+el.height > y1).map(e => e.id);
+                const allEls = flattenSections();
+                const hit = allEls.filter(el => el.x < x2 && el.x+el.width > x1 && el.y < y2 && el.y+el.height > y1).map(e => e.id);
                 if (hit.length) selectElements(hit);
             }
         }
         if (isDragging && draggingEl) {
-            // ── Section boundary detection on drop ──────────────
             const movedIds = [];
             activeIds.forEach(id => { if (!movedIds.includes(id)) movedIds.push(id); });
             if (draggingEl && !movedIds.includes(draggingEl.id)) movedIds.push(draggingEl.id);
@@ -3587,10 +3600,13 @@ $templateSchemasData = $template->relationLoaded('schemas') ? $template->schemas
                     }
                 }
             });
+            elements = flattenSections();
             pushHistory();
             renderElements();
             drawMinimap();
         } else if (resizingEl || sectionResizing) {
+            elements = flattenSections();
+            updateCanvasSize();
             pushHistory();
             renderElements();
             drawMinimap();
@@ -3834,13 +3850,12 @@ $templateSchemasData = $template->relationLoaded('schemas') ? $template->schemas
                     if (el.groupId) tIds = elements.filter(i => i.groupId === el.groupId).map(i => i.id);
                     if (ev.shiftKey) {
                         tIds.forEach(id => { if (activeIds.includes(id)) activeIds = activeIds.filter(a => a !== id); else activeIds.push(id); });
-                        selectElements(activeIds);
-                    } else if (!activeIds.includes(el.id)) {
+                    } else {
                         activeIds = tIds;
-                        selectElements(activeIds);
                     }
+                    selectElements(activeIds);
                     activeIds.forEach(id => {
-                        const t = elements.find(x => x.id === id);
+                        const t = findElement(id);
                         if (t) {
                             t.origX = (typeof t.x === 'number' && !isNaN(t.x)) ? t.x : (parseFloat(t.x) || 0);
                             t.origY = (typeof t.y === 'number' && !isNaN(t.y)) ? t.y : (parseFloat(t.y) || 0);
@@ -4423,13 +4438,13 @@ $templateSchemasData = $template->relationLoaded('schemas') ? $template->schemas
         }
     }
 
-    function updateCol(idx, prop, val) { const el=elements.find(e=>e.id===activeId); if(el&&el.columns[idx]){el.columns[idx][prop]=val;renderElements();if(prop==='format_type')updateInspector();} }
-    function addCol() { const el=elements.find(e=>e.id===activeId); if(el&&el.type==='table'){if(!el.columns)el.columns=[];el.columns.push({label:'Col',key:'key',width:30,align:'L'});updateInspector();} }
-    function deleteCol(idx) { const el=elements.find(e=>e.id===activeId); if(el&&el.columns.length>1){el.columns.splice(idx,1);updateInspector();renderElements();} }
-    function moveColUp(idx) { pushHistory(); const el=elements.find(e=>e.id===activeId); if(el&&idx>0){const c=el.columns.splice(idx,1)[0]; el.columns.splice(idx-1,0,c); updateInspector(); renderElements(); } }
-    function moveColDown(idx) { pushHistory(); const el=elements.find(e=>e.id===activeId); if(el&&idx<el.columns.length-1){const c=el.columns.splice(idx,1)[0]; el.columns.splice(idx+1,0,c); updateInspector(); renderElements(); } }
+    function updateCol(idx, prop, val) { const el=findElement(activeId); if(el&&el.columns[idx]){el.columns[idx][prop]=val;renderElements();if(prop==='format_type')updateInspector();} }
+    function addCol() { const el=findElement(activeId); if(el&&el.type==='table'){if(!el.columns)el.columns=[];el.columns.push({label:'Col',key:'key',width:30,align:'L'});updateInspector();} }
+    function deleteCol(idx) { const el=findElement(activeId); if(el&&el.columns.length>1){el.columns.splice(idx,1);updateInspector();renderElements();} }
+    function moveColUp(idx) { pushHistory(); const el=findElement(activeId); if(el&&idx>0){const c=el.columns.splice(idx,1)[0]; el.columns.splice(idx-1,0,c); updateInspector(); renderElements(); } }
+    function moveColDown(idx) { pushHistory(); const el=findElement(activeId); if(el&&idx<el.columns.length-1){const c=el.columns.splice(idx,1)[0]; el.columns.splice(idx+1,0,c); updateInspector(); renderElements(); } }
     function equalizeColWidths() {
-        const el = elements.find(e => e.id === activeId);
+        const el = findElement(activeId);
         if (!el || !el.columns || el.columns.length === 0) return;
         pushHistory();
         const totalW = el.width || 180;
@@ -4440,7 +4455,7 @@ $templateSchemasData = $template->relationLoaded('schemas') ? $template->schemas
         showToast('Equalized all column widths', 'success');
     }
     function applyTablePreset(presetKey) {
-        const el = elements.find(e => e.id === activeId);
+        const el = findElement(activeId);
         if (!el || el.type !== 'table') return;
         pushHistory();
         if (presetKey === 'items_pricing') {
@@ -5240,10 +5255,10 @@ $templateSchemasData = $template->relationLoaded('schemas') ? $template->schemas
         if (inField) return;
         if (activeIds.length === 0) return;
         const stp = (e.ctrlKey||e.metaKey) ? 0.1 : (e.shiftKey ? 5 : 1); let mvd = false;
-        if (e.key==='ArrowUp')    { activeIds.forEach(id=>{const el=elements.find(i=>i.id===id);if(el&&!el.locked)el.y=parseFloat((el.y-stp).toFixed(2));}); mvd=true; }
-        if (e.key==='ArrowDown')  { activeIds.forEach(id=>{const el=elements.find(i=>i.id===id);if(el&&!el.locked)el.y=parseFloat((el.y+stp).toFixed(2));}); mvd=true; }
-        if (e.key==='ArrowLeft')  { activeIds.forEach(id=>{const el=elements.find(i=>i.id===id);if(el&&!el.locked)el.x=parseFloat((el.x-stp).toFixed(2));}); mvd=true; }
-        if (e.key==='ArrowRight') { activeIds.forEach(id=>{const el=elements.find(i=>i.id===id);if(el&&!el.locked)el.x=parseFloat((el.x+stp).toFixed(2));}); mvd=true; }
+        if (e.key==='ArrowUp')    { activeIds.forEach(id=>{const el=findElement(id);if(el&&!el.locked)el.y=parseFloat((el.y-stp).toFixed(2));}); mvd=true; }
+        if (e.key==='ArrowDown')  { activeIds.forEach(id=>{const el=findElement(id);if(el&&!el.locked)el.y=parseFloat((el.y+stp).toFixed(2));}); mvd=true; }
+        if (e.key==='ArrowLeft')  { activeIds.forEach(id=>{const el=findElement(id);if(el&&!el.locked)el.x=parseFloat((el.x-stp).toFixed(2));}); mvd=true; }
+        if (e.key==='ArrowRight') { activeIds.forEach(id=>{const el=findElement(id);if(el&&!el.locked)el.x=parseFloat((el.x+stp).toFixed(2));}); mvd=true; }
         if (e.key==='Delete'||e.key==='Backspace') { deleteActive(); e.preventDefault(); return; }
         if (mvd) { pushHistory(); e.preventDefault(); renderElements(); updateInspector(); }
     });
