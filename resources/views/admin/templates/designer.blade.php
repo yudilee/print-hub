@@ -3711,7 +3711,7 @@ $templateSchemasData = $template->relationLoaded('schemas') ? $template->schemas
                             }).join('') + '</tr>';
                         });
                     } else {
-                        rowsHtml = '<tr>' + cols.map(c => `<td style="border:1px solid #e2e8f0; padding:1px 3px; font-size:${displayEl.font_size*BASE_SCALE*0.16}px; color:#94a3b8; white-space:nowrap; overflow:hidden;">{{${c.key}}}</td>`).join('') + '</tr>';
+                        rowsHtml = '<tr>' + cols.map(c => `<td style="border:1px solid #e2e8f0; padding:1px 3px; font-size:${displayEl.font_size*BASE_SCALE*0.16}px; color:#94a3b8; white-space:nowrap; overflow:hidden;">` + '{' + '{' + c.key + '}' + '}' + `</td>`).join('') + '</tr>';
                     }
                     div.innerHTML = `<table style="width:100%; border-collapse:collapse; background:white; font-family:sans-serif;"><thead><tr style="background:#eff6ff;">${colsHtml}</tr></thead><tbody>${rowsHtml}</tbody></table>`;
                 } else if (displayEl.type === 'barcode' || displayEl.type === 'qrcode') {
@@ -3724,7 +3724,7 @@ $templateSchemasData = $template->relationLoaded('schemas') ? $template->schemas
                     div.style.padding = '2px';
                     
                     const codeLabel = displayEl.type === 'qrcode' ? 'QR CODE' : (displayEl.symbology || 'CODE128').toUpperCase();
-                    const codeVal = displayEl.value || (displayEl.key ? `{{${displayEl.key}}}` : '[no value]');
+                    const codeVal = displayEl.value || (displayEl.key ? ('{' + '{' + displayEl.key + '}' + '}') : '[no value]');
                     div.innerHTML = `
                         <div style="font-size:8px; font-family:monospace; color:#4f46e5; font-weight:bold; text-align:center;">
                             [${codeLabel}]
@@ -3743,7 +3743,7 @@ $templateSchemasData = $template->relationLoaded('schemas') ? $template->schemas
                     }
                 } else {
                     // Default field
-                    let fieldVal = `{{${displayEl.key || 'field'}}}`;
+                    let fieldVal = '{' + '{' + (displayEl.key || 'field') + '}' + '}';
                     if (liveDataMode && sampleDataCache && displayEl.key) {
                         const resolved = resolveDataValue(displayEl.key, sampleDataCache);
                         if (resolved !== null && resolved !== undefined) {
