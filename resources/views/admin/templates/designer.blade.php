@@ -3937,6 +3937,45 @@ $templateSchemasData = $template->relationLoaded('schemas') ? $template->schemas
                 };
                 c.appendChild(div);
             });
+
+            // Section divider drag handles
+            if (sectionKey === 'pageHeader' || sectionKey === 'reportHeader') {
+                const divider = document.createElement('div');
+                divider.className = 'section-divider-line';
+                divider.style.cssText = `
+                    position: absolute; left: 0; top: ${currentYpx + sectionHpx - 3}px;
+                    width: ${pw * BASE_SCALE}px; height: 6px;
+                    cursor: ns-resize; z-index: 15;
+                    display: flex; align-items: center; justify-content: center;
+                `;
+                divider.innerHTML = `
+                    <div style="width: 100%; height: 1px; background: #3b82f6; opacity: 0.5; pointer-events: none;"></div>
+                `;
+                divider.title = `Drag to adjust ${SECTION_LABELS[sectionKey]} height`;
+                divider.onmousedown = (ev) => {
+                    ev.stopPropagation(); ev.preventDefault();
+                    sectionResizing = { key: sectionKey, startY: ev.clientY, startHeight: parseFloat(section.height || sectionHeight) };
+                };
+                c.appendChild(divider);
+            } else if (sectionKey === 'pageFooter' || sectionKey === 'reportFooter') {
+                const divider = document.createElement('div');
+                divider.className = 'section-divider-line';
+                divider.style.cssText = `
+                    position: absolute; left: 0; top: ${currentYpx - 3}px;
+                    width: ${pw * BASE_SCALE}px; height: 6px;
+                    cursor: ns-resize; z-index: 15;
+                    display: flex; align-items: center; justify-content: center;
+                `;
+                divider.innerHTML = `
+                    <div style="width: 100%; height: 1px; background: #3b82f6; opacity: 0.5; pointer-events: none;"></div>
+                `;
+                divider.title = `Drag to adjust ${SECTION_LABELS[sectionKey]} height`;
+                divider.onmousedown = (ev) => {
+                    ev.stopPropagation(); ev.preventDefault();
+                    sectionResizing = { key: sectionKey, startY: ev.clientY, startHeight: parseFloat(section.height || sectionHeight) };
+                };
+                c.appendChild(divider);
+            }
         });
 
         document.getElementById('align-tools').style.display = activeIds.length > 1 ? 'flex' : 'none';
