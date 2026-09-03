@@ -36,25 +36,68 @@ class PrintHubRule(models.Model):
         help='Name of the WYSIWYG continuous form template configured in Print Hub.'
     )
 
+    branch_id = fields.Many2one(
+        'res.branch',
+        string='Branch',
+        ondelete='set null',
+        index=True,
+        help='Optional: Restrict this rule to a specific branch. Leave blank for all branches.'
+    )
     branch_code = fields.Char(
         string='Branch Code',
-        help='Optional: Match this specific branch (e.g. SDP-MAIN, SDP-BEKASI). Leave blank to match all branches.'
+        compute='_compute_branch_code',
+        store=True,
+        readonly=False,
+        help='Branch code sent to Print Hub API.'
     )
 
-    queue = fields.Char(
+    @api.depends('branch_id', 'branch_id.print_hub_branch_code')
+    def _compute_branch_code(self):
+        for rec in self:
+            if rec.branch_id and rec.branch_id.print_hub_branch_code:
+                rec.branch_code = rec.branch_id.print_hub_branch_code
+
+    # ── Strict Destination Models from Print Hub ──
+    queue_id = fields.Many2one(
+        'print.hub.queue',
         string='Print Hub Queue / Profile',
-        help='Print Hub profile or queue name (e.g. surat_jalan_queue, laser_a4_queue).'
+        ondelete='set null',
+        help='Strict: Select a pre-configured queue from Print Hub (includes paper format, driver, and tray settings).'
+    )
+    queue = fields.Char(
+        string='Queue Technical Name',
+        compute='_compute_queue',
+        store=True,
+        readonly=False,
+        help='Technical queue slug sent to Print Hub API.'
     )
 
-    pool_name = fields.Char(
+    pool_id = fields.Many2one(
+        'print.hub.pool',
         string='Printer Pool (Failover / Load Balanced)',
-        placeholder='e.g. Warehouse Dot-Matrix Pool',
-        help='If specified, Print Hub automatically load balances across active printers in this pool.'
+        ondelete='set null',
+        help='Select from configured printer pools in Print Hub.'
+    )
+    pool_name = fields.Char(
+        string='Pool Technical Name',
+        compute='_compute_pool_name',
+        store=True,
+        readonly=False,
+        help='Technical pool slug sent to Print Hub API.'
     )
 
-    printer_name = fields.Char(
+    printer_id = fields.Many2one(
+        'print.hub.printer',
         string='Default Physical Printer',
-        help='Name of the physical printer on the branch agent (e.g. EPSON-LQ2190, Zebra-ZD220).'
+        ondelete='set null',
+        help='Select physical printer discovered on branch workstation agents.'
+    )
+    printer_name = fields.Char(
+        string='Printer Technical Name',
+        compute='_compute_printer_name',
+        store=True,
+        readonly=False,
+        help='Technical printer name sent to Print Hub API.'
     )
 
     copies = fields.Integer(string='Default Copies', default=1)
@@ -70,3 +113,21 @@ class PrintHubRule(models.Model):
     watermark_opacity = fields.Float(string='Watermark Opacity', default=0.15)
 
     notes = fields.Text(string='Notes / Description')
+
+    @api.depends('queue_id')
+    def _compute_queue(self):
+        for r in self:
+            if r.queue_id:
+                r.queue = r.queue_id.name
+
+    @api.depends('pool_id')
+    def _compute_pool_name(self):
+        for r in self:
+            if r.pool_id:
+                r.pool_name = r.pool_id.name
+
+    @api.depends('printer_id')
+    def _compute_printer_name(self):
+        for r in self:
+            if r.printer_id:
+                r.printer_name = r.printer_id.name

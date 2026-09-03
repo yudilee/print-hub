@@ -42,7 +42,7 @@
             <!-- Brand Header -->
             <div class="h-16 px-5 border-b border-slate-800 flex items-center justify-between shrink-0">
                 <a href="{{ route('admin.dashboard') }}" class="flex items-center gap-3 group">
-                    <div class="w-9 h-9 rounded-xl bg-slate-950 border border-slate-700/60 p-1 flex items-center justify-center shadow-md shadow-teal-500/10 group-hover:scale-105 transition">
+                    <div class="w-9 h-9 rounded-xl bg-white border border-slate-200/90 p-1 flex items-center justify-center shadow-md shadow-slate-950/20 group-hover:scale-105 transition">
                         <img src="{{ asset('logo-icon.png') }}" alt="Print Hub Logo" class="w-full h-full object-contain">
                     </div>
                     <div>

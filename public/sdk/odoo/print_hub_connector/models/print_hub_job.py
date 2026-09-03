@@ -2,6 +2,7 @@
 from odoo import models, fields, api, _
 from odoo.exceptions import UserError
 import logging
+import requests
 
 _logger = logging.getLogger(__name__)
 
@@ -20,6 +21,7 @@ class PrintHubJob(models.Model):
     record_reference = fields.Char(string='Source Document', compute='_compute_record_reference')
 
     user_id = fields.Many2one('res.users', string='Printed By', default=lambda self: self.env.user, index=True)
+    branch_id = fields.Many2one('res.branch', string='Branch', ondelete='set null', index=True)
     branch_code = fields.Char(string='Branch Code', index=True)
     printer_name = fields.Char(string='Target Printer')
     queue = fields.Char(string='Queue / Profile')
@@ -53,7 +55,7 @@ class PrintHubJob(models.Model):
             if rec.model_name and rec.res_id and rec.model_name in self.env:
                 try:
                     record = self.env[rec.model_name].sudo().browse(rec.res_id)
-                    rec.record_reference = record.display_name if record.exists() else f"{rec.model_name},{rec.res_id} (Deleted)"
+                    rec.record_reference = record.display_name if record.exists() else f"{rec.model_name},{rec.res_id}"
                 except Exception:
                     rec.record_reference = f"{rec.model_name},{rec.res_id}"
             else:
@@ -138,3 +140,78 @@ class PrintHubJob(models.Model):
             'view_mode': 'form',
             'target': 'current',
         }
+
+    def action_sync_status(self):
+        """
+        Fetch latest status from Print Hub and update the record.
+        """
+        updated = self._sync_job_status_batch()
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': _('Status Synced'),
+                'message': _('Updated status for %d print jobs from Print Hub.') % updated,
+                'type': 'info',
+                'sticky': False,
+            }
+        }
+
+    def _sync_job_status_batch(self):
+        hub_url = self.env['ir.config_parameter'].sudo().get_param('print_hub.url')
+        api_key = self.env['ir.config_parameter'].sudo().get_param('print_hub.api_key')
+        if not hub_url or not api_key:
+            return 0
+
+        updated_count = 0
+        for job in self:
+            if not job.name or job.name.startswith('temp_') or job.name.startswith('batch_temp_'):
+                continue
+            try:
+                endpoint = f"{hub_url.rstrip('/')}/api/v1/jobs/{job.name}"
+                resp = requests.get(
+                    endpoint,
+                    headers={'X-API-Key': api_key, 'Accept': 'application/json'},
+                    timeout=6
+                )
+                if resp.status_code == 200:
+                    data = resp.json().get('data', {})
+                    remote_status = data.get('status')
+                    vals = {}
+                    if remote_status == 'success':
+                        vals['status'] = 'completed'
+                        vals['error_message'] = False
+                        if data.get('completed_at'):
+                            # Parse ISO string to Odoo datetime format
+                            vals['completed_at'] = fields.Datetime.to_datetime(data['completed_at'][:19].replace('T', ' '))
+                        else:
+                            vals['completed_at'] = fields.Datetime.now()
+                    elif remote_status == 'failed':
+                        vals['status'] = 'failed'
+                        vals['error_message'] = data.get('error') or _('Print failed at workstation agent.')
+                        if data.get('completed_at'):
+                            vals['completed_at'] = fields.Datetime.to_datetime(data['completed_at'][:19].replace('T', ' '))
+                        else:
+                            vals['completed_at'] = fields.Datetime.now()
+                    elif remote_status in ('spooling', 'printing'):
+                        vals['status'] = 'spooling'
+                    if data.get('printer'):
+                        vals['printer_name'] = data['printer']
+
+                    if vals:
+                        job.write(vals)
+                        updated_count += 1
+            except Exception as e:
+                _logger.warning("Error syncing job status for %s from Print Hub: %s", job.name, e)
+
+        return updated_count
+
+    @api.model
+    def cron_sync_pending_jobs(self):
+        """
+        Scheduled action to sync any active/pending jobs with Print Hub.
+        """
+        pending_jobs = self.search([('status', 'in', ['draft', 'spooling'])], limit=50)
+        if pending_jobs:
+            pending_jobs._sync_job_status_batch()
+

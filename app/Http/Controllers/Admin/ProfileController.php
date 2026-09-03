@@ -18,10 +18,15 @@ class ProfileController extends Controller
     public function index()
     {
         $profiles = PrintProfile::with(['agent', 'branch.company', 'pool'])->latest()->get();
+        return view('admin.profiles.index', compact('profiles'));
+    }
+
+    public function create(Request $request)
+    {
         $agents = PrintAgent::where('is_active', true)->get();
         $branches = Branch::with('company')->active()->orderBy('name')->get();
         $pools = \App\Models\PrinterPool::where('active', true)->orderBy('name')->get();
-        return view('admin.profiles', compact('profiles', 'agents', 'branches', 'pools'));
+        return view('admin.profiles.create', compact('agents', 'branches', 'pools'));
     }
 
     public function store(Request $request)
@@ -40,7 +45,7 @@ class ProfileController extends Controller
             'margin_right'    => 'nullable|numeric',
             'orientation'     => 'required|string',
             'copies'          => 'required|integer|min:1',
-            'duplex'          => 'required|string',
+            'duplex'          => 'nullable|string',
             'print_agent_id'  => 'nullable|exists:print_agents,id',
             'default_printer'   => 'nullable|required_without:pool_id|string|max:255',
             'pool_id'           => 'nullable|required_without:default_printer|exists:printer_pools,id',
@@ -72,6 +77,7 @@ class ProfileController extends Controller
             'finishing_bind'    => 'nullable|string|in:tape,comb,thermal',
         ]);
 
+        $data['duplex'] = $request->input('duplex', 'one-sided') ?: 'one-sided';
         $data['is_custom'] = ($request->paper_size === 'CUSTOM');
 
         if ($data['is_custom'] && $request->has('use_inches')) {
@@ -86,11 +92,11 @@ class ProfileController extends Controller
         unset($data['fit_to_page']);
         unset($data['use_inches']);
 
-        PrintProfile::create($data);
+        $profile = PrintProfile::create($data);
 
         $this->logActivity('profile.created', null, ['name' => $data['name']]);
 
-        return redirect()->route('admin.profiles')->with('success', 'Profile created!');
+        return redirect()->route('admin.profiles')->with('success', "Print Queue '{$profile->name}' created successfully.");
     }
 
     public function edit(PrintProfile $profile)
@@ -98,7 +104,7 @@ class ProfileController extends Controller
         $agents = PrintAgent::where('is_active', true)->get();
         $branches = Branch::with('company')->active()->orderBy('name')->get();
         $pools = \App\Models\PrinterPool::where('active', true)->orderBy('name')->get();
-        return view('admin.edit_profile', compact('profile', 'agents', 'branches', 'pools'));
+        return view('admin.profiles.edit', compact('profile', 'agents', 'branches', 'pools'));
     }
 
     public function update(Request $request, PrintProfile $profile)
@@ -116,7 +122,7 @@ class ProfileController extends Controller
             'margin_right'    => 'nullable|numeric',
             'orientation'     => 'required|string',
             'copies'          => 'required|integer|min:1',
-            'duplex'          => 'required|string',
+            'duplex'          => 'nullable|string',
             'print_agent_id'  => 'nullable|exists:print_agents,id',
             'default_printer'   => 'nullable|required_without:pool_id|string|max:255',
             'pool_id'           => 'nullable|required_without:default_printer|exists:printer_pools,id',
@@ -148,6 +154,7 @@ class ProfileController extends Controller
             'finishing_bind'    => 'nullable|string|in:tape,comb,thermal',
         ]);
 
+        $data['duplex'] = $request->input('duplex', 'one-sided') ?: 'one-sided';
         $data['is_custom'] = ($request->paper_size === 'CUSTOM');
 
         if ($data['is_custom'] && $request->has('use_inches')) {
@@ -163,7 +170,7 @@ class ProfileController extends Controller
         unset($data['use_inches']);
 
         $profile->update($data);
-        return redirect()->route('admin.profiles')->with('success', 'Profile updated!');
+        return redirect()->route('admin.profiles')->with('success', "Print Queue '{$profile->name}' updated successfully.");
     }
 
     /**
@@ -174,9 +181,8 @@ class ProfileController extends Controller
         $agents = PrintAgent::where('is_active', true)->get();
         $branches = Branch::with('company')->active()->orderBy('name')->get();
         $pools = \App\Models\PrinterPool::where('active', true)->orderBy('name')->get();
-        $profiles = PrintProfile::with(['agent', 'branch.company', 'pool'])->latest()->get();
 
-        return view('admin.profiles', compact('profiles', 'agents', 'branches', 'pools'))->with([
+        return view('admin.profiles.create', compact('agents', 'branches', 'pools'))->with([
             'clonedProfile' => $profile,
             'clonedFrom'    => $profile->id,
         ]);

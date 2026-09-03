@@ -4,6 +4,7 @@
     <!-- Top-Level Root Menu -->
     <menuitem id="menu_print_hub_root"
               name="Print Hub"
+              web_icon="print_hub_connector,static/description/icon.png"
               sequence="75"/>
 
     <!-- Operations / Print Jobs Menu -->
@@ -34,9 +35,9 @@
               sequence="50"/>
 
     <menuitem id="menu_print_hub_rules"
-              name="Routing Rules"
+              name="Document Routing Rules"
               parent="menu_print_hub_config"
-              action="action_print_hub_rules"
+              action="action_print_hub_rule"
               sequence="10"/>
 
     <!-- Shortcut to General Settings -->
@@ -44,7 +45,6 @@
         <field name="name">Settings</field>
         <field name="res_model">res.config.settings</field>
         <field name="view_mode">form</field>
-        <field name="target">inline</field>
         <field name="context">{'module': 'print_hub_connector', 'bin_size': False}</field>
     </record>
 

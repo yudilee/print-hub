@@ -12,7 +12,7 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: system-ui, -apple-system, sans-serif; background: #0f172a; color: #f1f5f9; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
         .container { text-align: center; padding: 2rem; max-width: 500px; }
-        .logo { display: inline-flex; width: 64px; height: 64px; padding: 8px; border-radius: 16px; background: #020617; border: 1px solid #334155; margin-bottom: 1.25rem; }
+        .logo { display: inline-flex; width: 64px; height: 64px; padding: 8px; border-radius: 16px; background: #ffffff; border: 1px solid #e2e8f0; margin-bottom: 1.25rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
         .logo img { width: 100%; height: 100%; object-fit: contain; }
         h1 { font-size: 2rem; font-weight: 700; margin-bottom: 0.5rem; }
         p { color: #94a3b8; margin-bottom: 2rem; line-height: 1.6; }

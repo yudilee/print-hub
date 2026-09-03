@@ -63,6 +63,7 @@ class ContinuousFormEngine
         // FPDF(orientation, unit, size)
         $this->pdf = new FPDF($orientation, 'mm', [$pW, $pH]);
         $this->pdf->SetAutoPageBreak(false);
+        $this->pdf->AliasNbPages('{nb}');
 
         // Set Margins (priority: options > 0)
         $mT = (float)($options['margin_top'] ?? 0);
@@ -419,6 +420,11 @@ class ContinuousFormEngine
             $rowIndex++;
         }
 
+        // Render table summary rows (Subtotal, Tax, Grand Total) right below table rows
+        if (!empty($tableEl['summaryRows']) && is_array($tableEl['summaryRows'])) {
+            $this->renderTableSummaryRows($x, $currentY, $columns, $tableEl['summaryRows'], $rows, $fontSize, $tableEl);
+        }
+
         // Render report footer after all detail rows
         $this->renderReportFooterOnPage($currentY);
 
@@ -535,6 +541,250 @@ class ContinuousFormEngine
             case 'running_total':
                 $this->renderRunningTotal($el);
                 break;
+            case 'page_number':
+                $this->renderPageNumber($el);
+                break;
+            case 'rectangle':
+            case 'panel':
+            case 'box':
+                $this->renderRectangle($el);
+                break;
+            case 'checkbox':
+                $this->renderCheckbox($el);
+                break;
+            case 'text_block':
+                $this->renderTextBlock($el);
+                break;
+            case 'expression':
+                $this->renderExpression($el);
+                break;
+        }
+    }
+
+    /**
+     * Render a dynamic page number (e.g. "Page 1 of {nb}").
+     */
+    protected function renderPageNumber(array $el): void
+    {
+        $x = (float)($el['x'] ?? 0);
+        $y = (float)($el['y'] ?? 0);
+        $w = (float)($el['width'] ?? 40);
+        $h = (float)($el['height'] ?? 6);
+        $format = $el['format'] ?? 'Page {page} of {pages}';
+        $align = strtoupper($el['align'] ?? 'R');
+        $fontSize = (float)($el['font_size'] ?? $el['fontSize'] ?? 9);
+        $fontFamily = $el['fontFamily'] ?? 'Arial';
+        $style = !empty($el['bold']) ? 'B' : '';
+
+        $resolvedFamily = $this->fontService->loadFontForPdf($this->pdf, $fontFamily, $style);
+        $this->pdf->SetFont($resolvedFamily, $style, $fontSize);
+        $this->pdf->SetTextColor(0, 0, 0);
+
+        $text = str_replace(
+            ['{page}', '{pages}'],
+            [(string)$this->pdf->PageNo(), '{nb}'],
+            $format
+        );
+
+        $this->pdf->SetXY($x, $y);
+        $this->pdf->Cell($w, $h, $text, 0, 0, $align);
+    }
+
+    /**
+     * Render a rectangle, panel, or decorative shape.
+     */
+    protected function renderRectangle(array $el): void
+    {
+        $x = (float)($el['x'] ?? 0);
+        $y = (float)($el['y'] ?? 0);
+        $w = (float)($el['width'] ?? 50);
+        $h = (float)($el['height'] ?? 20);
+        $border = !empty($el['border']);
+        $borderWidth = (float)($el['borderWidth'] ?? 0.3);
+        $borderColor = $el['borderColor'] ?? '#000000';
+        $fillColor = $el['fillColor'] ?? '';
+
+        $hasFill = !empty($fillColor) && $fillColor !== 'transparent';
+        $hasBorder = $border || $borderWidth > 0;
+
+        if (!$hasFill && !$hasBorder) {
+            return;
+        }
+
+        if ($hasBorder) {
+            $this->pdf->SetLineWidth($borderWidth);
+            $bc = $this->hexToRgb($borderColor);
+            $this->pdf->SetDrawColor($bc[0], $bc[1], $bc[2]);
+        }
+
+        if ($hasFill) {
+            $fc = $this->hexToRgb($fillColor);
+            $this->pdf->SetFillColor($fc[0], $fc[1], $fc[2]);
+        }
+
+        $mode = ($hasFill && $hasBorder) ? 'DF' : ($hasFill ? 'F' : 'D');
+        $this->pdf->Rect($x, $y, $w, $h, $mode);
+    }
+
+    /**
+     * Render a checkbox or radio indicator.
+     */
+    protected function renderCheckbox(array $el): void
+    {
+        $x = (float)($el['x'] ?? 0);
+        $y = (float)($el['y'] ?? 0);
+        $size = (float)($el['size'] ?? 4);
+        $key = $el['key'] ?? '';
+        $checkedVal = $el['checkedValue'] ?? '1';
+        $label = $el['label'] ?? '';
+
+        $val = $key ? $this->resolveValue($key, $this->data) : (!empty($el['checked']));
+        $isChecked = false;
+        if (is_bool($val)) {
+            $isChecked = $val;
+        } elseif (is_numeric($val)) {
+            $isChecked = ((int)$val === (int)$checkedVal) || ((float)$val > 0);
+        } elseif (is_string($val)) {
+            $isChecked = (strtolower($val) === strtolower((string)$checkedVal)) || in_array(strtolower($val), ['true', 'yes', 'y', '1']);
+        }
+
+        $this->pdf->SetLineWidth(0.3);
+        $this->pdf->SetDrawColor(80, 80, 80);
+        $this->pdf->SetFillColor(255, 255, 255);
+        $this->pdf->Rect($x, $y, $size, $size, 'D');
+
+        if ($isChecked) {
+            $this->pdf->SetLineWidth(0.5);
+            $this->pdf->SetDrawColor(0, 0, 0);
+            $padding = $size * 0.2;
+            $this->pdf->Line($x + $padding, $y + $padding, $x + $size - $padding, $y + $size - $padding);
+            $this->pdf->Line($x + $size - $padding, $y + $padding, $x + $padding, $y + $size - $padding);
+        }
+
+        if (!empty($label)) {
+            $fontSize = (float)($el['font_size'] ?? $el['fontSize'] ?? 9);
+            $fontFamily = $el['fontFamily'] ?? 'Arial';
+            $resolvedFamily = $this->fontService->loadFontForPdf($this->pdf, $fontFamily, '');
+            $this->pdf->SetFont($resolvedFamily, '', $fontSize);
+            $this->pdf->SetTextColor(0, 0, 0);
+            $this->pdf->SetXY($x + $size + 1.5, $y - 0.5);
+            $this->pdf->Cell(80, $size + 1, $label, 0, 0, 'L');
+        }
+    }
+
+    /**
+     * Render a multiline text block with text wrapping.
+     */
+    protected function renderTextBlock(array $el): void
+    {
+        $x = (float)($el['x'] ?? 0);
+        $y = (float)($el['y'] ?? 0);
+        $w = (float)($el['width'] ?? 80);
+        $h = (float)($el['height'] ?? 20);
+        $fontSize = (float)($el['font_size'] ?? $el['fontSize'] ?? 9);
+        $lineHeight = (float)($el['lineHeight'] ?? ($fontSize * 0.45));
+        $fontFamily = $el['fontFamily'] ?? 'Arial';
+        $style = !empty($el['bold']) ? 'B' : '';
+        $align = strtoupper($el['align'] ?? 'L');
+        $border = !empty($el['border']) ? 1 : 0;
+
+        $text = $el['text'] ?? '';
+        if (empty($text) && !empty($el['key'])) {
+            $text = (string)$this->resolveValue($el['key'], $this->data);
+        } else {
+            $text = preg_replace_callback('/\{([a-zA-Z_][a-zA-Z0-9_.]*)\}/', function ($m) {
+                return (string)$this->resolveValue($m[1], $this->data);
+            }, $text);
+        }
+
+        $resolvedFamily = $this->fontService->loadFontForPdf($this->pdf, $fontFamily, $style);
+        $this->pdf->SetFont($resolvedFamily, $style, $fontSize);
+        $this->pdf->SetTextColor(0, 0, 0);
+
+        if (!empty($el['fillColor']) && $el['fillColor'] !== 'transparent') {
+            $fc = $this->hexToRgb($el['fillColor']);
+            $this->pdf->SetFillColor($fc[0], $fc[1], $fc[2]);
+            $this->pdf->Rect($x, $y, $w, $h, 'F');
+        }
+
+        $this->pdf->SetXY($x, $y);
+        $this->pdf->MultiCell($w, $lineHeight, $text, $border, $align);
+    }
+
+    /**
+     * Render an inline calculated expression field.
+     */
+    protected function renderExpression(array $el): void
+    {
+        $expr = $el['expression'] ?? '';
+        if (empty($expr)) return;
+
+        $rawVal = $this->evaluateExpression($expr, $this->data);
+        $formatted = $this->formatValue($el, $rawVal);
+
+        $prefix = $el['prefix'] ?? '';
+        $suffix = $el['suffix'] ?? '';
+        $display = $prefix . $formatted . $suffix;
+
+        $this->renderTextCell($el, $display);
+    }
+
+    /**
+     * Render table summary rows (subtotals, tax, grand total).
+     */
+    protected function renderTableSummaryRows(float $x, float &$currentY, array $columns, array $summaryRows, array $rows, float $fontSize, array $tableEl): void
+    {
+        $fontFamily = $tableEl['fontFamily'] ?? 'Arial';
+        $totalCols = count($columns);
+        $tableWidth = array_sum(array_map(fn($c) => (float)($c['width'] ?? 0), $columns));
+
+        foreach ($summaryRows as $sr) {
+            $label = $sr['label'] ?? 'Total';
+            $expr = $sr['expression'] ?? '';
+            $rowH = (float)($sr['height'] ?? 6);
+            $isBold = !empty($sr['bold']);
+            $style = $isBold ? 'B' : '';
+            $align = strtoupper($sr['align'] ?? 'R');
+            $labelColspan = max(1, min($totalCols - 1, (int)($sr['colspan'] ?? ($totalCols - 1))));
+
+            $labelWidth = 0;
+            for ($i = 0; $i < $labelColspan && $i < $totalCols; $i++) {
+                $labelWidth += (float)($columns[$i]['width'] ?? 0);
+            }
+            $valWidth = $tableWidth - $labelWidth;
+
+            $val = 0;
+            if (!empty($expr)) {
+                if (preg_match('/^SUM\s*\(\s*([a-zA-Z0-9_.]+)\s*\)$/i', trim($expr), $m)) {
+                    $field = $m[1];
+                    $val = array_reduce($rows, function ($acc, $r) use ($field) {
+                        return $acc + (float)$this->resolveValue($field, $r);
+                    }, 0);
+                } elseif (preg_match('/^COUNT\s*\(\s*\)$/i', trim($expr))) {
+                    $val = count($rows);
+                } elseif (preg_match('/^AVG\s*\(\s*([a-zA-Z0-9_.]+)\s*\)$/i', trim($expr), $m)) {
+                    $field = $m[1];
+                    $sum = array_reduce($rows, fn($acc, $r) => $acc + (float)$this->resolveValue($field, $r), 0);
+                    $val = count($rows) > 0 ? $sum / count($rows) : 0;
+                } else {
+                    $val = $this->evaluateExpression($expr, $this->data);
+                }
+            }
+
+            $formattedVal = $this->formatTableColumnValue($sr, $val);
+
+            $resolvedFamily = $this->fontService->loadFontForPdf($this->pdf, $fontFamily, $style);
+            $this->pdf->SetFont($resolvedFamily, $style, $fontSize);
+
+            $bgColor = $sr['bgColor'] ?? '#f8fafc';
+            $bc = $this->hexToRgb($bgColor);
+            $this->pdf->SetFillColor($bc[0], $bc[1], $bc[2]);
+            $this->pdf->SetDrawColor(200, 200, 200);
+
+            $this->pdf->SetXY($x, $currentY);
+            $this->pdf->Cell($labelWidth, $rowH, $label, 1, 0, 'R', true);
+            $this->pdf->Cell($valWidth, $rowH, $formattedVal, 1, 0, $align, true);
+            $currentY += $rowH;
         }
     }
 
@@ -643,6 +893,10 @@ class ContinuousFormEngine
 
             // Accumulate running totals after each data row
             $this->accumulateRunningTotals($rowData);
+        }
+
+        if (!empty($el['summaryRows']) && is_array($el['summaryRows'])) {
+            $this->renderTableSummaryRows($x, $currentY, $columns, $el['summaryRows'], $rows, $fontSize, $el);
         }
     }
 

@@ -463,6 +463,11 @@
             <button onclick="addElement('barcode')" class="tool-btn" title="Add Barcode">▌▐</button>
             <button onclick="addElement('qrcode')" class="tool-btn" title="Add QR Code">◈</button>
             <button onclick="addElement('running_total')" class="tool-btn" title="Add Running Total">Σ</button>
+            <button onclick="addElement('page_number')" class="tool-btn" title="Add Page Number (Page 1 of N)">#</button>
+            <button onclick="addElement('rectangle')" class="tool-btn" title="Add Box / Panel Shape">▢</button>
+            <button onclick="addElement('checkbox')" class="tool-btn" title="Add Checkbox / Radio">☑</button>
+            <button onclick="addElement('text_block')" class="tool-btn" title="Add Multi-line Text Block">¶</button>
+            <button onclick="addElement('expression')" class="tool-btn" title="Add Formula / Expression Field">ƒ</button>
             <label class="tool-btn" title="Upload Background Trace" style="cursor:pointer">
                 📷<input type="file" id="bg-upload" style="display:none" onchange="uploadBg()">
             </label>
@@ -1183,15 +1188,6 @@ $templateSchemasData = $template->relationLoaded('schemas') ? $template->schemas
                 if (sections[key] && !Array.isArray(sections[key].elements)) {
                     sections[key].elements = [];
                     console.log('[Designer] initSections: added missing elements array for section', key);
-                }
-                // Ensure section height encloses its child elements (especially pageFooter)
-                if (sections[key] && sections[key].elements && sections[key].elements.length > 0) {
-                    let maxElBottom = parseFloat(sections[key].height || 10);
-                    sections[key].elements.forEach(el => {
-                        const b = (parseFloat(el.y) || 0) + (parseFloat(el.height) || 8);
-                        if (b > maxElBottom && b < 250) maxElBottom = Math.ceil(b + 2);
-                    });
-                    sections[key].height = maxElBottom;
                 }
             });
             return sections;
@@ -2402,6 +2398,11 @@ $templateSchemasData = $template->relationLoaded('schemas') ? $template->schemas
         if (type === 'image')  { el.key = ''; el.src = 'https://via.placeholder.com/150?text=Logo'; el.width = 30; el.height = 20; el.rotation = 0; }
         if (type === 'barcode') { el = { id, type: 'barcode', symbology: 'code128', value: '', showText: true, barWidth: 0, height_mm: 15, x: 10, y: 3, width: 70, height: 20, ...defaultStyles }; }
         if (type === 'qrcode') { el = { id, type: 'qrcode', value: '', errorCorrection: 'M', x: 10, y: 3, size: 20, width: 20, height: 20, ...defaultStyles }; }
+        if (type === 'page_number') { el = { id, type: 'page_number', format: 'Page {page} of {pages}', align: 'R', x: 140, y: 3, width: 45, height: 6, ...defaultStyles }; }
+        if (type === 'rectangle' || type === 'panel') { el = { id, type: 'rectangle', x: 10, y: 2, width: 60, height: 16, border: true, borderWidth: 0.3, borderColor: '#000000', fillColor: '#f8fafc', borderRadius: 0, ...defaultStyles }; }
+        if (type === 'checkbox') { el = { id, type: 'checkbox', key: '', checked: false, label: 'Option Checkbox', size: 4, x: 10, y: 2, width: 35, height: 6, checkedValue: '1', ...defaultStyles }; }
+        if (type === 'text_block') { el = { id, type: 'text_block', text: "Terms & Conditions:\n1. Payment within 30 days.\n2. Goods received in good order.", x: 10, y: 2, width: 80, height: 18, lineHeight: 4.5, ...defaultStyles }; }
+        if (type === 'expression') { el = { id, type: 'expression', expression: '{total} * 0.11', prefix: 'PPN: Rp ', suffix: '', format_type: 'number', decimal_places: 2, x: 10, y: 2, width: 50, height: 8, ...defaultStyles }; }
 
         if (!sections[sectionKey].elements) sections[sectionKey].elements = [];
         sections[sectionKey].elements.push(el);
@@ -3325,10 +3326,12 @@ $templateSchemasData = $template->relationLoaded('schemas') ? $template->schemas
             const row = document.createElement('div');
             row.className = 'layer-row' + (activeIds.includes(el.id) ? ' active' : '');
             row.onclick = () => selectElements([el.id]);
-            const typeIcon = el.type === 'table' ? '▦' : el.type === 'label' ? 'Aa' : el.type === 'line' ? '—' : el.type === 'running_total' ? 'Σ' : 'T';
+            const iconMap = { table: '▦', label: 'Aa', line: '—', running_total: 'Σ', page_number: '#', rectangle: '▢', panel: '▢', checkbox: '☑', text_block: '¶', expression: 'ƒ', barcode: '▌', qrcode: '◈', image: '🖼' };
+            const typeIcon = iconMap[el.type] || 'T';
+            const itemLabel = el.key || el.text || el.label || el.expression || el.format || el.type;
             row.innerHTML = `
                 <span style="color:var(--text-muted); font-size:10px; margin-right:6px;">${typeIcon}</span>
-                <span class="lbl">${el.key || el.text || el.type}</span>
+                <span class="lbl">${escapeHtml(itemLabel)}</span>
                 <span class="layer-icon ${el.locked ? 'on' : ''}" onclick="toggleLock(event, '${el.id}')" title="Lock">${el.locked ? '🔒' : '🔓'}</span>
                 <span class="layer-icon ${!el.hidden ? 'on' : ''}" onclick="toggleVisible(event, '${el.id}')" title="Visibility">${el.hidden ? '🙈' : '👁'}</span>
             `;
@@ -3428,6 +3431,21 @@ $templateSchemasData = $template->relationLoaded('schemas') ? $template->schemas
                 fontFamily: 'Arial',
                 format: { type: 'number', decimals: 2 }
             };
+        }
+        if (type === 'page_number') {
+            el = { id, type: 'page_number', format: 'Page {page} of {pages}', align: 'R', x: 140, y: centerY, width: 45, height: 6, ...defaultStyles };
+        }
+        if (type === 'rectangle' || type === 'panel') {
+            el = { id, type: 'rectangle', x: centerX, y: centerY, width: 60, height: 20, border: true, borderWidth: 0.3, borderColor: '#000000', fillColor: '#f8fafc', borderRadius: 0, ...defaultStyles };
+        }
+        if (type === 'checkbox') {
+            el = { id, type: 'checkbox', key: '', checked: false, label: 'Option Checkbox', size: 4, x: centerX, y: centerY, width: 35, height: 6, checkedValue: '1', ...defaultStyles };
+        }
+        if (type === 'text_block') {
+            el = { id, type: 'text_block', text: "Terms & Conditions:\n1. Payment within 30 days.\n2. Goods received in good order.", x: centerX, y: centerY, width: 80, height: 20, lineHeight: 4.5, ...defaultStyles };
+        }
+        if (type === 'expression') {
+            el = { id, type: 'expression', expression: '{total} * 0.11', prefix: 'PPN: Rp ', suffix: '', format_type: 'number', decimal_places: 2, x: centerX, y: centerY, width: 50, height: 8, ...defaultStyles };
         }
         if (!sections.detail.elements) sections.detail.elements = [];
         sections.detail.elements.push(el);
@@ -3780,6 +3798,8 @@ $templateSchemasData = $template->relationLoaded('schemas') ? $template->schemas
                 </span>
                 <button type="button" onclick="addSectionElement('${sectionKey}', 'field')" style="background:#3b82f6; color:#fff; border:none; border-radius:3px; padding:2px 6px; font-size:8px; font-weight:600; cursor:pointer;" title="Add Data Field to ${SECTION_LABELS[sectionKey]}">+ Field</button>
                 <button type="button" onclick="addSectionElement('${sectionKey}', 'label')" style="background:#64748b; color:#fff; border:none; border-radius:3px; padding:2px 6px; font-size:8px; font-weight:600; cursor:pointer;" title="Add Text Label to ${SECTION_LABELS[sectionKey]}">+ Label</button>
+                <button type="button" onclick="addSectionElement('${sectionKey}', 'rectangle')" style="background:#0284c7; color:#fff; border:none; border-radius:3px; padding:2px 6px; font-size:8px; font-weight:600; cursor:pointer;" title="Add Box/Panel to ${SECTION_LABELS[sectionKey]}">+ Box</button>
+                ${(sectionKey === 'pageFooter' || sectionKey === 'pageHeader') ? `<button type="button" onclick="addSectionElement('${sectionKey}', 'page_number')" style="background:#f59e0b; color:#fff; border:none; border-radius:3px; padding:2px 6px; font-size:8px; font-weight:600; cursor:pointer;" title="Add Page Number to ${SECTION_LABELS[sectionKey]}">+ Page #</button>` : ''}
                 <button type="button" onclick="addSectionElement('${sectionKey}', 'image')" style="background:#8b5cf6; color:#fff; border:none; border-radius:3px; padding:2px 6px; font-size:8px; font-weight:600; cursor:pointer;" title="Add Logo/Image to ${SECTION_LABELS[sectionKey]}">+ Logo</button>
                 ${sectionKey === 'detail' ? `<button type="button" onclick="addSectionElement('detail', 'table')" style="background:#10b981; color:#fff; border:none; border-radius:3px; padding:2px 6px; font-size:8px; font-weight:600; cursor:pointer;" title="Add Table to Detail">+ Table</button>` : ''}
             `;
@@ -3838,7 +3858,41 @@ $templateSchemasData = $template->relationLoaded('schemas') ? $template->schemas
                     } else {
                         rowsHtml = '<tr>' + cols.map(c => `<td style="border:1px solid #e2e8f0; padding:1px 3px; font-size:${displayEl.font_size*BASE_SCALE*0.16}px; color:#94a3b8; white-space:nowrap; overflow:hidden;">` + '{' + '{' + c.key + '}' + '}' + `</td>`).join('') + '</tr>';
                     }
+                    if (displayEl.summaryRows && displayEl.summaryRows.length > 0) {
+                        displayEl.summaryRows.forEach(sr => {
+                            const cs = Math.max(1, Math.min(cols.length - 1, sr.colspan || (cols.length - 1)));
+                            rowsHtml += `<tr style="background:${sr.bgColor || '#f8fafc'}; font-weight:${sr.bold ? 'bold' : 'normal'};">` +
+                                `<td colspan="${cs}" style="border:1px solid #cbd5e1; padding:2px 4px; text-align:right; font-size:${displayEl.font_size*BASE_SCALE*0.16}px; color:#1e293b;">${sr.label || 'Total'}</td>` +
+                                `<td colspan="${Math.max(1, cols.length - cs)}" style="border:1px solid #cbd5e1; padding:2px 4px; text-align:${sr.align || 'right'}; font-size:${displayEl.font_size*BASE_SCALE*0.16}px; color:#1e293b;">${sr.expression || 'SUM()'}</td>` +
+                            `</tr>`;
+                        });
+                    }
                     div.innerHTML = `<table style="width:100%; border-collapse:collapse; background:white; font-family:sans-serif;"><thead><tr style="background:#eff6ff;">${colsHtml}</tr></thead><tbody>${rowsHtml}</tbody></table>`;
+                } else if (displayEl.type === 'page_number') {
+                    div.style.background = 'rgba(245,158,11,0.08)';
+                    div.style.border = '1px dashed #f59e0b';
+                    div.style.borderRadius = '2px';
+                    div.innerHTML = `<div style="font-size:${displayEl.font_size*BASE_SCALE*0.2}px; font-family:'${displayEl.fontFamily || 'Arial'}', sans-serif; color:#b45309; padding:2px; height:100%; overflow:hidden; font-weight:${displayEl.bold?'bold':'normal'}; text-align:${displayEl.align==='C'?'center':(displayEl.align==='R'?'right':'left')}; display:flex; align-items:center; justify-content:${displayEl.align==='C'?'center':(displayEl.align==='R'?'flex-end':'flex-start')}; gap:4px;"><span style="font-size:9px; background:#fef3c7; color:#92400e; padding:1px 4px; border-radius:2px; font-weight:bold;">#</span> ${displayEl.format || 'Page {page} of {pages}'}</div>`;
+                } else if (displayEl.type === 'rectangle' || displayEl.type === 'panel') {
+                    const bw = displayEl.border ? Math.max(1, (displayEl.borderWidth || 0.3) * BASE_SCALE) : 0;
+                    div.style.background = displayEl.fillColor || '#f8fafc';
+                    div.style.border = displayEl.border ? `${bw}px solid ${displayEl.borderColor || '#000000'}` : '1px dashed #cbd5e1';
+                    div.style.borderRadius = `${displayEl.borderRadius || 0}px`;
+                    div.style.boxSizing = 'border-box';
+                    div.innerHTML = `<div style="font-size:8px; color:#94a3b8; padding:3px; opacity:0.7; pointer-events:none;">▢ ${displayEl.type}</div>`;
+                } else if (displayEl.type === 'checkbox') {
+                    const sz = (displayEl.size || 4) * BASE_SCALE;
+                    const chk = displayEl.checked ? '✓' : '';
+                    div.innerHTML = `<div style="display:flex; align-items:center; gap:5px; height:100%; font-size:${displayEl.font_size*BASE_SCALE*0.2}px; color:#1e293b; font-family:'${displayEl.fontFamily || 'Arial'}', sans-serif;"><span style="display:inline-flex; align-items:center; justify-content:center; width:${sz}px; height:${sz}px; border:1.5px solid #334155; border-radius:2px; font-weight:bold; font-size:${sz*0.8}px; color:#1e293b; background:white;">${chk}</span><span>${displayEl.label || displayEl.key || 'Checkbox'}</span></div>`;
+                } else if (displayEl.type === 'text_block') {
+                    div.style.background = displayEl.fillColor || 'rgba(148,163,184,0.06)';
+                    if (displayEl.border) div.style.border = '1px solid #cbd5e1';
+                    div.innerHTML = `<div style="font-size:${displayEl.font_size*BASE_SCALE*0.2}px; font-family:'${displayEl.fontFamily || 'Arial'}', sans-serif; color:#1e293b; padding:3px; height:100%; overflow:hidden; white-space:pre-wrap; word-break:break-word; font-weight:${displayEl.bold?'bold':'normal'}; text-align:${displayEl.align==='C'?'center':(displayEl.align==='R'?'right':'left')}; line-height:1.3;">${displayEl.text || (displayEl.key ? ('{{' + displayEl.key + '}}') : 'Text Block')}</div>`;
+                } else if (displayEl.type === 'expression') {
+                    div.style.background = 'rgba(14,165,233,0.08)';
+                    div.style.border = '1px dashed #38bdf8';
+                    div.style.borderRadius = '3px';
+                    div.innerHTML = `<div style="font-size:${displayEl.font_size*BASE_SCALE*0.2}px; font-family:monospace; color:#0369a1; padding:2px 4px; height:100%; overflow:hidden; font-weight:${displayEl.bold?'bold':'normal'}; display:flex; align-items:center; gap:3px;"><span style="font-weight:bold; font-size:10px; color:#0284c7;">ƒ</span> <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${displayEl.prefix||''}${displayEl.expression||'formula'}${displayEl.suffix||''}</span></div>`;
                 } else if (displayEl.type === 'barcode' || displayEl.type === 'qrcode') {
                     div.style.background = '#f8fafc';
                     div.style.border = '1px dashed #6366f1';
@@ -4285,6 +4339,58 @@ $templateSchemasData = $template->relationLoaded('schemas') ? $template->schemas
                 html += `<div class="prop-item"><div class="prop-key">Decimals</div><div class="prop-val"><input type="number" min="0" max="4" value="${el.decimal_places!==undefined?el.decimal_places:2}" oninput="updateElProps('decimal_places',parseInt(this.value))"></div></div>`;
             }
             html += `</div></div>`;
+        } else if (el.type === 'page_number') {
+            html += `<div class="props-section"><div class="props-label">Page Number Settings</div><div class="prop-table">
+                <div class="prop-item"><div class="prop-key">Preset</div><div class="prop-val"><select onchange="updateElProps('format',this.value); const inp = this.parentElement.parentElement.nextElementSibling.querySelector('input'); if(inp) inp.value=this.value;">
+                    <option value="Page {page} of {pages}" ${el.format==='Page {page} of {pages}'?'selected':''}>Page 1 of 10</option>
+                    <option value="{page} / {pages}" ${el.format==='{page} / {pages}'?'selected':''}>1 / 10</option>
+                    <option value="Page {page}" ${el.format==='Page {page}'?'selected':''}>Page 1</option>
+                    <option value="{page}" ${el.format==='{page}'?'selected':''}>1 (number only)</option>
+                    <option value="Hal. {page} dr {pages}" ${el.format==='Hal. {page} dr {pages}'?'selected':''}>Hal. 1 dr 10</option>
+                </select></div></div>
+                <div class="prop-item"><div class="prop-key">Format</div><div class="prop-val"><input type="text" value="${escapeHtml(el.format||'Page {page} of {pages}')}" oninput="updateElProps('format',this.value)" placeholder="e.g. Page {page} of {pages}"></div></div>
+                <div class="prop-item"><div class="prop-key">Align</div><div class="prop-val"><select onchange="updateElProps('align',this.value)"><option value="L" ${el.align==='L'?'selected':''}>Left</option><option value="C" ${el.align==='C'?'selected':''}>Center</option><option value="R" ${el.align==='R'||!el.align?'selected':''}>Right</option></select></div></div>
+                <div class="prop-item"><div class="prop-key">FontSize</div><div class="prop-val"><input type="number" value="${el.font_size||9}" oninput="updateElProps('font_size',parseInt(this.value))"></div></div>
+                <div class="prop-item"><div class="prop-key">Bold</div><div class="prop-val" style="padding-left:10px;"><input type="checkbox" ${el.bold?'checked':''} onchange="updateElProps('bold',this.checked)"></div></div>
+            </div></div>`;
+        } else if (el.type === 'rectangle' || el.type === 'panel') {
+            html += `<div class="props-section"><div class="props-label">Box / Panel Shape</div><div class="prop-table">
+                <div class="prop-item"><div class="prop-key">Fill Color</div><div class="prop-val" style="display:flex;align-items:center;gap:4px;"><input type="color" value="${el.fillColor&&el.fillColor!=='transparent'?el.fillColor:'#f8fafc'}" oninput="updateElProps('fillColor',this.value)" style="height:26px;border:none;background:none;cursor:pointer;"><button onclick="updateElProps('fillColor','transparent')" style="font-size:9px;padding:2px 4px;background:var(--bg);border:1px solid var(--border);border-radius:3px;color:var(--text-muted);cursor:pointer;">Clear</button></div></div>
+                <div class="prop-item"><div class="prop-key">Border</div><div class="prop-val" style="padding-left:10px;"><input type="checkbox" ${el.border!==false?'checked':''} onchange="updateElProps('border',this.checked)"></div></div>
+                <div class="prop-item"><div class="prop-key">Bdr Width</div><div class="prop-val"><input type="number" step="0.1" min="0" value="${el.borderWidth!==undefined?el.borderWidth:0.3}" oninput="updateElProps('borderWidth',parseFloat(this.value))"></div></div>
+                <div class="prop-item"><div class="prop-key">Bdr Color</div><div class="prop-val"><input type="color" value="${el.borderColor||'#000000'}" oninput="updateElProps('borderColor',this.value)" style="height:26px;border:none;background:none;cursor:pointer;"></div></div>
+                <div class="prop-item"><div class="prop-key">Radius</div><div class="prop-val"><input type="number" min="0" max="20" value="${el.borderRadius||0}" oninput="updateElProps('borderRadius',parseInt(this.value)||0)"></div></div>
+            </div></div>`;
+        } else if (el.type === 'checkbox') {
+            html += `<div class="props-section"><div class="props-label">Checkbox / Radio</div><div class="prop-table">
+                <div class="prop-item"><div class="prop-key">Label</div><div class="prop-val"><input type="text" value="${escapeHtml(el.label||'')}" oninput="updateElProps('label',this.value)" placeholder="Label text next to box"></div></div>
+                <div class="prop-item"><div class="prop-key">Data Field</div><div class="prop-val"><input type="text" value="${escapeHtml(el.key||'')}" oninput="updateElProps('key',this.value)" placeholder="Field key (optional)" list="field-key-list"></div></div>
+                <div class="prop-item"><div class="prop-key">Checked</div><div class="prop-val" style="padding-left:10px;"><input type="checkbox" ${el.checked?'checked':''} onchange="updateElProps('checked',this.checked)"></div></div>
+                <div class="prop-item"><div class="prop-key">Match Val</div><div class="prop-val"><input type="text" value="${escapeHtml(el.checkedValue||'1')}" oninput="updateElProps('checkedValue',this.value)" placeholder="Value that triggers checked"></div></div>
+                <div class="prop-item"><div class="prop-key">Box Size</div><div class="prop-val"><input type="number" step="0.5" min="2" max="15" value="${el.size||4}" oninput="updateElProps('size',parseFloat(this.value))"></div></div>
+                <div class="prop-item"><div class="prop-key">FontSize</div><div class="prop-val"><input type="number" value="${el.font_size||9}" oninput="updateElProps('font_size',parseInt(this.value))"></div></div>
+            </div></div>`;
+        } else if (el.type === 'text_block') {
+            html += `<div class="props-section"><div class="props-label">Text Block (Multi-line)</div><div class="prop-table">
+                <div class="prop-item" style="flex-direction:column;align-items:stretch;"><div class="prop-key" style="margin-bottom:4px;">Content</div><div class="prop-val" style="padding:0;"><textarea oninput="updateElProps('text',this.value)" style="width:100%;height:70px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-size:11px;font-family:sans-serif;padding:6px;border-radius:4px;" placeholder="Type multi-line text or use {field_name}...">${escapeHtml(el.text||'')}</textarea></div></div>
+                <div class="prop-item"><div class="prop-key">Data Key</div><div class="prop-val"><input type="text" value="${escapeHtml(el.key||'')}" oninput="updateElProps('key',this.value)" placeholder="Alternative field key" list="field-key-list"></div></div>
+                <div class="prop-item"><div class="prop-key">Line H (mm)</div><div class="prop-val"><input type="number" step="0.5" min="2" max="20" value="${el.lineHeight||4.5}" oninput="updateElProps('lineHeight',parseFloat(this.value))"></div></div>
+                <div class="prop-item"><div class="prop-key">FontSize</div><div class="prop-val"><input type="number" value="${el.font_size||9}" oninput="updateElProps('font_size',parseInt(this.value))"></div></div>
+                <div class="prop-item"><div class="prop-key">Align</div><div class="prop-val"><select onchange="updateElProps('align',this.value)"><option value="L" ${el.align==='L'?'selected':''}>Left</option><option value="C" ${el.align==='C'?'selected':''}>Center</option><option value="R" ${el.align==='R'?'selected':''}>Right</option></select></div></div>
+                <div class="prop-item"><div class="prop-key">Bold</div><div class="prop-val" style="padding-left:10px;"><input type="checkbox" ${el.bold?'checked':''} onchange="updateElProps('bold',this.checked)"></div></div>
+                <div class="prop-item"><div class="prop-key">Border</div><div class="prop-val" style="padding-left:10px;"><input type="checkbox" ${el.border?'checked':''} onchange="updateElProps('border',this.checked)"></div></div>
+            </div></div>`;
+        } else if (el.type === 'expression') {
+            html += `<div class="props-section"><div class="props-label">Formula / Expression Field</div><div class="prop-table">
+                <div class="prop-item" style="flex-direction:column;align-items:stretch;"><div class="prop-key" style="margin-bottom:4px;">Formula Expression</div><div class="prop-val" style="padding:0;"><input type="text" value="${escapeHtml(el.expression||'')}" oninput="updateElProps('expression',this.value)" placeholder="e.g. {subtotal} * 0.11 or SUM(items.price)" style="width:100%;font-family:monospace;font-size:11px;padding:4px 6px;"></div></div>
+                <div class="prop-item"><div class="prop-key">Prefix</div><div class="prop-val"><input type="text" value="${escapeHtml(el.prefix||'')}" oninput="updateElProps('prefix',this.value)" placeholder="e.g. Rp "></div></div>
+                <div class="prop-item"><div class="prop-key">Suffix</div><div class="prop-val"><input type="text" value="${escapeHtml(el.suffix||'')}" oninput="updateElProps('suffix',this.value)" placeholder="e.g. ,-"></div></div>
+                <div class="prop-item"><div class="prop-key">Format</div><div class="prop-val"><select onchange="updateElProps('format_type',this.value)"><option value="none" ${el.format_type==='none'?'selected':''}>None</option><option value="number" ${el.format_type==='number'||!el.format_type?'selected':''}>Number</option><option value="currency" ${el.format_type==='currency'?'selected':''}>Currency</option></select></div></div>
+                <div class="prop-item"><div class="prop-key">Decimals</div><div class="prop-val"><input type="number" min="0" max="4" value="${el.decimal_places!==undefined?el.decimal_places:2}" oninput="updateElProps('decimal_places',parseInt(this.value))"></div></div>
+                <div class="prop-item"><div class="prop-key">FontSize</div><div class="prop-val"><input type="number" value="${el.font_size||10}" oninput="updateElProps('font_size',parseInt(this.value))"></div></div>
+                <div class="prop-item"><div class="prop-key">Bold</div><div class="prop-val" style="padding-left:10px;"><input type="checkbox" ${el.bold?'checked':''} onchange="updateElProps('bold',this.checked)"></div></div>
+                <div class="prop-item"><div class="prop-key">Align</div><div class="prop-val"><select onchange="updateElProps('align',this.value)"><option value="L" ${el.align==='L'?'selected':''}>Left</option><option value="C" ${el.align==='C'?'selected':''}>Center</option><option value="R" ${el.align==='R'||!el.align?'selected':''}>Right</option></select></div></div>
+            </div></div>`;
         } else {
             html += `
             <div class="props-section"><div class="props-label">Global Style</div><div class="prop-table">
@@ -4499,6 +4605,38 @@ $templateSchemasData = $template->relationLoaded('schemas') ? $template->schemas
                     <button onclick="equalizeColWidths()" class="btn btn-secondary btn-sm" style="padding:2px 6px;font-size:10px;" title="Equalize all column widths">⚖️ Equalize</button>
                 </div>
             </div></div>`;
+
+            // ── Table Summary Rows (Subtotals, Tax, Grand Total) ─────────
+            html += `<div class="props-section"><div class="props-label" style="display:flex;align-items:center;justify-content:space-between;">
+                <span>📊 Table Summary Rows</span>
+                <span style="font-size:9px;color:var(--text-muted);">Subtotal/Tax</span>
+            </div><div class="prop-table">`;
+            const sRows = el.summaryRows || [];
+            if (sRows.length === 0) {
+                html += `<div style="padding:8px 12px;font-size:11px;color:var(--text-muted);text-align:center;">No summary rows yet. Add below to show Subtotal, Tax, or Grand Total.</div>`;
+            } else {
+                sRows.forEach((sr, sIdx) => {
+                    html += `
+                    <div class="prop-item" style="background:rgba(59,130,246,0.06);border-top:1px solid var(--border);">
+                        <div class="prop-key" style="font-weight:600;color:var(--primary);">Row ${sIdx+1}</div>
+                        <div class="prop-val" style="display:flex;gap:4px;padding-left:4px;">
+                            <button onclick="deleteTableSummaryRow(${sIdx})" style="color:var(--danger);background:none;border:none;cursor:pointer;font-size:10px;margin-left:auto;">[×] Remove</button>
+                        </div>
+                    </div>
+                    <div class="prop-item"><div class="prop-key">Label</div><div class="prop-val"><input type="text" value="${escapeHtml(sr.label||'Total')}" oninput="updateTableSummaryRow(${sIdx},'label',this.value)"></div></div>
+                    <div class="prop-item"><div class="prop-key">Expression</div><div class="prop-val"><input type="text" value="${escapeHtml(sr.expression||'')}" oninput="updateTableSummaryRow(${sIdx},'expression',this.value)" placeholder="e.g. SUM(total) or SUM(total)*0.11" style="font-family:monospace;font-size:10px;"></div></div>
+                    <div class="prop-item"><div class="prop-key">Colspan</div><div class="prop-val"><input type="number" min="1" max="${el.columns.length}" value="${sr.colspan||(el.columns.length-1)}" oninput="updateTableSummaryRow(${sIdx},'colspan',parseInt(this.value))"></div></div>
+                    <div class="prop-item"><div class="prop-key">Bold</div><div class="prop-val" style="padding-left:10px;"><input type="checkbox" ${sr.bold?'checked':''} onchange="updateTableSummaryRow(${sIdx},'bold',this.checked)"></div></div>
+                    `;
+                });
+            }
+            html += `</div>
+            <div style="padding:0.5rem;display:flex;flex-direction:column;gap:4px;">
+                <div style="display:flex;gap:4px;">
+                    <button onclick="addTableSummaryRow()" class="btn btn-secondary btn-sm" style="flex:1;">+ Add Summary Row</button>
+                    <button onclick="applyInvoiceSummaryPreset()" class="btn btn-primary btn-sm" style="font-size:10px;" title="Add Subtotal, PPN 11%, and Grand Total">✨ Invoice Preset</button>
+                </div>
+            </div></div>`;
         }
 
         html += `<div style="padding:0.75rem;display:flex;gap:0.5rem;">
@@ -4538,6 +4676,54 @@ $templateSchemasData = $template->relationLoaded('schemas') ? $template->schemas
     function updateCol(idx, prop, val) { const el=findElement(activeId); if(el&&el.columns[idx]){el.columns[idx][prop]=val;renderElements();if(prop==='format_type')updateInspector();} }
     function addCol() { const el=findElement(activeId); if(el&&el.type==='table'){if(!el.columns)el.columns=[];el.columns.push({label:'Col',key:'key',width:30,align:'L'});updateInspector();} }
     function deleteCol(idx) { const el=findElement(activeId); if(el&&el.columns.length>1){el.columns.splice(idx,1);updateInspector();renderElements();} }
+    function addTableSummaryRow() {
+        const el = findElement(activeId);
+        if (!el || el.type !== 'table') return;
+        pushHistory();
+        if (!el.summaryRows) el.summaryRows = [];
+        el.summaryRows.push({
+            label: 'Subtotal:',
+            expression: 'SUM(subtotal)',
+            colspan: Math.max(1, (el.columns?.length || 2) - 1),
+            align: 'R',
+            bold: true,
+            bgColor: '#f8fafc'
+        });
+        updateInspector();
+        renderElements();
+        showToast('Added summary row', 'success');
+    }
+    function deleteTableSummaryRow(idx) {
+        const el = findElement(activeId);
+        if (!el || !el.summaryRows) return;
+        pushHistory();
+        el.summaryRows.splice(idx, 1);
+        updateInspector();
+        renderElements();
+    }
+    function updateTableSummaryRow(idx, prop, val) {
+        const el = findElement(activeId);
+        if (!el || !el.summaryRows || !el.summaryRows[idx]) return;
+        pushHistory();
+        el.summaryRows[idx][prop] = val;
+        renderElements();
+    }
+    function applyInvoiceSummaryPreset() {
+        const el = findElement(activeId);
+        if (!el || el.type !== 'table') return;
+        pushHistory();
+        const colsCount = el.columns?.length || 4;
+        const cs = Math.max(1, colsCount - 1);
+        const lastColKey = el.columns && el.columns.length > 0 ? el.columns[el.columns.length - 1].key : 'subtotal';
+        el.summaryRows = [
+            { label: 'Subtotal:', expression: `SUM(${lastColKey})`, colspan: cs, align: 'R', bold: false, bgColor: '#ffffff' },
+            { label: 'PPN (11%):', expression: `SUM(${lastColKey}) * 0.11`, colspan: cs, align: 'R', bold: false, bgColor: '#ffffff' },
+            { label: 'Grand Total:', expression: `SUM(${lastColKey}) * 1.11`, colspan: cs, align: 'R', bold: true, bgColor: '#f1f5f9' }
+        ];
+        updateInspector();
+        renderElements();
+        showToast('Applied Invoice Summary preset (Subtotal, Tax, Total)', 'success');
+    }
     function moveColUp(idx) { pushHistory(); const el=findElement(activeId); if(el&&idx>0){const c=el.columns.splice(idx,1)[0]; el.columns.splice(idx-1,0,c); updateInspector(); renderElements(); } }
     function moveColDown(idx) { pushHistory(); const el=findElement(activeId); if(el&&idx<el.columns.length-1){const c=el.columns.splice(idx,1)[0]; el.columns.splice(idx+1,0,c); updateInspector(); renderElements(); } }
     function equalizeColWidths() {
@@ -4591,19 +4777,26 @@ $templateSchemasData = $template->relationLoaded('schemas') ? $template->schemas
         showToast('Applied column preset', 'success');
     }
     function updateElProps(prop,val) { pushHistory(); const el=findElement(activeId); if(el){el[prop]=val;renderElements();} }
-    function deleteActive() { 
-        if(!confirm('Delete selected element(s)?'))return; 
+    function deleteActive(skipConfirm = false) { 
+        const targetIds = (activeIds && activeIds.length > 0) ? [...activeIds] : (activeId ? [activeId] : []);
+        if (targetIds.length === 0) return;
+        if (!skipConfirm && targetIds.length > 1 && !confirm(`Delete ${targetIds.length} selected elements?`)) return;
         pushHistory(); 
+        const strTargetIds = targetIds.map(id => String(id));
         SECTION_ORDER.forEach(key => {
-            if (sections[key] && sections[key].elements) {
-                sections[key].elements = sections[key].elements.filter(el => !activeIds.includes(el.id));
+            if (sections[key] && Array.isArray(sections[key].elements)) {
+                sections[key].elements = sections[key].elements.filter(el => !strTargetIds.includes(String(el.id)));
             }
         });
+        if (Array.isArray(elements)) {
+            elements = elements.filter(el => !strTargetIds.includes(String(el.id)));
+        }
         elements = flattenSections();
-        activeIds=[];
-        activeId=null; 
+        activeIds = [];
+        activeId = null; 
         renderElements();
         updateInspector(); 
+        showToast('Element deleted', 'info');
     }
 
     // ── Conditional Formatting Editor ─────────────────────────

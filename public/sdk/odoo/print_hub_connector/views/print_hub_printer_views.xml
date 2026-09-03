@@ -6,12 +6,16 @@
         <field name="name">print.hub.printer.tree</field>
         <field name="model">print.hub.printer</field>
         <field name="arch" type="xml">
-            <tree string="Physical Printers &amp; Agents" create="false"
+            <list string="Physical Printers &amp; Agents" create="false"
                   decoration-success="status == 'online' and paper_status == 'ok'"
                   decoration-danger="status == 'offline' or paper_status in ('out', 'jammed')"
                   decoration-warning="paper_status == 'low' or status == 'paused'">
+                <header>
+                    <button name="action_sync_printers" string="🔄 Sync Live Health from Hub" type="object" class="btn-primary"/>
+                </header>
                 <field name="name"/>
                 <field name="agent_name"/>
+                <field name="branch_id"/>
                 <field name="branch_code"/>
                 <field name="branch_name"/>
                 <field name="status" widget="badge"
@@ -24,7 +28,7 @@
                        decoration-warning="paper_status == 'low'"/>
                 <field name="is_default" widget="boolean_toggle" readonly="1"/>
                 <field name="last_synced_at"/>
-            </tree>
+            </list>
         </field>
     </record>
 
@@ -50,6 +54,7 @@
                     </div>
                     <group>
                         <group string="Workstation &amp; Location">
+                            <field name="branch_id"/>
                             <field name="agent_name" readonly="1"/>
                             <field name="agent_id" readonly="1"/>
                             <field name="branch_code" readonly="1"/>
@@ -83,13 +88,7 @@
                 <filter string="Online &amp; Ready" name="online_ready" domain="[('status', '=', 'online'), ('paper_status', '=', 'ok')]"/>
                 <filter string="Paper Out / Jammed" name="paper_issues" domain="[('paper_status', 'in', ['out', 'jammed'])]"/>
                 <filter string="Offline" name="offline" domain="[('status', '=', 'offline')]"/>
-                <group expand="0" string="Group By">
-                    <filter string="Branch" name="group_branch" context="{'group_by': 'branch_code'}"/>
-                    <filter string="Agent" name="group_agent" context="{'group_by': 'agent_name'}"/>
-                    <filter string="Status" name="group_status" context="{'group_by': 'status'}"/>
-                    <filter string="Paper Status" name="group_paper" context="{'group_by': 'paper_status'}"/>
-                </group>
-            </search>
+</search>
         </field>
     </record>
 
@@ -97,7 +96,7 @@
     <record id="action_print_hub_printers" model="ir.actions.act_window">
         <field name="name">Printers &amp; Health</field>
         <field name="res_model">print.hub.printer</field>
-        <field name="view_mode">tree,form</field>
+        <field name="view_mode">list,form</field>
         <field name="search_view_id" ref="view_print_hub_printer_search"/>
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">

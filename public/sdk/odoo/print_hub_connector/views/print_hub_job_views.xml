@@ -6,13 +6,14 @@
         <field name="name">print.hub.job.tree</field>
         <field name="model">print.hub.job</field>
         <field name="arch" type="xml">
-            <tree string="Print Jobs" create="false" decoration-success="status == 'completed'" decoration-danger="status == 'failed'" decoration-warning="status == 'spooling'" decoration-info="status == 'draft'">
+            <list string="Print Jobs" create="false" decoration-success="status == 'completed'" decoration-danger="status == 'failed'" decoration-warning="status == 'spooling'" decoration-info="status == 'draft'">
                 <field name="sent_at"/>
                 <field name="name" string="Job ID"/>
                 <field name="report_display_name"/>
                 <field name="record_reference"/>
                 <field name="user_id"/>
-                <field name="branch_code"/>
+                <field name="branch_id"/>
+                <field name="branch_code" optional="hide"/>
                 <field name="printer_name"/>
                 <field name="queue"/>
                 <field name="copies"/>
@@ -21,7 +22,7 @@
                        decoration-danger="status == 'failed'"
                        decoration-warning="status == 'spooling'"
                        decoration-info="status == 'draft'"/>
-            </tree>
+            </list>
         </field>
     </record>
 
@@ -34,6 +35,7 @@
                 <header>
                     <button name="action_retry" string="🔄 Retry Print" type="object" class="btn-primary"
                             invisible="status == 'completed'"/>
+                    <button name="action_sync_status" string="🔄 Sync Status" type="object" class="btn-secondary"/>
                     <button name="action_open_source_record" string="📄 Open Source Document" type="object" class="btn-secondary"
                             invisible="not model_name or not res_id"/>
                     <field name="status" widget="statusbar" statusbar_visible="draft,spooling,completed,failed"/>
@@ -58,6 +60,7 @@
                             <field name="user_id" readonly="1"/>
                         </group>
                         <group string="Print Routing &amp; Telemetry">
+                            <field name="branch_id" readonly="1"/>
                             <field name="branch_code" readonly="1"/>
                             <field name="queue" readonly="1"/>
                             <field name="printer_name" readonly="1"/>
@@ -90,14 +93,7 @@
                 <filter string="Completed" name="filter_completed" domain="[('status', '=', 'completed')]"/>
                 <separator/>
                 <filter string="My Jobs" name="filter_my_jobs" domain="[('user_id', '=', uid)]"/>
-                <group expand="0" string="Group By">
-                    <filter string="Status" name="group_status" context="{'group_by': 'status'}"/>
-                    <filter string="Report" name="group_report" context="{'group_by': 'report_display_name'}"/>
-                    <filter string="Branch" name="group_branch" context="{'group_by': 'branch_code'}"/>
-                    <filter string="User" name="group_user" context="{'group_by': 'user_id'}"/>
-                    <filter string="Date" name="group_date" context="{'group_by': 'sent_at:day'}"/>
-                </group>
-            </search>
+</search>
         </field>
     </record>
 
@@ -105,7 +101,7 @@
     <record id="action_print_hub_jobs" model="ir.actions.act_window">
         <field name="name">Print Jobs</field>
         <field name="res_model">print.hub.job</field>
-        <field name="view_mode">tree,form</field>
+        <field name="view_mode">list,form</field>
         <field name="search_view_id" ref="view_print_hub_job_search"/>
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">
@@ -114,6 +110,18 @@
             <p>
                 Jobs dispatched via Print Hub will automatically appear here with their live status, printer destination, and 1-click retry options.
             </p>
+        </field>
+    </record>
+
+    <!-- Server Action: Sync Status for Selected Jobs -->
+    <record id="action_sync_print_jobs_status" model="ir.actions.server">
+        <field name="name">🔄 Sync Status from Print Hub</field>
+        <field name="model_id" ref="model_print_hub_job"/>
+        <field name="binding_model_id" ref="model_print_hub_job"/>
+        <field name="binding_view_types">list,form</field>
+        <field name="state">code</field>
+        <field name="code">
+records.action_sync_status()
         </field>
     </record>
 

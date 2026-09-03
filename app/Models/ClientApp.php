@@ -19,7 +19,7 @@ class ClientApp extends Model
 {
     protected $fillable = [
         'name', 'api_key', 'is_active', 'last_used_at', 'allowed_origins', 'allowed_ips', 'last_key_rotated_at',
-        'webhook_events', 'webhook_retry_count', 'webhook_timeout', 'webhook_secret', 'webhook_headers', 'key_hash_bcrypt',
+        'webhook_url', 'webhook_events', 'webhook_retry_count', 'webhook_timeout', 'webhook_secret', 'webhook_headers', 'key_hash_bcrypt',
     ];
 
     protected $hidden = ['api_key'];

@@ -112,7 +112,16 @@ class ClientAppController extends Controller
 
     public function listPrinters(Request $request)
     {
+        $app = $this->app($request);
         $query = PrintAgent::with('branch:id,name,code')->where('is_active', true);
+
+        if ($app && $app->company_id) {
+            $query->where(function ($q) use ($app) {
+                $q->whereHas('branch', function ($bq) use ($app) {
+                    $bq->where('company_id', $app->company_id);
+                })->orWhereNull('branch_id');
+            });
+        }
 
         if ($request->filled('branch_code')) {
             $branch = Branch::where('code', $request->branch_code)->first();
@@ -161,9 +170,18 @@ class ClientAppController extends Controller
 
     public function listPools(Request $request)
     {
-        $pools = \App\Models\PrinterPool::with(['branch:id,name,code'])
-            ->where('is_active', true)
-            ->get()
+        $app = $this->app($request);
+        $query = \App\Models\PrinterPool::where('active', true);
+
+        if ($app && $app->company_id) {
+            $query->where(function ($q) use ($app) {
+                $q->whereHas('branch', function ($bq) use ($app) {
+                    $bq->where('company_id', $app->company_id);
+                })->orWhereNull('branch_id');
+            });
+        }
+
+        $pools = $query->get()
             ->map(fn($p) => [
                 'id'       => $p->id,
                 'name'     => $p->name,
@@ -185,9 +203,14 @@ class ClientAppController extends Controller
 
     public function listBranches(Request $request)
     {
-        $branches = Branch::with('company:id,name,code')
-            ->active()
-            ->orderBy('name')
+        $app = $this->app($request);
+        $query = Branch::with('company:id,name,code')->active();
+
+        if ($app && $app->company_id) {
+            $query->where('company_id', $app->company_id);
+        }
+
+        $branches = $query->orderBy('name')
             ->get()
             ->map(fn($b) => [
                 'id'      => $b->id,
@@ -210,7 +233,16 @@ class ClientAppController extends Controller
 
     public function listQueues(Request $request)
     {
+        $app = $this->app($request);
         $query = PrintProfile::with('agent:id,name,last_seen_at,branch_id');
+
+        if ($app && $app->company_id) {
+            $query->where(function ($q) use ($app) {
+                $q->whereHas('branch', function ($bq) use ($app) {
+                    $bq->where('company_id', $app->company_id);
+                })->orWhereNull('branch_id');
+            });
+        }
 
         if ($request->filled('branch_code')) {
             $branch = Branch::where('code', $request->branch_code)->first();
@@ -728,11 +760,13 @@ class ClientAppController extends Controller
 
         // 3. Select agent
         try {
+            $targetPrinter = $data['printer'] ?? ($profile ? $profile->default_printer : null);
             $agent = AgentSelectionService::select(
                 $data['agent_id'] ?? null,
                 $profile,
                 $branchId,
-                $profileName
+                $profileName,
+                $targetPrinter
             );
         } catch (\RuntimeException $e) {
             return ApiResponse::serviceUnavailable('NO_AGENT_AVAILABLE', $e->getMessage());

@@ -12,16 +12,34 @@ class PrintHubWebhookController(http.Controller):
     Receives async webhook status updates from Print Hub (e.g. job.completed, job.failed).
     """
 
-    @http.route('/print-hub/webhook', type='json', auth='public', methods=['POST'], csrf=False)
+    @http.route(['/print-hub/webhook', '/api/print-hub/webhook'], type='http', auth='public', methods=['POST'], csrf=False)
     def receive_webhook(self, **kwargs):
         try:
-            data = request.jsonrequest or {}
-            event_type = data.get('event_type') or data.get('event')
-            job_id = data.get('job_id')
-            ref_id = data.get('reference_id')
-            status = data.get('status')
-            error = data.get('error') or data.get('error_message')
-            printer = data.get('printer') or data.get('printer_name')
+            raw_body = request.httprequest.data
+            if raw_body:
+                try:
+                    data = json.loads(raw_body)
+                except Exception:
+                    data = request.params
+            else:
+                data = request.params or {}
+
+            # If payload is wrapped in 'payload' (from Print Hub WebhookService)
+            if 'payload' in data and isinstance(data['payload'], dict):
+                event_type = data.get('event_type')
+                payload = data['payload']
+                job_id = payload.get('job_id')
+                ref_id = payload.get('reference_id')
+                status = payload.get('status')
+                error = payload.get('error') or payload.get('error_message')
+                printer = payload.get('printer') or payload.get('printer_name')
+            else:
+                event_type = data.get('event_type') or data.get('event')
+                job_id = data.get('job_id')
+                ref_id = data.get('reference_id')
+                status = data.get('status')
+                error = data.get('error') or data.get('error_message')
+                printer = data.get('printer') or data.get('printer_name')
 
             _logger.info("Print Hub webhook received: event=%s, job_id=%s, ref=%s, status=%s",
                          event_type, job_id, ref_id, status)
@@ -85,7 +103,14 @@ class PrintHubWebhookController(http.Controller):
                                 message_type='notification'
                             )
 
-            return {'status': 'success', 'message': 'Webhook processed.'}
+            return request.make_response(
+                json.dumps({'status': 'success', 'message': 'Webhook processed.'}),
+                headers=[('Content-Type', 'application/json')]
+            )
         except Exception as e:
             _logger.exception("Error processing Print Hub webhook: %s", e)
-            return {'status': 'error', 'message': str(e)}
+            return request.make_response(
+                json.dumps({'status': 'error', 'message': str(e)}),
+                headers=[('Content-Type', 'application/json')],
+                status=500
+            )

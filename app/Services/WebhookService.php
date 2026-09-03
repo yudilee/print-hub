@@ -71,7 +71,13 @@ class WebhookService
                 'max_attempts'  => $app->webhook_retry_count ?: 3,
             ]);
 
-            \App\Jobs\DeliverWebhookJob::dispatch($delivery);
+            // Deliver immediately so webhook updates are received by client apps in real-time
+            try {
+                $this->deliver($delivery);
+            } catch (\Throwable $e) {
+                Log::warning("Failed to deliver webhook synchronously for app {$app->id}: " . $e->getMessage());
+                \App\Jobs\DeliverWebhookJob::dispatch($delivery);
+            }
         }
     }
 

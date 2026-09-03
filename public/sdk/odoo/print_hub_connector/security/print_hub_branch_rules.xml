@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+
+        <!-- Multi-Branch Record Rule for Printers -->
+        <record id="rule_print_hub_printer_branch" model="ir.rule">
+            <field name="name">Print Hub: Branch Scoped Printers</field>
+            <field name="model_id" ref="model_print_hub_printer"/>
+            <field name="global" eval="True"/>
+            <field name="domain_force">['|', ('branch_id', '=', False), ('branch_id', 'in', user.branch_ids.ids)]</field>
+        </record>
+
+        <!-- Multi-Branch Record Rule for Print Jobs -->
+        <record id="rule_print_hub_job_branch" model="ir.rule">
+            <field name="name">Print Hub: Branch Scoped Print Jobs</field>
+            <field name="model_id" ref="model_print_hub_job"/>
+            <field name="global" eval="True"/>
+            <field name="domain_force">['|', ('branch_id', '=', False), ('branch_id', 'in', user.branch_ids.ids)]</field>
+        </record>
+
+        <!-- Multi-Branch Record Rule for Routing Rules -->
+        <record id="rule_print_hub_rule_branch" model="ir.rule">
+            <field name="name">Print Hub: Branch Scoped Routing Rules</field>
+            <field name="model_id" ref="model_print_hub_rule"/>
+            <field name="global" eval="True"/>
+            <field name="domain_force">['|', ('branch_id', '=', False), ('branch_id', 'in', user.branch_ids.ids)]</field>
+        </record>
+
+    </data>
+</odoo>

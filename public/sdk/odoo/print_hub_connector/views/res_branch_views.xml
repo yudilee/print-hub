@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Inherit res.branch form view -->
+    <record id="view_res_branch_form_print_hub" model="ir.ui.view">
+        <field name="name">res.branch.form.print.hub</field>
+        <field name="model">res.branch</field>
+        <field name="inherit_id" ref="branch.branch_res_branch_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//sheet/group" position="after">
+                <notebook>
+                    <page string="🖨️ Print Hub Settings" name="print_hub_settings">
+                        <group>
+                            <group string="Branch Default Routing">
+                                <field name="print_hub_branch_code" placeholder="e.g. HRMSBY, HRMBLI"/>
+                                <field name="default_printer_id"
+                                       domain="['|', ('branch_id', '=', id), ('branch_id', '=', False)]"
+                                       options="{'no_create': True}"/>
+                                <field name="default_queue_id" options="{'no_create': True}"/>
+                            </group>
+                            <group string="Health &amp; Statistics">
+                                <div class="text-muted">
+                                    Printers synchronized from Print Hub matching this branch will automatically appear below.
+                                    When users in this branch print documents, Odoo will automatically route to the Default Printer configured here.
+                                </div>
+                            </group>
+                        </group>
+                        <separator string="Printers Assigned to this Branch"/>
+                        <field name="printer_ids" readonly="1">
+                            <list string="Branch Printers" decoration-success="status == 'online'" decoration-danger="status == 'offline'">
+                                <field name="name"/>
+                                <field name="agent_name"/>
+                                <field name="status" widget="badge" decoration-success="status == 'online'" decoration-danger="status == 'offline'"/>
+                                <field name="paper_status" widget="badge"/>
+                                <field name="last_synced_at"/>
+                            </list>
+                        </field>
+                    </page>
+                </notebook>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>

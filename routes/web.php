@@ -88,6 +88,7 @@ Route::middleware(['auth', 'session.activity'])->group(function () {
 
     // Profiles
     Route::get('/profiles', [ProfileController::class, 'index'])->name('admin.profiles');
+    Route::get('/profiles/create', [ProfileController::class, 'create'])->name('admin.profiles.create');
     Route::post('/profiles', [ProfileController::class, 'store'])->name('admin.profiles.store');
     Route::delete('/profiles/{profile}', [ProfileController::class, 'destroy'])->name('admin.profiles.destroy');
     Route::post('/profiles/{profile}/test-print', [ProfileController::class, 'testPrint'])->name('admin.profiles.test-print');

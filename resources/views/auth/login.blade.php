@@ -3,7 +3,7 @@
 
 @section('content')
 <div class="text-center mb-8">
-    <div class="w-14 h-14 rounded-2xl bg-slate-950 border border-slate-700/60 p-2 flex items-center justify-center mx-auto mb-4 shadow-xl shadow-teal-500/10">
+    <div class="w-16 h-16 rounded-2xl bg-white border border-slate-100 p-2 flex items-center justify-center mx-auto mb-4 shadow-xl shadow-slate-200/50">
         <img src="{{ asset('logo-icon.png') }}" alt="Print Hub Logo" class="w-full h-full object-contain">
     </div>
     <h1 class="text-xl font-bold tracking-tight text-white">Welcome Back</h1>

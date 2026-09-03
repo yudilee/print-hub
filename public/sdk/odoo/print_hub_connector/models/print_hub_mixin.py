@@ -49,6 +49,7 @@ class PrintHubMixin(models.AbstractModel):
         printer_warning = self._check_printer_health(resolved.get('printer'))
         if printer_warning:
             _logger.warning("Printer health advisory for %s: %s", resolved.get('printer'), printer_warning)
+            raise UserError(_("Gagal Mencetak: %s Pastikan komputer/workstation printer menyala.") % printer_warning)
 
         # Step 5: Render QWeb PDF
         try:
@@ -57,15 +58,43 @@ class PrintHubMixin(models.AbstractModel):
             _logger.exception("Failed to render QWeb PDF for %s: %s", report_name, e)
             return {'success': False, 'error': f"Failed to render QWeb PDF: {e}"}
 
-        ref_id = f"{self._name},{self.id}"
+        # Determine true business model & record if triggered from a transient wizard
+        source_model = self._name
+        source_id = self.id
+        if self._transient:
+            for parent_attr in ['job_card_id', 'order_id', 'picking_id', 'invoice_id', 'move_id', 'sale_id', 'purchase_id']:
+                if hasattr(self, parent_attr) and getattr(self, parent_attr):
+                    parent_rec = getattr(self, parent_attr)
+                    source_model = parent_rec._name
+                    source_id = parent_rec.id
+                    break
+            else:
+                active_model = self._context.get('active_model')
+                active_id = self._context.get('active_id')
+                if active_model and active_id and active_model in self.env:
+                    active_rec = self.env[active_model].sudo().browse(active_id)
+                    if active_rec.exists():
+                        source_model = active_model
+                        source_id = active_id
+
+        ref_id = f"{source_model},{source_id}"
+
+        active_branch = False
+        if hasattr(self, 'branch_id') and self.branch_id:
+            active_branch = self.branch_id
+        elif hasattr(self.env.user, 'branch_id') and self.env.user.branch_id:
+            active_branch = self.env.user.branch_id
+        elif self._context.get('allowed_branch_ids'):
+            active_branch = self.env['res.branch'].sudo().browse(self._context['allowed_branch_ids'][0])
 
         # Step 6: Create Job Log
         job_log = self.env['print.hub.job'].sudo().create({
             'name': f"temp_{self._name}_{self.id}_{int(fields.Datetime.now().timestamp())}",
             'report_name': report_name or 'custom_report',
-            'model_name': self._name,
-            'res_id': self.id,
+            'model_name': source_model,
+            'res_id': source_id,
             'user_id': self.env.user.id,
+            'branch_id': active_branch.id if active_branch else False,
             'branch_code': resolved.get('branch_code'),
             'printer_name': resolved.get('printer'),
             'queue': resolved.get('queue'),
@@ -311,7 +340,18 @@ class PrintHubMixin(models.AbstractModel):
 
     def _resolve_matching_rule(self, report_or_template, branch_override=None):
         RuleModel = self.env['print.hub.rule'].sudo()
-        target_branch = branch_override or getattr(self.env.user, 'print_hub_branch_code', None)
+        user = self.env.user
+        active_branch = False
+        if hasattr(self, 'branch_id') and self.branch_id:
+            active_branch = self.branch_id
+        elif hasattr(user, 'branch_id') and user.branch_id:
+            active_branch = user.branch_id
+        elif self._context.get('allowed_branch_ids'):
+            active_branch = self.env['res.branch'].sudo().browse(self._context['allowed_branch_ids'][0])
+
+        target_branch = branch_override or (active_branch.print_hub_branch_code if active_branch else None) or getattr(user, 'print_hub_branch_code', None)
+        target_branch_id = active_branch.id if active_branch else False
+
         rules = RuleModel.search([
             ('active', '=', True),
             '|', '|',
@@ -320,38 +360,66 @@ class PrintHubMixin(models.AbstractModel):
             ('template_slug', '=', report_or_template),
         ], order='sequence, id')
 
+        # 1. Match by res.branch relation directly
+        if target_branch_id:
+            for r in rules:
+                if r.branch_id and r.branch_id.id == target_branch_id:
+                    return r
+        # 2. Match by branch_code string
         if target_branch:
             for r in rules:
                 if r.branch_code == target_branch:
                     return r
+        # 3. Global rule fallback (no branch configured)
         for r in rules:
-            if not r.branch_code:
+            if not r.branch_id and not r.branch_code:
                 return r
         return None
 
     def _resolve_print_targets(self, matched_rule, options):
         ICP = self.env['ir.config_parameter'].sudo()
         user = self.env.user
+
+        active_branch = False
+        if hasattr(self, 'branch_id') and self.branch_id:
+            active_branch = self.branch_id
+        elif hasattr(user, 'branch_id') and user.branch_id:
+            active_branch = user.branch_id
+        elif self._context.get('allowed_branch_ids'):
+            active_branch = self.env['res.branch'].sudo().browse(self._context['allowed_branch_ids'][0])
+
+        # Resolve branch code
+        branch_code = (
+            options.get('branch_code')
+            or (matched_rule.branch_code if matched_rule and matched_rule.branch_code else None)
+            or (active_branch.print_hub_branch_code if active_branch and active_branch.print_hub_branch_code else None)
+            or getattr(user, 'print_hub_branch_code', None)
+            or ICP.get_param('print_hub.default_branch', '')
+        )
+
+        # Resolve printer: Option > Rule > Branch Default > User Default
+        printer = (
+            options.get('printer')
+            or (matched_rule.printer_name if matched_rule and matched_rule.printer_name else None)
+            or (active_branch.default_printer_id.name if active_branch and active_branch.default_printer_id else None)
+            or getattr(user, 'print_hub_printer', None)
+        )
+
+        # Resolve queue: Option > Rule > Branch Default > User Default > System Default
+        queue = (
+            options.get('queue')
+            or (matched_rule.queue if matched_rule and matched_rule.queue else None)
+            or (active_branch.default_queue_id.name if active_branch and active_branch.default_queue_id else None)
+            or getattr(user, 'print_hub_queue', None)
+            or ICP.get_param('print_hub.default_queue', '')
+        )
+
         return {
             'hub_url': ICP.get_param('print_hub.url', ''),
             'api_key': ICP.get_param('print_hub.api_key', ''),
-            'branch_code': (
-                options.get('branch_code')
-                or (matched_rule.branch_code if matched_rule and matched_rule.branch_code else None)
-                or getattr(user, 'print_hub_branch_code', None)
-                or ICP.get_param('print_hub.default_branch', '')
-            ),
-            'queue': (
-                options.get('queue')
-                or (matched_rule.queue if matched_rule and matched_rule.queue else None)
-                or getattr(user, 'print_hub_queue', None)
-                or ICP.get_param('print_hub.default_queue', '')
-            ),
-            'printer': (
-                options.get('printer')
-                or (matched_rule.printer_name if matched_rule and matched_rule.printer_name else None)
-                or getattr(user, 'print_hub_printer', None)
-            ),
+            'branch_code': branch_code,
+            'queue': queue,
+            'printer': printer,
             'pool_name': (
                 options.get('pool')
                 or (matched_rule.pool_name if matched_rule and matched_rule.pool_name else None)
