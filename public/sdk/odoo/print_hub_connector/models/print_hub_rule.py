@@ -112,6 +112,12 @@ class PrintHubRule(models.Model):
     watermark_text = fields.Char(string='Custom Watermark Text', placeholder='e.g. CONFIDENTIAL / SALINAN')
     watermark_opacity = fields.Float(string='Watermark Opacity', default=0.15)
 
+    require_approval = fields.Boolean(
+        string='Require Manager Approval',
+        default=False,
+        help='When enabled and global approval workflow is active in Settings, jobs matching this rule will wait for approval before spooling.'
+    )
+
     notes = fields.Text(string='Notes / Description')
 
     @api.depends('queue_id')

@@ -7,6 +7,13 @@
               web_icon="print_hub_connector,static/description/icon.png"
               sequence="75"/>
 
+    <!-- Dashboard Menu -->
+    <menuitem id="menu_print_hub_dashboard"
+              name="Dashboard"
+              parent="menu_print_hub_root"
+              action="action_print_hub_dashboard"
+              sequence="5"/>
+
     <!-- Operations / Print Jobs Menu -->
     <menuitem id="menu_print_hub_jobs"
               name="Print Jobs"

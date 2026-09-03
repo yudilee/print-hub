@@ -9,36 +9,44 @@ _logger = logging.getLogger(__name__)
 
 class PrintHubJob(models.Model):
     _name = 'print.hub.job'
+    _inherit = ['mail.thread', 'mail.activity.mixin']
     _description = 'Print Hub Job Log'
     _order = 'create_date desc'
     _rec_name = 'name'
 
-    name = fields.Char(string='Job ID', required=True, index=True, default=lambda self: _('New'))
+    name = fields.Char(string='Job ID', required=True, index=True, default=lambda self: _('New'), tracking=True)
     report_name = fields.Char(string='Report Technical Name', index=True)
     report_display_name = fields.Char(string='Report / Document', compute='_compute_report_display_name', store=True)
     model_name = fields.Char(string='Source Model', index=True)
     res_id = fields.Integer(string='Record ID', index=True)
     record_reference = fields.Char(string='Source Document', compute='_compute_record_reference')
 
-    user_id = fields.Many2one('res.users', string='Printed By', default=lambda self: self.env.user, index=True)
-    branch_id = fields.Many2one('res.branch', string='Branch', ondelete='set null', index=True)
+    user_id = fields.Many2one('res.users', string='Printed By', default=lambda self: self.env.user, index=True, tracking=True)
+    branch_id = fields.Many2one('res.branch', string='Branch', ondelete='set null', index=True, tracking=True)
     branch_code = fields.Char(string='Branch Code', index=True)
-    printer_name = fields.Char(string='Target Printer')
-    queue = fields.Char(string='Queue / Profile')
+    printer_name = fields.Char(string='Target Printer', tracking=True)
+    queue = fields.Char(string='Queue / Profile', tracking=True)
     copies = fields.Integer(string='Copies', default=1)
 
     status = fields.Selection([
         ('draft', 'Queued'),
+        ('pending_approval', 'Pending Approval'),
         ('spooling', 'Printing'),
         ('completed', 'Completed'),
         ('failed', 'Failed'),
         ('cancelled', 'Cancelled')
-    ], string='Status', default='draft', index=True, required=True)
+    ], string='Status', default='draft', index=True, required=True, tracking=True)
 
-    error_message = fields.Text(string='Error Details')
+    error_message = fields.Text(string='Error Details', tracking=True)
     agent_name = fields.Char(string='Spool Agent')
     sent_at = fields.Datetime(string='Dispatched At', default=fields.Datetime.now)
     completed_at = fields.Datetime(string='Completed At')
+
+    # Audit & Approval Enhancements
+    retry_count = fields.Integer(string='Retry Count', default=0, tracking=True)
+    cancel_reason = fields.Text(string='Cancel / Rejection Reason', tracking=True)
+    approver_id = fields.Many2one('res.users', string='Approved By', tracking=True)
+    approved_at = fields.Datetime(string='Approved At', tracking=True)
 
     @api.depends('report_name')
     def _compute_report_display_name(self):
@@ -97,7 +105,11 @@ class PrintHubJob(models.Model):
                 'error_message': False,
                 'sent_at': fields.Datetime.now(),
                 'completed_at': False,
+                'retry_count': self.retry_count + 1,
             })
+            self.message_post(
+                body=_("Print job retried by <b>%s</b>. New Print Hub Job ID: <code>%s</code>") % (self.env.user.name, new_job_id)
+            )
             return {
                 'type': 'ir.actions.client',
                 'tag': 'display_notification',
@@ -113,7 +125,11 @@ class PrintHubJob(models.Model):
             self.write({
                 'status': 'failed',
                 'error_message': err,
+                'retry_count': self.retry_count + 1,
             })
+            self.message_post(
+                body=_("Print job retry failed: <span class='text-danger'>%s</span>") % err
+            )
             return {
                 'type': 'ir.actions.client',
                 'tag': 'display_notification',
@@ -124,6 +140,116 @@ class PrintHubJob(models.Model):
                     'sticky': True,
                 }
             }
+
+    def action_cancel(self, reason=None):
+        """Cancel print job with optional cancellation reason."""
+        self.ensure_one()
+        if self.status in ('completed', 'cancelled'):
+            raise UserError(_("Job is already %s and cannot be cancelled.") % self.status)
+
+        vals = {'status': 'cancelled'}
+        if reason:
+            vals['cancel_reason'] = reason
+
+        self.write(vals)
+        self.message_post(
+            body=_("Print job cancelled by <b>%s</b>. %s") % (self.env.user.name, f"Reason: {reason}" if reason else "")
+        )
+        return True
+
+    def action_approve(self):
+        """Approve a pending print job and dispatch it to Print Hub."""
+        self.ensure_one()
+        if self.status != 'pending_approval':
+            raise UserError(_("Only jobs pending approval can be approved."))
+
+        if not self.env.user.has_group('print_hub_connector.group_print_hub_manager'):
+            raise UserError(_("Only Print Hub Managers can approve print jobs."))
+
+        if not self.model_name or not self.res_id or self.model_name not in self.env:
+            raise UserError(_("Linked document is missing or invalid."))
+
+        record = self.env[self.model_name].browse(self.res_id)
+        if not record.exists():
+            raise UserError(_("The source record (%s, ID: %s) was deleted.") % (self.model_name, self.res_id))
+
+        # Mark as approved
+        self.write({
+            'approver_id': self.env.user.id,
+            'approved_at': fields.Datetime.now(),
+        })
+
+        # Dispatch
+        options = {
+            'branch_code': self.branch_code,
+            'queue': self.queue,
+            'printer': self.printer_name,
+            'copies': self.copies,
+            'skip_approval_check': True,  # Prevent infinite approval loop
+        }
+
+        result = record.print_via_hub(self.report_name, options=options)
+        if result.get('success'):
+            new_job_id = result.get('job_id')
+            self.write({
+                'name': new_job_id,
+                'status': 'draft',
+                'sent_at': fields.Datetime.now(),
+                'error_message': False,
+            })
+            self.message_post(
+                body=_("Job approved by <b>%s</b> and dispatched to Print Hub. Job ID: <code>%s</code>") % (self.env.user.name, new_job_id)
+            )
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': _('Print Job Approved'),
+                    'message': _('Job approved and spooled with ID: %s') % new_job_id,
+                    'type': 'success',
+                }
+            }
+        else:
+            err = result.get('error', _('Dispatch failed after approval'))
+            self.write({'status': 'failed', 'error_message': err})
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': _('Print Hub Error'),
+                    'message': err,
+                    'type': 'danger',
+                    'sticky': True,
+                }
+            }
+
+    def action_reject(self):
+        """Reject print job."""
+        self.ensure_one()
+        if self.status != 'pending_approval':
+            raise UserError(_("Only jobs pending approval can be rejected."))
+
+        if not self.env.user.has_group('print_hub_connector.group_print_hub_manager'):
+            raise UserError(_("Only Print Hub Managers can reject print jobs."))
+
+        self.write({
+            'status': 'cancelled',
+            'approver_id': self.env.user.id,
+            'approved_at': fields.Datetime.now(),
+            'cancel_reason': _('Rejected by %s') % self.env.user.name,
+        })
+        self.message_post(
+            body=_("Print request rejected by <b>%s</b>.") % self.env.user.name
+        )
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': _('Print Job Rejected'),
+                'message': _('The print request was rejected.'),
+                'type': 'warning',
+            }
+        }
 
     def action_open_source_record(self):
         """
@@ -182,7 +308,6 @@ class PrintHubJob(models.Model):
                         vals['status'] = 'completed'
                         vals['error_message'] = False
                         if data.get('completed_at'):
-                            # Parse ISO string to Odoo datetime format
                             vals['completed_at'] = fields.Datetime.to_datetime(data['completed_at'][:19].replace('T', ' '))
                         else:
                             vals['completed_at'] = fields.Datetime.now()
@@ -214,4 +339,3 @@ class PrintHubJob(models.Model):
         pending_jobs = self.search([('status', 'in', ['draft', 'spooling'])], limit=50)
         if pending_jobs:
             pending_jobs._sync_job_status_batch()
-

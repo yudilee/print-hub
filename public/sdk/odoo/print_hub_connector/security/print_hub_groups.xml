@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- 1. Print Hub User -->
+    <record id="group_print_hub_user" model="res.groups">
+        <field name="name">Print Hub: User</field>
+        <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+        <field name="comment">Can print documents, view own print jobs, and see branch printer status.</field>
+    </record>
+
+    <!-- 2. Print Hub Manager -->
+    <record id="group_print_hub_manager" model="res.groups">
+        <field name="name">Print Hub: Manager</field>
+        <field name="implied_ids" eval="[(4, ref('group_print_hub_user'))]"/>
+        <field name="comment">Can view all print jobs across branch, manage routing rules, scheduled jobs, and approve print requests.</field>
+    </record>
+
+    <!-- 3. Print Hub Administrator -->
+    <record id="group_print_hub_admin" model="res.groups">
+        <field name="name">Print Hub: Administrator</field>
+        <field name="implied_ids" eval="[(4, ref('group_print_hub_manager')), (4, ref('base.group_system'))]"/>
+        <field name="comment">Full system administration, Print Hub server connection configuration, and printer sync.</field>
+    </record>
+
+    <!-- Auto-assign Print Hub User to all internal users and Admin to system admins -->
+    <record id="base.group_user" model="res.groups">
+        <field name="implied_ids" eval="[(4, ref('group_print_hub_user'))]"/>
+    </record>
+
+    <record id="base.group_system" model="res.groups">
+        <field name="implied_ids" eval="[(4, ref('group_print_hub_admin'))]"/>
+    </record>
+</odoo>

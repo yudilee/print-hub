@@ -58,11 +58,14 @@
                             <field name="copies"/>
                         </group>
                     </group>
-                    <group string="Dynamic Watermarking">
+                    <group string="Dynamic Watermarking &amp; Approval">
                         <group>
                             <field name="watermark_rule"/>
                             <field name="watermark_text" invisible="watermark_rule != 'custom'"/>
                             <field name="watermark_opacity" invisible="watermark_rule == 'none'"/>
+                        </group>
+                        <group>
+                            <field name="require_approval"/>
                         </group>
                     </group>
                     <notebook>

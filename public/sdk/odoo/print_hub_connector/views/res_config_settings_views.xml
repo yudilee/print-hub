@@ -9,7 +9,7 @@
             <xpath expr="//form" position="inside">
                 <app data-string="Print Hub" string="Print Hub" name="print_hub">
                     <block title="Print Hub Server Configuration" id="print_hub_config_section">
-                        <setting id="print_hub_connection_setting" string="Print Hub Connection" help="Connect Odoo to your enterprise Print Hub server for direct physical printing.">
+                        <setting id="print_hub_connection_setting" string="Print Hub Connection" help="Connect Odoo to your enterprise Print Hub server for direct background printing.">
                             <div class="content-group">
                                 <div class="row mt16">
                                     <label string="Server URL" for="print_hub_url" class="col-lg-3 o_light_label"/>
@@ -19,18 +19,38 @@
                                     <label string="API Key (X-API-Key)" for="print_hub_api_key" class="col-lg-3 o_light_label"/>
                                     <field name="print_hub_api_key" password="True" placeholder="Raw API Key from Print Hub Admin" class="col-lg-9"/>
                                 </div>
+                                <div class="mt16">
+                                    <button name="action_test_connection" type="object" string="🔗 Test Connection" class="btn-secondary me-2"/>
+                                    <button name="action_sync_printers_now" type="object" string="🔄 Sync Printers Now" class="btn-primary"/>
+                                </div>
                             </div>
                         </setting>
 
-                        <setting id="print_hub_defaults_setting" string="Default Routing" help="Fallback branch and virtual queue if not overridden by the user profile.">
+                        <setting id="print_hub_defaults_setting" string="Default Routing" help="Fallback branch and virtual queue if not overridden by the branch or user profile.">
                             <div class="content-group">
                                 <div class="row mt16">
                                     <label string="Default Branch Code" for="print_hub_default_branch" class="col-lg-3 o_light_label"/>
-                                    <field name="print_hub_default_branch" placeholder="e.g. SDP-MAIN" class="col-lg-9"/>
+                                    <field name="print_hub_default_branch" placeholder="e.g. HRMSBY" class="col-lg-9"/>
                                 </div>
                                 <div class="row mt8">
                                     <label string="Default Queue Profile" for="print_hub_default_queue" class="col-lg-3 o_light_label"/>
                                     <field name="print_hub_default_queue" placeholder="e.g. default_queue" class="col-lg-9"/>
+                                </div>
+                            </div>
+                        </setting>
+
+                        <setting id="print_hub_security_setting" string="Security &amp; Approval Controls" help="Configure approval workflows and webhook HMAC authentication.">
+                            <div class="content-group">
+                                <div class="row mt16">
+                                    <field name="print_hub_approval_enabled" class="oe_inline"/>
+                                    <label for="print_hub_approval_enabled" string="Enable Print Approval Workflow" class="oe_inline ms-2"/>
+                                </div>
+                                <div class="text-muted small mb-3">
+                                    When enabled, routing rules flagged with "Require Approval" will hold documents until a Print Hub Manager approves them.
+                                </div>
+                                <div class="row mt8">
+                                    <label string="Webhook HMAC Secret" for="print_hub_webhook_secret" class="col-lg-3 o_light_label"/>
+                                    <field name="print_hub_webhook_secret" password="True" placeholder="Secret for HMAC-SHA256 signature verification" class="col-lg-9"/>
                                 </div>
                             </div>
                         </setting>

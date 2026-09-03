@@ -16,6 +16,37 @@ class PrintHubMixin(models.AbstractModel):
     _name = 'print.hub.mixin'
     _description = 'Print Hub Direct Printing Mixin'
 
+    print_hub_job_count = fields.Integer(
+        string='Print Count',
+        compute='_compute_print_hub_job_count',
+        help='Total times this document has been spooled to Print Hub'
+    )
+    print_hub_last_status = fields.Char(
+        string='Last Print Status',
+        compute='_compute_print_hub_job_count'
+    )
+
+    def _compute_print_hub_job_count(self):
+        Job = self.env['print.hub.job'].sudo()
+        for rec in self:
+            jobs = Job.search([
+                ('model_name', '=', rec._name),
+                ('res_id', '=', rec.id)
+            ], order='id desc')
+            rec.print_hub_job_count = len(jobs)
+            rec.print_hub_last_status = jobs[0].status if jobs else False
+
+    def action_view_print_jobs(self):
+        self.ensure_one()
+        return {
+            'name': _('Print Jobs: %s') % (getattr(self, 'display_name', False) or self.id),
+            'type': 'ir.actions.act_window',
+            'res_model': 'print.hub.job',
+            'view_mode': 'list,form',
+            'domain': [('model_name', '=', self._name), ('res_id', '=', self.id)],
+            'context': {'default_model_name': self._name, 'default_res_id': self.id},
+        }
+
     def print_via_hub(self, report_name=None, options=None):
         """
         Main print dispatcher. Resolves routing rules, evaluates dynamic watermarks,
@@ -102,6 +133,27 @@ class PrintHubMixin(models.AbstractModel):
             'status': 'draft',
             'sent_at': fields.Datetime.now(),
         })
+
+        # Check if Approval Workflow is enabled globally and required by rule
+        approval_enabled = self.env['ir.config_parameter'].sudo().get_param('print_hub.approval_enabled') in ('True', '1', True)
+        skip_approval = options.get('skip_approval_check', False)
+
+        if approval_enabled and not skip_approval and matched_rule and matched_rule.require_approval:
+            job_log.write({
+                'status': 'pending_approval',
+                'name': f"pending_{self._name}_{self.id}_{int(fields.Datetime.now().timestamp())}",
+            })
+            if hasattr(self, 'message_post'):
+                self.message_post(
+                    body=_("⏳ Dokumen cetak <b>%s</b> menunggu persetujuan Print Hub Manager.") % (report_name or 'Document')
+                )
+            return {
+                'success': True,
+                'job_id': job_log.name,
+                'log_id': job_log.id,
+                'pending_approval': True,
+                'message': _("Permintaan cetak telah dibuat. Menunggu persetujuan Manager sebelum dikirim ke printer.")
+            }
 
         payload = {
             'document_base64': base64.b64encode(pdf_content).decode('utf-8'),

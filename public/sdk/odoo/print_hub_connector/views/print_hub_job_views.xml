@@ -6,7 +6,7 @@
         <field name="name">print.hub.job.tree</field>
         <field name="model">print.hub.job</field>
         <field name="arch" type="xml">
-            <list string="Print Jobs" create="false" decoration-success="status == 'completed'" decoration-danger="status == 'failed'" decoration-warning="status == 'spooling'" decoration-info="status == 'draft'">
+            <list string="Print Jobs" create="false" decoration-success="status == 'completed'" decoration-danger="status == 'failed'" decoration-warning="status in ('spooling', 'pending_approval')" decoration-info="status == 'draft'" decoration-muted="status == 'cancelled'">
                 <field name="sent_at"/>
                 <field name="name" string="Job ID"/>
                 <field name="report_display_name"/>
@@ -17,11 +17,13 @@
                 <field name="printer_name"/>
                 <field name="queue"/>
                 <field name="copies"/>
+                <field name="retry_count" optional="show"/>
                 <field name="status" widget="badge"
                        decoration-success="status == 'completed'"
                        decoration-danger="status == 'failed'"
-                       decoration-warning="status == 'spooling'"
-                       decoration-info="status == 'draft'"/>
+                       decoration-warning="status in ('spooling', 'pending_approval')"
+                       decoration-info="status == 'draft'"
+                       decoration-muted="status == 'cancelled'"/>
             </list>
         </field>
     </record>
@@ -33,16 +35,30 @@
         <field name="arch" type="xml">
             <form string="Print Job" create="false">
                 <header>
+                    <button name="action_approve" string="✅ Approve Print" type="object" class="btn-success"
+                            invisible="status != 'pending_approval'"
+                            groups="print_hub_connector.group_print_hub_manager"/>
+                    <button name="action_reject" string="❌ Reject" type="object" class="btn-danger"
+                            invisible="status != 'pending_approval'"
+                            groups="print_hub_connector.group_print_hub_manager"/>
                     <button name="action_retry" string="🔄 Retry Print" type="object" class="btn-primary"
-                            invisible="status == 'completed'"/>
+                            invisible="status in ('completed', 'pending_approval')"/>
+                    <button name="action_cancel" string="🚫 Cancel Job" type="object" class="btn-secondary"
+                            invisible="status in ('completed', 'cancelled')"/>
                     <button name="action_sync_status" string="🔄 Sync Status" type="object" class="btn-secondary"/>
                     <button name="action_open_source_record" string="📄 Open Source Document" type="object" class="btn-secondary"
                             invisible="not model_name or not res_id"/>
-                    <field name="status" widget="statusbar" statusbar_visible="draft,spooling,completed,failed"/>
+                    <field name="status" widget="statusbar" statusbar_visible="draft,pending_approval,spooling,completed,failed"/>
                 </header>
                 <sheet>
+                    <div class="alert alert-warning" role="alert" invisible="status != 'pending_approval'">
+                        <strong>⏳ Pending Approval:</strong> This print job requires authorization from a Print Hub Manager before it can be dispatched to the physical printer.
+                    </div>
                     <div class="alert alert-danger" role="alert" invisible="status != 'failed' or not error_message">
                         <strong>Printing Failed:</strong> <field name="error_message" readonly="1"/>
+                    </div>
+                    <div class="alert alert-secondary" role="alert" invisible="status != 'cancelled' or not cancel_reason">
+                        <strong>Cancelled:</strong> <field name="cancel_reason" readonly="1"/>
                     </div>
                     <div class="oe_title">
                         <label for="name" string="Job ID"/>
@@ -66,12 +82,88 @@
                             <field name="printer_name" readonly="1"/>
                             <field name="agent_name" readonly="1"/>
                             <field name="copies" readonly="1"/>
+                            <field name="retry_count" readonly="1"/>
                             <field name="sent_at" readonly="1"/>
                             <field name="completed_at" readonly="1"/>
                         </group>
                     </group>
+                    <group string="Approval Details" invisible="not approver_id and status != 'pending_approval'">
+                        <group>
+                            <field name="approver_id" readonly="1"/>
+                            <field name="approved_at" readonly="1"/>
+                        </group>
+                    </group>
                 </sheet>
+                <chatter/>
             </form>
+        </field>
+    </record>
+
+    <!-- Kanban View -->
+    <record id="view_print_hub_job_kanban" model="ir.ui.view">
+        <field name="name">print.hub.job.kanban</field>
+        <field name="model">print.hub.job</field>
+        <field name="arch" type="xml">
+            <kanban default_group_by="status" create="false" quick_create="false">
+                <field name="name"/>
+                <field name="report_display_name"/>
+                <field name="record_reference"/>
+                <field name="user_id"/>
+                <field name="branch_id"/>
+                <field name="printer_name"/>
+                <field name="sent_at"/>
+                <field name="status"/>
+                <templates>
+                    <t t-name="kanban-box">
+                        <div t-attf-class="oe_kanban_global_click p-2 shadow-sm rounded border-start border-4 #{record.status.raw_value == 'completed' ? 'border-success' : record.status.raw_value == 'failed' ? 'border-danger' : record.status.raw_value == 'pending_approval' ? 'border-warning' : 'border-primary'}">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <strong class="text-truncate"><field name="report_display_name"/></strong>
+                                <field name="status" widget="badge"
+                                       decoration-success="status == 'completed'"
+                                       decoration-danger="status == 'failed'"
+                                       decoration-warning="status in ('spooling', 'pending_approval')"
+                                       decoration-info="status == 'draft'"/>
+                            </div>
+                            <div class="text-muted small mb-1">
+                                <span>Ref: </span><field name="record_reference"/>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center small text-secondary">
+                                <span><i class="fa fa-print me-1"/> <field name="printer_name"/></span>
+                                <span><i class="fa fa-building-o me-1"/> <field name="branch_id"/></span>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center mt-2 pt-1 border-top small text-muted">
+                                <span><field name="user_id"/></span>
+                                <span><field name="sent_at" widget="date"/></span>
+                            </div>
+                        </div>
+                    </t>
+                </templates>
+            </kanban>
+        </field>
+    </record>
+
+    <!-- Pivot View -->
+    <record id="view_print_hub_job_pivot" model="ir.ui.view">
+        <field name="name">print.hub.job.pivot</field>
+        <field name="model">print.hub.job</field>
+        <field name="arch" type="xml">
+            <pivot string="Print Job Analysis" sample="1">
+                <field name="branch_id" type="row"/>
+                <field name="status" type="col"/>
+                <field name="copies" type="measure"/>
+            </pivot>
+        </field>
+    </record>
+
+    <!-- Graph View -->
+    <record id="view_print_hub_job_graph" model="ir.ui.view">
+        <field name="name">print.hub.job.graph</field>
+        <field name="model">print.hub.job</field>
+        <field name="arch" type="xml">
+            <graph string="Print Jobs by Branch" type="bar" sample="1">
+                <field name="branch_id"/>
+                <field name="status"/>
+            </graph>
         </field>
     </record>
 
@@ -85,15 +177,23 @@
                 <field name="report_display_name"/>
                 <field name="record_reference"/>
                 <field name="user_id"/>
+                <field name="branch_id"/>
                 <field name="branch_code"/>
                 <field name="printer_name"/>
                 <separator/>
+                <filter string="Pending Approval" name="filter_pending_approval" domain="[('status', '=', 'pending_approval')]"/>
                 <filter string="Failed" name="filter_failed" domain="[('status', '=', 'failed')]"/>
                 <filter string="In Progress" name="filter_in_progress" domain="[('status', 'in', ['draft', 'spooling'])]"/>
                 <filter string="Completed" name="filter_completed" domain="[('status', '=', 'completed')]"/>
                 <separator/>
                 <filter string="My Jobs" name="filter_my_jobs" domain="[('user_id', '=', uid)]"/>
-</search>
+                <separator/>
+                <filter string="Group by Branch" name="group_by_branch" context="{'group_by': 'branch_id'}"/>
+                <filter string="Group by Status" name="group_by_status" context="{'group_by': 'status'}"/>
+                <filter string="Group by Printer" name="group_by_printer" context="{'group_by': 'printer_name'}"/>
+                <filter string="Group by User" name="group_by_user" context="{'group_by': 'user_id'}"/>
+                <filter string="Group by Date" name="group_by_date" context="{'group_by': 'sent_at'}"/>
+            </search>
         </field>
     </record>
 
@@ -101,14 +201,14 @@
     <record id="action_print_hub_jobs" model="ir.actions.act_window">
         <field name="name">Print Jobs</field>
         <field name="res_model">print.hub.job</field>
-        <field name="view_mode">list,form</field>
+        <field name="view_mode">list,kanban,pivot,graph,form</field>
         <field name="search_view_id" ref="view_print_hub_job_search"/>
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">
                 No print jobs found.
             </p>
             <p>
-                Jobs dispatched via Print Hub will automatically appear here with their live status, printer destination, and 1-click retry options.
+                Jobs dispatched via Print Hub will automatically appear here with their live status, printer destination, chatter audit trail, and 1-click retry options.
             </p>
         </field>
     </record>

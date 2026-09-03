@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Dashboard Action: Graph & Pivot Analytics -->
+    <record id="action_print_hub_dashboard" model="ir.actions.act_window">
+        <field name="name">Print Analytics Dashboard</field>
+        <field name="res_model">print.hub.job</field>
+        <field name="view_mode">graph,pivot,kanban,list</field>
+        <field name="context">{
+            'search_default_group_by_branch': 1,
+            'search_default_group_by_status': 1,
+        }</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Belum ada data cetak untuk dianalisis.
+            </p>
+            <p>
+                Dashboard ini menyajikan metrik performa pencetakan, distribusi beban cetak per cabang, serta rasio keberhasilan spooling secara real-time.
+            </p>
+        </field>
+    </record>
+
+</odoo>

@@ -2,7 +2,7 @@
 <odoo>
     <data noupdate="1">
 
-        <!-- Multi-Branch Record Rule for Printers -->
+        <!-- Multi-Branch Record Rule for Printers (Global) -->
         <record id="rule_print_hub_printer_branch" model="ir.rule">
             <field name="name">Print Hub: Branch Scoped Printers</field>
             <field name="model_id" ref="model_print_hub_printer"/>
@@ -10,7 +10,7 @@
             <field name="domain_force">['|', ('branch_id', '=', False), ('branch_id', 'in', user.branch_ids.ids)]</field>
         </record>
 
-        <!-- Multi-Branch Record Rule for Print Jobs -->
+        <!-- Multi-Branch Record Rule for Print Jobs (Global) -->
         <record id="rule_print_hub_job_branch" model="ir.rule">
             <field name="name">Print Hub: Branch Scoped Print Jobs</field>
             <field name="model_id" ref="model_print_hub_job"/>
@@ -18,12 +18,28 @@
             <field name="domain_force">['|', ('branch_id', '=', False), ('branch_id', 'in', user.branch_ids.ids)]</field>
         </record>
 
-        <!-- Multi-Branch Record Rule for Routing Rules -->
+        <!-- Multi-Branch Record Rule for Routing Rules (Global) -->
         <record id="rule_print_hub_rule_branch" model="ir.rule">
             <field name="name">Print Hub: Branch Scoped Routing Rules</field>
             <field name="model_id" ref="model_print_hub_rule"/>
             <field name="global" eval="True"/>
             <field name="domain_force">['|', ('branch_id', '=', False), ('branch_id', 'in', user.branch_ids.ids)]</field>
+        </record>
+
+        <!-- User Group Restriction: Standard Users only see their own print jobs -->
+        <record id="rule_print_hub_job_own_only" model="ir.rule">
+            <field name="name">Print Hub: Own Print Jobs Only (User Group)</field>
+            <field name="model_id" ref="model_print_hub_job"/>
+            <field name="groups" eval="[(4, ref('group_print_hub_user'))]"/>
+            <field name="domain_force">[('user_id', '=', user.id)]</field>
+        </record>
+
+        <!-- Manager Group: Managers see all print jobs within their branch -->
+        <record id="rule_print_hub_job_manager_all" model="ir.rule">
+            <field name="name">Print Hub: All Branch Jobs (Manager Group)</field>
+            <field name="model_id" ref="model_print_hub_job"/>
+            <field name="groups" eval="[(4, ref('group_print_hub_manager'))]"/>
+            <field name="domain_force">[(1, '=', 1)]</field>
         </record>
 
     </data>
