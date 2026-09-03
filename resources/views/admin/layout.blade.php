@@ -36,9 +36,9 @@
     <!-- Mobile Drawer Overlay -->
     <div id="sidebar-overlay" onclick="toggleSidebar()" class="fixed inset-0 bg-slate-950/80 backdrop-blur-xs z-40 md:hidden hidden transition-opacity"></div>
 
-    <div class="flex-1 flex min-h-screen">
+    <div class="flex-1 flex min-h-screen @if(View::hasSection('fullwidth')) h-screen overflow-hidden @endif">
         <!-- Sidebar Navigation -->
-        <aside id="sidebar" class="w-64 bg-slate-900 border-r border-slate-800 flex flex-col shrink-0 fixed inset-y-0 left-0 z-50 transform -translate-x-full md:translate-x-0 md:static transition-transform duration-300 ease-in-out">
+        <aside id="sidebar" class="w-64 bg-slate-900 border-r border-slate-800 flex flex-col shrink-0 fixed inset-y-0 left-0 z-50 transform -translate-x-full md:translate-x-0 md:static transition-transform duration-300 ease-in-out @if(View::hasSection('fullwidth')) h-screen @endif">
             <!-- Brand Header -->
             <div class="h-16 px-5 border-b border-slate-800 flex items-center justify-between shrink-0">
                 <a href="{{ route('admin.dashboard') }}" class="flex items-center gap-3 group">
@@ -219,7 +219,7 @@
         </aside>
 
         <!-- Main Content Wrapper -->
-        <div class="flex-1 flex flex-col min-w-0">
+        <div class="flex-1 flex flex-col min-w-0 @if(View::hasSection('fullwidth')) h-screen overflow-hidden @endif">
             <!-- Top Header -->
             <header class="h-16 border-b border-slate-800 bg-slate-900/80 backdrop-blur-md px-6 flex items-center justify-between sticky top-0 z-40">
                 <div class="flex items-center gap-4">

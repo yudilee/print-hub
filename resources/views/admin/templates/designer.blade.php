@@ -21,6 +21,7 @@
         --surface-hover: #f8fafc; --border: #cbd5e1; --text: #0f172a; --text-muted: #475569;
         --danger: #dc2626; --success: #16a34a;
     }
+    html, body { height: 100vh !important; overflow: hidden !important; }
     .designer-container { display: flex; flex-direction: column; height: calc(100vh - 64px); width: 100%; margin: 0; padding: 0; background: var(--bg); overflow: hidden; position: relative; }
     .designer-top-bar {
         height: 52px; background: var(--surface); border-bottom: 1px solid var(--border);
@@ -922,7 +923,7 @@
             </div>
         </div>
     </div>
-    </div>
+</div>
 </div>
 
 <!-- Multi-Page Preview Overlay -->
@@ -990,7 +991,6 @@
             </div>
         </div>
     </div>
-</div>
 </div>
 
 <!-- Sample Data Panel -->
@@ -1183,6 +1183,15 @@ $templateSchemasData = $template->relationLoaded('schemas') ? $template->schemas
                 if (sections[key] && !Array.isArray(sections[key].elements)) {
                     sections[key].elements = [];
                     console.log('[Designer] initSections: added missing elements array for section', key);
+                }
+                // Ensure section height encloses its child elements (especially pageFooter)
+                if (sections[key] && sections[key].elements && sections[key].elements.length > 0) {
+                    let maxElBottom = parseFloat(sections[key].height || 10);
+                    sections[key].elements.forEach(el => {
+                        const b = (parseFloat(el.y) || 0) + (parseFloat(el.height) || 8);
+                        if (b > maxElBottom && b < 250) maxElBottom = Math.ceil(b + 2);
+                    });
+                    sections[key].height = maxElBottom;
                 }
             });
             return sections;
