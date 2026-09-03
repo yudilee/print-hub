@@ -3696,6 +3696,7 @@ $templateSchemasData = $template->relationLoaded('schemas') ? $template->schemas
         c.querySelectorAll('.section-band').forEach(el => el.remove());
         c.querySelectorAll('.section-label').forEach(el => el.remove());
         c.querySelectorAll('.section-resize-handle').forEach(el => el.remove());
+        c.querySelectorAll('.section-divider-line').forEach(el => el.remove());
         
         const activeSchemaId = document.getElementById('data-schema-select')?.value;
         const activeSchema = availableSchemas.find(s => s.id == activeSchemaId);
@@ -3978,7 +3979,8 @@ $templateSchemasData = $template->relationLoaded('schemas') ? $template->schemas
             }
         });
 
-        document.getElementById('align-tools').style.display = activeIds.length > 1 ? 'flex' : 'none';
+        const alignTools = document.getElementById('align-tools');
+        if (alignTools) alignTools.style.display = activeIds.length > 1 ? 'flex' : 'none';
         drawRulers(); updateLayersList(); drawMinimap();
     }
 
