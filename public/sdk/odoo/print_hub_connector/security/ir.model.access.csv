@@ -11,3 +11,4 @@ access_print_hub_pool_user,print.hub.pool.user,model_print_hub_pool,group_print_
 access_print_hub_pool_mgr,print.hub.pool.mgr,model_print_hub_pool,group_print_hub_manager,1,1,1,1
 access_print_hub_schedule_user,print.hub.schedule.user,model_print_hub_schedule,group_print_hub_user,1,0,0,0
 access_print_hub_schedule_mgr,print.hub.schedule.mgr,model_print_hub_schedule,group_print_hub_manager,1,1,1,1
+access_print_hub_help_user,print.hub.help.user,model_print_hub_help,group_print_hub_user,1,1,1,1

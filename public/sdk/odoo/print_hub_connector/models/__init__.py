@@ -9,3 +9,4 @@ from . import print_hub_rule
 from . import print_hub_schedule
 from . import res_branch
 from . import print_hub_mixin
+from . import print_hub_help

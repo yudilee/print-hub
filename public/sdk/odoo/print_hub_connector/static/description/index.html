@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Print Hub Connector for Odoo</title>
+    <style>
+        .ph-container {
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+            color: #1e293b;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .ph-hero {
+            background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%);
+            color: #ffffff;
+            border-radius: 16px;
+            padding: 48px 36px;
+            text-align: center;
+            margin-bottom: 32px;
+            box-shadow: 0 10px 25px -5px rgba(37, 99, 235, 0.3);
+        }
+        .ph-hero h1 {
+            font-size: 2.5rem;
+            font-weight: 800;
+            margin-bottom: 12px;
+            letter-spacing: -0.5px;
+        }
+        .ph-hero p {
+            font-size: 1.15rem;
+            opacity: 0.92;
+            max-width: 680px;
+            margin: 0 auto 24px auto;
+            line-height: 1.6;
+        }
+        .ph-badge {
+            display: inline-block;
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(8px);
+            padding: 6px 14px;
+            border-radius: 9999px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin: 4px;
+        }
+        .ph-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin-bottom: 36px;
+        }
+        .ph-card {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 24px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .ph-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 20px -8px rgba(0, 0, 0, 0.08);
+        }
+        .ph-card-icon {
+            font-size: 2rem;
+            margin-bottom: 12px;
+            display: inline-block;
+        }
+        .ph-card h3 {
+            font-size: 1.2rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: #0f172a;
+        }
+        .ph-card p {
+            color: #64748b;
+            font-size: 0.95rem;
+            line-height: 1.5;
+            margin: 0;
+        }
+        .ph-section-title {
+            text-align: center;
+            font-size: 1.8rem;
+            font-weight: 800;
+            color: #0f172a;
+            margin: 40px 0 24px 0;
+        }
+        .ph-code-box {
+            background: #0f172a;
+            color: #e2e8f0;
+            border-radius: 10px;
+            padding: 20px;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-size: 0.9rem;
+            overflow-x: auto;
+            margin-bottom: 24px;
+            line-height: 1.6;
+        }
+        .ph-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 32px;
+            background: #ffffff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+        }
+        .ph-table th, .ph-table td {
+            padding: 14px 18px;
+            text-align: left;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .ph-table th {
+            background: #f8fafc;
+            color: #475569;
+            font-weight: 700;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .ph-step {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 20px;
+        }
+        .ph-step-num {
+            background: #2563eb;
+            color: #ffffff;
+            font-weight: 700;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 16px;
+            flex-shrink: 0;
+        }
+        .ph-step-content h4 {
+            margin: 0 0 4px 0;
+            font-size: 1.05rem;
+            color: #0f172a;
+        }
+        .ph-step-content p {
+            margin: 0;
+            color: #64748b;
+            font-size: 0.92rem;
+        }
+        .ph-footer {
+            text-align: center;
+            border-top: 1px solid #e2e8f0;
+            padding-top: 24px;
+            color: #94a3b8;
+            font-size: 0.85rem;
+        }
+    </style>
+</head>
+<body>
+<div class="ph-container">
+
+    <!-- Hero Header -->
+    <div class="ph-hero">
+        <span class="ph-badge">Enterprise Printing v19.0.2</span>
+        <span class="ph-badge">Multi-Branch Ready</span>
+        <span class="ph-badge">Ultra-Fast Spooling</span>
+        <h1>Print Hub Connector for Odoo</h1>
+        <p>
+            Connect your Odoo ERP directly with local workstation thermal receipt printers, dot-matrix continuous form printers, and network laser printers with zero browser dialogs.
+        </p>
+    </div>
+
+    <!-- Feature Grid -->
+    <div class="ph-grid">
+        <div class="ph-card">
+            <div class="ph-card-icon">⚡</div>
+            <h3>Direct Zero-Click Print</h3>
+            <p>Documents are spooled straight to branch hardware in the background without launching browser print modals or converting to manual PDFs.</p>
+        </div>
+        <div class="ph-card">
+            <div class="ph-card-icon">🏢</div>
+            <h3>Multi-Branch Isolation</h3>
+            <p>Seamlessly integrates with <code>res.branch</code>. Users, jobs, rules, and printers are securely isolated by the active branch.</p>
+        </div>
+        <div class="ph-card">
+            <div class="ph-card-icon">🧙</div>
+            <h3>Universal Print Wizard</h3>
+            <p>Launch direct printing from the <b>Action (⚙️)</b> menu on Job Cards, Invoices, Delivery Slips, and Sales Orders with 1-click execution.</p>
+        </div>
+        <div class="ph-card">
+            <div class="ph-card-icon">👁️</div>
+            <h3>Built-in PDF Preview</h3>
+            <p>Preview document layout directly inside the wizard before printing to avoid wasting paper and ensure correct report selection.</p>
+        </div>
+        <div class="ph-card">
+            <div class="ph-card-icon">✅</div>
+            <h3>Approval Workflow</h3>
+            <p>Require manager authorization for sensitive delivery orders or financial invoices before physical paper is printed.</p>
+        </div>
+        <div class="ph-card">
+            <div class="ph-card-icon">📊</div>
+            <h3>Analytics Dashboard</h3>
+            <p>Monitor volume and health with interactive Kanban cards, multi-dimensional Pivot tables, and graphical branch volume charts.</p>
+        </div>
+        <div class="ph-card">
+            <div class="ph-card-icon">📝</div>
+            <h3>Chatter Audit Trail</h3>
+            <p>Track every status transition directly in Odoo Chatter with timestamps, retry counters, error details, and 1-click retry actions.</p>
+        </div>
+        <div class="ph-card">
+            <div class="ph-card-icon">🔔</div>
+            <h3>Real-Time Notifications</h3>
+            <p>Instant browser toast notifications via Odoo Bus when print jobs finish or fail, plus automated To-Do activities on errors.</p>
+        </div>
+    </div>
+
+    <!-- Quick Setup Guide -->
+    <div class="ph-section-title">Quick Setup Guide</div>
+    <div style="background: #f8fafc; border-radius: 12px; padding: 28px; border: 1px solid #e2e8f0;">
+        <div class="ph-step">
+            <div class="ph-step-num">1</div>
+            <div class="ph-step-content">
+                <h4>Configure Print Hub Server</h4>
+                <p>Go to <b>Print Hub ➔ Configuration ➔ Settings</b>. Enter your Print Hub Base URL and API Key (X-API-Key).</p>
+            </div>
+        </div>
+        <div class="ph-step">
+            <div class="ph-step-num">2</div>
+            <div class="ph-step-content">
+                <h4>Test Server Connection</h4>
+                <p>Click the <b>"🔗 Test Connection"</b> button. Odoo will verify API credentials and display the number of online hardware agents.</p>
+            </div>
+        </div>
+        <div class="ph-step">
+            <div class="ph-step-num">3</div>
+            <div class="ph-step-content">
+                <h4>Sync Discovered Hardware</h4>
+                <p>Click <b>"🔄 Sync Printers Now"</b> to import all local printers, paper profiles, and printer pools discovered across your branch network.</p>
+            </div>
+        </div>
+        <div class="ph-step">
+            <div class="ph-step-num">4</div>
+            <div class="ph-step-content">
+                <h4>Set Up Document Routing Rules</h4>
+                <p>Navigate to <b>Configuration ➔ Document Routing Rules</b> to map specific reports (e.g. Surat Jalan) to designated physical printers or virtual queues.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Security Groups Table -->
+    <div class="ph-section-title">Security Roles & Permissions</div>
+    <table class="ph-table">
+        <thead>
+            <tr>
+                <th>Security Group</th>
+                <th>Access Level</th>
+                <th>Intended Users</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><b>Print Hub: User</b></td>
+                <td>Dispatch print jobs, view own job logs, inspect branch printer online status.</td>
+                <td>Staff, Service Advisors, Cashiers, Warehouse operators (Auto-assigned).</td>
+            </tr>
+            <tr>
+                <td><b>Print Hub: Manager</b></td>
+                <td>View all jobs in branch, manage Routing Rules, approve/reject print requests, run scheduled automation.</td>
+                <td>Branch Heads, Service Managers, Warehouse Supervisors.</td>
+            </tr>
+            <tr>
+                <td><b>Print Hub: Administrator</b></td>
+                <td>Full access, server connection configuration, API keys, webhook HMAC secret, printer hardware sync.</td>
+                <td>IT Administrators, System Engineers (Auto-assigned).</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <!-- Developer Mixin Section -->
+    <div class="ph-section-title">Developer Integration (`print.hub.mixin`)</div>
+    <p style="text-align: center; color: #64748b; margin-top: -16px; margin-bottom: 16px;">
+        Enable background printing on any custom Odoo model in just 3 lines of code:
+    </p>
+    <div class="ph-code-box">
+<span style="color: #94a3b8;"># Inherit the mixin in your model class</span>
+<span style="color: #f43f5e;">class</span> <span style="color: #38bdf8;">CustomDocument</span>(models.Model):
+    _name = <span style="color: #a3e635;">'custom.document'</span>
+    _inherit = [<span style="color: #a3e635;">'custom.document'</span>, <span style="color: #a3e635;">'print.hub.mixin'</span>]
+
+    <span style="color: #f43f5e;">def</span> <span style="color: #38bdf8;">action_print_to_branch_printer</span>(self):
+        self.ensure_one()
+        <span style="color: #94a3b8;"># Dispatches QWeb PDF directly to the resolved printer</span>
+        <span style="color: #f43f5e;">return</span> self.<span style="color: #fbbf24;">print_via_hub</span>(
+            report_name=<span style="color: #a3e635;">'my_module.report_custom_document'</span>,
+            options={<span style="color: #a3e635;">'copies'</span>: <span style="color: #f97316;">2</span>}
+        )
+    </div>
+
+    <!-- Footer -->
+    <div class="ph-footer">
+        <p>Enterprise Print Hub Connector for Odoo • Hartono Motor Group • LGPL-3 License</p>
+    </div>
+
+</div>
+</body>
+</html>

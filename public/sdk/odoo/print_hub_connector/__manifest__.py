@@ -21,6 +21,7 @@
         'views/print_hub_printer_views.xml',
         'views/print_hub_schedule_views.xml',
         'views/print_hub_rule_views.xml',
+        'views/print_hub_help_views.xml',
         'wizard/print_hub_wizard_views.xml',
         'views/print_hub_menus.xml',
     ],

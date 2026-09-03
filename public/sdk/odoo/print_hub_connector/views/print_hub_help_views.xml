@@ -1,0 +1,203 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- In-App Help & Documentation Form View -->
+    <record id="view_print_hub_help_form" model="ir.ui.view">
+        <field name="name">print.hub.help.form</field>
+        <field name="model">print.hub.help</field>
+        <field name="arch" type="xml">
+            <form string="Print Hub Help &amp; Documentation" create="false" edit="false" delete="false">
+                <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <i class="fa fa-book text-primary me-2"/> Print Hub User Guide &amp; Documentation
+                        </h1>
+                        <p class="text-muted lead">
+                            Comprehensive manual for direct hardware background printing, multi-branch routing, and developer integration.
+                        </p>
+                    </div>
+
+                    <notebook>
+                        <!-- Tab 1: Getting Started -->
+                        <page string="🚀 Getting Started" name="tab_getting_started">
+                            <div class="p-3">
+                                <h4 class="text-primary font-weight-bold mb-3">1. Initial Connection Setup</h4>
+                                <p>
+                                    To establish communication between Odoo and your enterprise Print Hub server:
+                                </p>
+                                <ol class="mb-4">
+                                    <li>Navigate to <b>Print Hub ➔ Configuration ➔ Settings</b>.</li>
+                                    <li>Enter your <b>Server URL</b> (e.g. <code>https://print-hub.hartonomotor-group.com</code>).</li>
+                                    <li>Enter the <b>API Key (X-API-Key)</b> generated from your Print Hub Admin Panel.</li>
+                                    <li>Click the <b>"🔗 Test Connection"</b> button to confirm live connectivity and inspect the count of online hardware agents.</li>
+                                    <li>Click <b>"🔄 Sync Printers Now"</b> to import all discovered local printers, profiles, and printer pools.</li>
+                                </ol>
+
+                                <div class="alert alert-info" role="alert">
+                                    <h5 class="alert-heading"><i class="fa fa-info-circle me-1"/> Target Printer Resolution Hierarchy</h5>
+                                    <p class="mb-0">
+                                        When a document is printed, Print Hub determines the destination hardware in this order:
+                                        <br/>
+                                        <b>1. Manual Wizard Selection</b> ➔ <b>2. Matched Routing Rule</b> ➔ <b>3. Active Branch Default</b> ➔ <b>4. User Profile Preference</b> ➔ <b>5. Global Default</b>.
+                                    </p>
+                                </div>
+                            </div>
+                        </page>
+
+                        <!-- Tab 2: User Features -->
+                        <page string="🖨️ Printing &amp; Wizard" name="tab_user_features">
+                            <div class="p-3">
+                                <h4 class="text-primary font-weight-bold mb-3">Universal Print Wizard</h4>
+                                <p>
+                                    You can trigger direct physical printing from any supported document form or list view via the <b>Action (⚙️)</b> menu:
+                                </p>
+                                <ul>
+                                    <li><b>Supported Core Models:</b> Job Cards (<code>job.card</code>), Invoices (<code>account.move</code>), Delivery Orders (<code>stock.picking</code>), and Sales Orders (<code>sale.order</code>).</li>
+                                    <li><b>Action Menu:</b> Select <i>Action ➔ 🖨️ Cetak ke Print Hub</i>.</li>
+                                    <li><b>Branch Printer Status:</b> The wizard displays live availability badges (<code>🟢 Online</code> or <code>🔴 Offline</code>).</li>
+                                    <li><b>Single &amp; Batch Printing:</b> Select multiple records in a list view and launch the wizard to spool all documents simultaneously.</li>
+                                </ul>
+
+                                <h4 class="text-primary font-weight-bold mt-4 mb-3">Built-in Print Preview</h4>
+                                <p>
+                                    Before committing to paper, click the <b>"👁️ Pratinjau (Preview)"</b> button inside the wizard. The document will be rendered and previewed inside the window, preventing paper wastage and formatting errors.
+                                </p>
+                            </div>
+                        </page>
+
+                        <!-- Tab 3: Approval Workflow -->
+                        <page string="✅ Approval Workflow" name="tab_approval">
+                            <div class="p-3">
+                                <h4 class="text-primary font-weight-bold mb-3">Print Authorization &amp; Compliance</h4>
+                                <p>
+                                    The approval workflow is a <b>toggleable feature</b> designed for sensitive documents (e.g. Invoices, Official Delivery Slips, High-Value Job Cards):
+                                </p>
+                                <ul>
+                                    <li><b>Global Switch:</b> In Settings, check <b>"Enable Print Approval Workflow"</b>. If disabled, all documents print immediately without approval delays.</li>
+                                    <li><b>Rule Level:</b> In <i>Document Routing Rules</i>, check <b>"Require Manager Approval"</b> on specific report templates.</li>
+                                    <li><b>Pending State:</b> When a print job is generated under an approval rule, its status is set to <code>⏳ Pending Approval</code> and physical spooling is paused.</li>
+                                    <li><b>Manager Action:</b> Users with the <b>Print Hub: Manager</b> role can navigate to <b>Print Jobs</b>, inspect the request, and click <b>"✅ Approve Print"</b> or <b>"❌ Reject"</b>.</li>
+                                </ul>
+                            </div>
+                        </page>
+
+                        <!-- Tab 4: Developer Guide -->
+                        <page string="💻 Developer API" name="tab_developer">
+                            <div class="p-3">
+                                <h4 class="text-primary font-weight-bold mb-3">Integrating `print.hub.mixin`</h4>
+                                <p>
+                                    Any custom Odoo model can enable enterprise background printing by inheriting <code>print.hub.mixin</code>:
+                                </p>
+                                <pre style="background: #1e293b; color: #f8fafc; padding: 16px; border-radius: 8px; font-size: 0.9rem;">
+# 1. Inherit in Python model
+class MyCustomDoc(models.Model):
+    _name = 'my.custom.doc'
+    _inherit = ['my.custom.doc', 'print.hub.mixin']
+
+    def action_direct_print(self):
+        self.ensure_one()
+        return self.print_via_hub(
+            report_name='my_module.report_custom_template',
+            options={
+                'copies': 1,
+                'branch_code': 'HRMSBY',  # optional branch override
+            }
+        )
+
+    def action_fast_continuous_form(self):
+        # Ultra-fast continuous dot-matrix printing
+        return self.print_via_hub_template(
+            template_slug='odoo_surat_jalan_continuous',
+            data_dict={'doc_no': self.name, 'customer': self.partner_id.name}
+        )
+
+    def action_batch_print(self):
+        # Spool up to 50 records in a single high-speed batch
+        return self.print_batch_via_hub(report_name='my_module.report_invoice')
+                                </pre>
+
+                                <h5 class="text-primary font-weight-bold mt-4 mb-2">Smart Button on Form Views</h5>
+                                <p>
+                                    Because your model inherits <code>print.hub.mixin</code>, you have automatic access to the <code>print_hub_job_count</code> field and <code>action_view_print_jobs()</code> method for adding a print history smart button to your form view:
+                                </p>
+                                <pre style="background: #1e293b; color: #f8fafc; padding: 16px; border-radius: 8px; font-size: 0.9rem;">
+&lt;div class="oe_button_box" name="button_box"&gt;
+    &lt;button name="action_view_print_jobs" type="object" class="oe_stat_button" icon="fa-print"&gt;
+        &lt;field name="print_hub_job_count" widget="statinfo" string="Prints"/&gt;
+    &lt;/button&gt;
+&lt;/div&gt;
+                                </pre>
+                            </div>
+                        </page>
+
+                        <!-- Tab 5: Security & Troubleshooting -->
+                        <page string="🔒 Security &amp; FAQ" name="tab_faq">
+                            <div class="p-3">
+                                <h4 class="text-primary font-weight-bold mb-3">Security Roles</h4>
+                                <table class="table table-bordered table-striped mb-4">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Role</th>
+                                            <th>Scope</th>
+                                            <th>Capabilities</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td><b>Print Hub: User</b></td>
+                                            <td>Own Records</td>
+                                            <td>Print documents via wizard or direct actions; view own print history.</td>
+                                        </tr>
+                                        <tr>
+                                            <td><b>Print Hub: Manager</b></td>
+                                            <td>Branch Wide</td>
+                                            <td>View all branch jobs; manage routing rules &amp; schedules; approve/reject jobs.</td>
+                                        </tr>
+                                        <tr>
+                                            <td><b>Print Hub: Administrator</b></td>
+                                            <td>System Wide</td>
+                                            <td>Configure server endpoint, API keys, webhook HMAC secret, hardware sync.</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+
+                                <h4 class="text-primary font-weight-bold mt-4 mb-3">Frequently Asked Questions</h4>
+                                <div class="accordion" id="faqAccordion">
+                                    <div class="mb-3">
+                                        <b>Q: Why is my target printer showing "Offline"?</b>
+                                        <p class="text-muted">
+                                            A: Physical printers appear offline if the branch workstation running the Print Hub Agent client is turned off or disconnected from the local network. Make sure the agent tray app is running.
+                                        </p>
+                                    </div>
+                                    <div class="mb-3">
+                                        <b>Q: What happens if a physical printer runs out of paper?</b>
+                                        <p class="text-muted">
+                                            A: Print Hub records the hardware alert in real time. The Odoo job status switches to <code>Failed</code>, an error message is recorded in the job's Chatter, and a To-Do Activity is automatically created for the user.
+                                        </p>
+                                    </div>
+                                    <div class="mb-3">
+                                        <b>Q: How does Webhook HMAC verification protect my system?</b>
+                                        <p class="text-muted">
+                                            A: By setting a <code>Webhook HMAC Secret</code> in Settings, every callback from Print Hub is signed using SHA-256. Unauthorized external calls to <code>/print-hub/webhook</code> are rejected with HTTP 403.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Action for Help View -->
+    <record id="action_print_hub_help" model="ir.actions.server">
+        <field name="name">Help &amp; Documentation</field>
+        <field name="model_id" ref="model_print_hub_help"/>
+        <field name="state">code</field>
+        <field name="code">
+action = model.action_open_help()
+        </field>
+    </record>
+
+</odoo>

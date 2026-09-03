@@ -61,4 +61,11 @@
               action="action_print_hub_config_settings"
               sequence="100"/>
 
+    <!-- In-App Help & Documentation Menu -->
+    <menuitem id="menu_print_hub_help"
+              name="Help &amp; Documentation"
+              parent="menu_print_hub_root"
+              action="action_print_hub_help"
+              sequence="90"/>
+
 </odoo>
